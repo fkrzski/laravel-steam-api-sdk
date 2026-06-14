@@ -56,7 +56,8 @@ it('fakes responses and resolves a vanity url', function (): void {
     $steamId = Steam::resolveVanityUrl('gabelogannewell');
 
     expect($steamId)->toBeInstanceOf(SteamId::class)
-        ->and($steamId->__toString())->toBe('76561198000000000');
+        ->and($steamId->value
+        )->toBe('76561198000000000');
 
     $mock->assertSent(ResolveVanityUrlRequest::class);
 });
