@@ -83,6 +83,39 @@ Steam::connector();          // the underlying SteamConnector
 Steam::send($customRequest); // any Saloon Request
 ```
 
+### Eloquent cast
+
+Use the `AsSteamId` cast to store a Steam ID on a model and read it back as a `SteamId` value object:
+
+```php
+use Fkrzski\LaravelSteamApiSdk\Casts\AsSteamId;
+use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use Illuminate\Database\Eloquent\Model;
+
+class User extends Model
+{
+    protected function casts(): array
+    {
+        return [
+            'steam_id' => AsSteamId::class,
+        ];
+    }
+}
+```
+
+Store the column as a `string` (a 64-bit Steam ID overflows a signed `bigint`):
+
+```php
+$user->steam_id = SteamId::fromSteamId64('76561198000000000');
+$user->steam_id = '76561198000000000'; // a plain string works too
+$user->save();
+
+$user->steam_id;        // SteamId value object
+$user->steam_id->value; // '76561198000000000'
+```
+
+On read and write the value is validated through `SteamId::fromSteamId64`; an invalid stored value throws `InvalidSteamIdException`. `null` is preserved in both directions.
+
 ## Testing
 
 `Steam::fake()` attaches a Saloon `MockClient` to the singleton connector and returns it for assertions:
