@@ -12,7 +12,7 @@ Laravel bridge for [`fkrzski/php-steam-api-sdk`](https://github.com/fkrzski/php-
 - Auto-discovered `SteamConnector` singleton, Octane-safe.
 - Rate-limit budget shared across processes through the Laravel cache store.
 - Fluent `Steam` facade with first-class request helpers.
-- One-liner test fakes via Saloon's `MockClient`.
+- `AsSteamId` Eloquent cast and one-liner test fakes via Saloon's `MockClient`.
 
 ## Requirements
 
@@ -37,7 +37,7 @@ Set your Steam Web API key in `.env`:
 STEAM_API_KEY=your-steam-web-api-key
 ```
 
-## Usage
+## Quick start
 
 ```php
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
@@ -52,89 +52,17 @@ $achievements = Steam::playerAchievements($id, appId: 381210);
 $resolvedId   = Steam::resolveVanityUrl('gabelogannewell');
 ```
 
-DTOs, the `SteamId` value object and the exception hierarchy all come from the underlying SDK — see its [README](https://github.com/fkrzski/php-steam-api-sdk) for the full surface.
+Each helper returns a strongly-typed DTO from the underlying SDK — you never touch raw JSON.
 
-### Concurrent requests
+## Documentation
 
-Use `pool()` to fan out several requests at once:
+Full documentation lives at **[docs.fkrzski.dev/laravel-steam-api-sdk](https://docs.fkrzski.dev/laravel-steam-api-sdk)**:
 
-```php
-use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\SteamApiSdk\Http\Requests\GetOwnedGamesRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\GetPlayerSummariesRequest;
-use Saloon\Http\Response;
-
-Steam::pool(
-    requests: [
-        new GetOwnedGamesRequest($id, [381210]),
-        new GetPlayerSummariesRequest([$id]),
-    ],
-    concurrency: 2,
-    responseHandler: fn (Response $response) => /* ... */,
-)->send()->wait();
-```
-
-### Escape hatch
-
-Need the raw connector or a custom request? Reach for it directly:
-
-```php
-Steam::connector();          // the underlying SteamConnector
-Steam::send($customRequest); // any Saloon Request
-```
-
-### Eloquent cast
-
-Use the `AsSteamId` cast to store a Steam ID on a model and read it back as a `SteamId` value object:
-
-```php
-use Fkrzski\LaravelSteamApiSdk\Casts\AsSteamId;
-use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
-use Illuminate\Database\Eloquent\Model;
-
-class User extends Model
-{
-    protected function casts(): array
-    {
-        return [
-            'steam_id' => AsSteamId::class,
-        ];
-    }
-}
-```
-
-Store the column as a `string` (a 64-bit Steam ID overflows a signed `bigint`):
-
-```php
-$user->steam_id = SteamId::fromSteamId64('76561198000000000');
-$user->steam_id = '76561198000000000'; // a plain string works too
-$user->save();
-
-$user->steam_id;        // SteamId value object
-$user->steam_id->value; // '76561198000000000'
-```
-
-On read and write the value is validated through `SteamId::fromSteamId64`; an invalid stored value throws `InvalidSteamIdException`. `null` is preserved in both directions.
-
-## Testing
-
-`Steam::fake()` attaches a Saloon `MockClient` to the singleton connector and returns it for assertions:
-
-```php
-use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\SteamApiSdk\Http\Requests\GetPlayerSummariesRequest;
-use Saloon\Http\Faking\MockResponse;
-
-$mock = Steam::fake([
-    GetPlayerSummariesRequest::class => MockResponse::make([
-        'response' => ['players' => [/* ... */]],
-    ]),
-]);
-
-// ... exercise code that calls the Steam API ...
-
-$mock->assertSent(GetPlayerSummariesRequest::class);
-```
+- [Guide](https://docs.fkrzski.dev/laravel-steam-api-sdk/guide) — the `SteamId` value object, facade helpers, exceptions, and concurrent requests.
+- [Configuration](https://docs.fkrzski.dev/laravel-steam-api-sdk/configuration) — the config file, your API key, and the cache-backed rate limit.
+- [API reference](https://docs.fkrzski.dev/laravel-steam-api-sdk/api-reference) — every facade method, its parameters, return type, and errors.
+- [Eloquent cast](https://docs.fkrzski.dev/laravel-steam-api-sdk/eloquent-cast) — persist a Steam ID on a model with `AsSteamId`.
+- [Testing](https://docs.fkrzski.dev/laravel-steam-api-sdk/testing) — fake the Steam Web API with `Steam::fake()`.
 
 ## License
 
