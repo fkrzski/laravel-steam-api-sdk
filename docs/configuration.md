@@ -26,6 +26,13 @@ return [
     // Sent as the "key" query parameter on every request to api.steampowered.com.
     'key' => env('STEAM_API_KEY'),
 
+    // Resolve a route parameter into a SteamId value object. See the
+    // route binding guide for details.
+    'route_binding' => [
+        'enabled' => true,
+        'parameter' => 'steamId',
+    ],
+
 ];
 ```
 
@@ -39,6 +46,12 @@ STEAM_API_KEY=your-steam-web-api-key
 ```
 
 Get a key from the [Steam Web API dashboard](https://steamcommunity.com/dev).
+
+## Route binding
+
+The `route_binding` block controls the `steamId` route binding, which resolves a
+route parameter straight into a `SteamId` value object. It is enabled by default;
+see [Route binding](/laravel-steam-api-sdk/route-binding) for the full guide.
 
 ## The connector singleton
 

@@ -17,6 +17,7 @@ Laravel way — no manual connector wiring, no raw JSON.
 - **Shared rate-limit budget** — the daily quota is tracked through your Laravel cache store, so every process draws on one counter.
 - **First-class request helpers** — `Steam::playerSummaries()`, `ownedGames()`, `userStatsForGame()`, and friends return typed DTOs.
 - **Eloquent cast** — store a Steam ID on a model and read it back as a `SteamId` value object with the [`AsSteamId`](/laravel-steam-api-sdk/eloquent-cast) cast.
+- **Route binding** — a `{steamId}` route parameter resolves into a `SteamId` value object, with a 404 on unresolvable input.
 - **One-liner fakes** — `Steam::fake()` swaps in Saloon's `MockClient` for assertions.
 
 ## Requirements
@@ -65,4 +66,5 @@ readonly DTO for that request — you never touch the underlying Saloon response
 - [Configuration](/laravel-steam-api-sdk/configuration) — the config file, your API key, and the cache-backed rate limit.
 - [API reference](/laravel-steam-api-sdk/api-reference) — every facade method, its parameters, return type, and errors.
 - [Eloquent cast](/laravel-steam-api-sdk/eloquent-cast) — persist a Steam ID on a model with `AsSteamId`.
+- [Route binding](/laravel-steam-api-sdk/route-binding) — resolve a `{steamId}` route parameter into a `SteamId` value object.
 - [Testing](/laravel-steam-api-sdk/testing) — fake the Steam Web API with `Steam::fake()`.

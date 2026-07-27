@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Fkrzski\LaravelSteamApiSdk;
 
+use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Fkrzski\SteamApiSdk\SteamConnector;
+use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\ServiceProvider;
 use Saloon\RateLimitPlugin\Stores\LaravelCacheStore;
@@ -41,5 +44,33 @@ class SteamServiceProvider extends ServiceProvider
                 __DIR__.'/../config/steam-api.php' => $this->app->configPath('steam-api.php'),
             ], 'steam-api-config');
         }
+
+        $this->registerRouteBinding();
+    }
+
+    /**
+     * Bind the configured route parameter to a {@see SteamId} value object.
+     *
+     * The binder is resolved from the container so its behaviour can be swapped
+     * by rebinding {@see SteamIdRouteBinding}.
+     */
+    protected function registerRouteBinding(): void
+    {
+        if (config('steam-api.route_binding.enabled', true) !== true) {
+            return;
+        }
+
+        /** @var string $parameter */
+        $parameter = config('steam-api.route_binding.parameter', 'steamId');
+
+        /** @var Router $router */
+        $router = $this->app->make('router');
+
+        $router->bind($parameter, function (string $value): SteamId {
+            /** @var SteamIdRouteBinding $binding */
+            $binding = $this->app->make(SteamIdRouteBinding::class);
+
+            return $binding($value);
+        });
     }
 }
