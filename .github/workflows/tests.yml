@@ -17,6 +17,15 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         php: [8.5]
         dependency-version: [prefer-lowest, prefer-stable]
+        include:
+          - os: ubuntu-latest
+            parallel: '--parallel'
+          - os: macos-latest
+            parallel: '--parallel'
+          # Windows locks bootstrap/cache/services.php across paratest workers,
+          # causing flaky rename() "Access is denied" errors. Run serially there.
+          - os: windows-latest
+            parallel: ''
 
     name: Tests P${{ matrix.php }} - ${{ matrix.os }} - ${{ matrix.dependency-version }}
 
@@ -48,7 +57,7 @@ jobs:
       run: composer update --${{ matrix.dependency-version }} --no-interaction --prefer-dist
 
     - name: Unit Tests
-      run: composer test:unit
+      run: vendor/bin/pest ${{ matrix.parallel }} --coverage --exactly=100
 
   mutation:
     runs-on: ubuntu-latest
