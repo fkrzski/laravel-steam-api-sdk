@@ -39,10 +39,16 @@ class SteamServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->loadTranslationsFrom(__DIR__.'/../lang', 'steam-api');
+
         if ($this->app->runningInConsole()) {
             $this->publishes([
                 __DIR__.'/../config/steam-api.php' => $this->app->configPath('steam-api.php'),
             ], 'steam-api-config');
+
+            $this->publishes([
+                __DIR__.'/../lang' => $this->app->langPath('vendor/steam-api'),
+            ], 'steam-api-translations');
         }
 
         $this->registerRouteBinding();

@@ -12,7 +12,7 @@ Laravel bridge for [`fkrzski/php-steam-api-sdk`](https://github.com/fkrzski/php-
 - Auto-discovered `SteamConnector` singleton, Octane-safe.
 - Rate-limit budget shared across processes through the Laravel cache store.
 - Fluent `Steam` facade with first-class request helpers.
-- `AsSteamId` Eloquent cast and one-liner test fakes via Saloon's `MockClient`.
+- `AsSteamId` Eloquent cast, `SteamIdRule` validation rule and one-liner test fakes via Saloon's `MockClient`.
 
 ## Requirements
 
@@ -62,6 +62,8 @@ Full documentation lives at **[docs.fkrzski.dev/laravel-steam-api-sdk](https://d
 - [Configuration](https://docs.fkrzski.dev/laravel-steam-api-sdk/configuration) — the config file, your API key, and the cache-backed rate limit.
 - [API reference](https://docs.fkrzski.dev/laravel-steam-api-sdk/api-reference) — every facade method, its parameters, return type, and errors.
 - [Eloquent cast](https://docs.fkrzski.dev/laravel-steam-api-sdk/eloquent-cast) — persist a Steam ID on a model with `AsSteamId`.
+- [Route binding](https://docs.fkrzski.dev/laravel-steam-api-sdk/route-binding) — resolve a `{steamId}` route parameter into a `SteamId` value object.
+- [Validation rule](https://docs.fkrzski.dev/laravel-steam-api-sdk/validation) — validate submitted Steam IDs with `SteamIdRule`.
 - [Testing](https://docs.fkrzski.dev/laravel-steam-api-sdk/testing) — fake the Steam Web API with `Steam::fake()`.
 
 ## License

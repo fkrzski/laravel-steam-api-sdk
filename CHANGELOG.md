@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `AsSteamId` Eloquent cast — converts a model attribute to a `SteamId` value object on read and serializes it back to its 64-bit string on write. Values are validated through `SteamId::fromSteamId64`; non-scalar stored values throw `InvalidSteamIdException` and `null` is preserved.
 - `SteamId` route binding — a `{steamId}` route parameter is resolved into a `SteamId` value object through `SteamId::tryFromInput` (accepting a 64-bit ID or a `/profiles/<id>` URL), aborting with a 404 on unresolvable input. Enabled by default and configurable via `steam-api.route_binding` (`enabled`, `parameter`); the resolver `SteamIdRouteBinding` is resolved from the container and can be swapped by rebinding it.
+- `SteamIdRule` validation rule — validates that an attribute resolves to a `SteamId`, accepting a 64-bit ID or a `/profiles/<id>` URL by default and only a raw 64-bit ID in `strict()` mode. Format-only, so no Steam Web API call is made during validation; `string`, `int` and `Stringable` values are accepted and trimmed. Messages ship as the `steam-api` translation namespace, publishable under the `steam-api-translations` tag.
 
 ## [0.1.0] - 2026-06-011
 
