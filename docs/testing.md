@@ -29,6 +29,18 @@ $mock = Steam::fake([
 Because the fake is attached to the shared connector singleton, it covers every
 call made through the facade — the request helpers, `pool()`, and `send()` alike.
 
+## A key is still required
+
+`Steam::fake()` builds the connector before swapping its HTTP client, so your test
+suite needs *some* API key or it hits
+[`SteamApiKeyMissingException`](/laravel-steam-api-sdk/configuration#the-api-key). No
+request leaves your machine, so the value is irrelevant — set a placeholder in
+`phpunit.xml`:
+
+```xml
+<env name="STEAM_API_KEY" value="testing"/>
+```
+
 ## Asserting
 
 The returned `MockClient` exposes Saloon's assertion helpers:

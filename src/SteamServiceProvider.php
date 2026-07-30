@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Fkrzski\LaravelSteamApiSdk;
 
+use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Fkrzski\SteamApiSdk\SteamConnector;
@@ -19,17 +20,12 @@ class SteamServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/steam-api.php', 'steam-api');
 
-        $this->app->singleton(SteamConnector::class, function (): SteamConnector {
-            /** @var string $apiKey */
-            $apiKey = config('steam-api.key', '');
-
-            return new SteamConnector(
-                new SteamConfig(
-                    apiKey: $apiKey,
-                    rateLimitStore: new LaravelCacheStore(Cache::store()),
-                ),
-            );
-        });
+        $this->app->singleton(SteamConnector::class, fn (): SteamConnector => new SteamConnector(
+            new SteamConfig(
+                apiKey: $this->steamApiKey(),
+                rateLimitStore: new LaravelCacheStore(Cache::store()),
+            ),
+        ));
 
         $this->app->singleton(
             SteamManager::class,
@@ -52,6 +48,25 @@ class SteamServiceProvider extends ServiceProvider
         }
 
         $this->registerRouteBinding();
+    }
+
+    /**
+     * The configured Steam Web API key.
+     *
+     * Resolved from config rather than read once at register time, so the key is
+     * only required when the connector is actually built.
+     *
+     * @throws SteamApiKeyMissingException when the key is unset, blank, or not a string
+     */
+    protected function steamApiKey(): string
+    {
+        $apiKey = config('steam-api.key');
+
+        if (! is_string($apiKey) || trim($apiKey) === '') {
+            throw new SteamApiKeyMissingException;
+        }
+
+        return trim($apiKey);
     }
 
     /**
