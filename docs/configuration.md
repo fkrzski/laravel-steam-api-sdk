@@ -47,6 +47,12 @@ STEAM_API_KEY=your-steam-web-api-key
 
 Get a key from the [Steam Web API dashboard](https://steamcommunity.com/dev).
 
+If the key is missing — unset, or present but blank — the bridge throws
+`SteamApiKeyMissingException` naming both `STEAM_API_KEY` and the `steam-api.key`
+config value. The check runs when the connector is first built, not at boot, so an
+application still boots, caches its config, and publishes the config file before a key
+is ever set; the error surfaces on your first Steam call.
+
 ## Route binding
 
 The `route_binding` block controls the `steamId` route binding, which resolves a

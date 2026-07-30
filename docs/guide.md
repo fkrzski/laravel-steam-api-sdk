@@ -97,9 +97,16 @@ SteamApiException                (root, extends RuntimeException)
 ├── SteamUserNotFoundException   Vanity URL unresolved or profile missing.
 ├── ProfileNotPublicException    Profile, games list, or stats are private.
 ├── TooManySteamIdsException     More than 100 IDs in a batch request.
-└── SteamRateLimitException      Daily quota reached; exposes the offending Limit.
+├── SteamRateLimitException      Daily quota reached; exposes the offending Limit.
+└── SteamApiKeyMissingException  No API key configured. (Laravel bridge)
 ```
 
 Catch the leaf you care about, or the root `SteamApiException` to handle every SDK
 failure uniformly. The [API reference](/laravel-steam-api-sdk/api-reference) notes which
 helper throws which exception.
+
+Every leaf but the last lives in the core SDK's
+`Fkrzski\SteamApiSdk\Exceptions` namespace. `SteamApiKeyMissingException` is the
+bridge's own — `Fkrzski\LaravelSteamApiSdk\Exceptions` — and signals a
+misconfiguration rather than a failed call; see
+[Configuration](/laravel-steam-api-sdk/configuration#the-api-key).
