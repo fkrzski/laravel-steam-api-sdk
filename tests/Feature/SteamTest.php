@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
+use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
 use Fkrzski\SteamApiSdk\Dto\OwnedGame;
 use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
 use Fkrzski\SteamApiSdk\Dto\PlayerSummary;
 use Fkrzski\SteamApiSdk\Dto\UserStats;
+use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 use Fkrzski\SteamApiSdk\Http\Requests\GetOwnedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\GetPlayerAchievementsRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\GetPlayerSummariesRequest;
@@ -36,6 +38,44 @@ it('merges the package config', function (): void {
 
 it('configures the connector with the api key', function (): void {
     expect(app(SteamConnector::class)->steamConfig->apiKey)->toBe('test-steam-api-key');
+});
+
+it('trims surrounding whitespace from the api key', function (): void {
+    config()->set('steam-api.key', '  test-steam-api-key  ');
+
+    expect(app(SteamConnector::class)->steamConfig->apiKey)->toBe('test-steam-api-key');
+});
+
+it('throws when the api key is missing', function (mixed $key): void {
+    config()->set('steam-api.key', $key);
+
+    expect(fn (): SteamConnector => app(SteamConnector::class))
+        ->toThrow(SteamApiKeyMissingException::class);
+})->with([
+    'null' => null,
+    'empty string' => '',
+    'whitespace only' => '   ',
+    'integer' => 123,
+    'array' => [[]],
+    'boolean' => true,
+]);
+
+it('names the env var and the config key in the exception', function (): void {
+    config()->set(['steam-api.key' => null]);
+
+    $resolve = fn (): SteamConnector => app(SteamConnector::class);
+
+    expect($resolve)->toThrow(SteamApiKeyMissingException::class, 'STEAM_API_KEY')
+        ->and($resolve)->toThrow(SteamApiKeyMissingException::class, 'steam-api.key')
+        ->and(new SteamApiKeyMissingException)->toBeInstanceOf(SteamApiException::class);
+});
+
+it('does not require the api key until the connector is built', function (): void {
+    config()->set(['steam-api.key' => null]);
+
+    expect(app(SteamManager::class))->toBeInstanceOf(SteamManager::class)
+        ->and(fn (): SteamConnector => Steam::connector())
+        ->toThrow(SteamApiKeyMissingException::class);
 });
 
 it('resolves the facade to the manager singleton', function (): void {
