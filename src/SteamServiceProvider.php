@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Fkrzski\LaravelSteamApiSdk;
 
+use Fkrzski\LaravelSteamApiSdk\Console\AboutSection;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use Illuminate\Foundation\Console\AboutCommand;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\ServiceProvider;
@@ -45,6 +47,8 @@ class SteamServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../lang' => $this->app->langPath('vendor/steam-api'),
             ], 'steam-api-translations');
+
+            AboutCommand::add('Steam API', AboutSection::class);
         }
 
         $this->registerRouteBinding();
