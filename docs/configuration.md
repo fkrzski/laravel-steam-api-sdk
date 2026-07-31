@@ -86,3 +86,30 @@ CACHE_STORE=redis
 With the `array` or `file` cache driver the budget is not shared across processes
 — fine for local development, but pick a shared driver in production so the daily
 quota is enforced app-wide.
+
+## Checking your setup
+
+The provider registers a **Steam API** section on Laravel's `about` command:
+
+```bash
+php artisan about --only=steam_api
+```
+
+```text
+  Steam API ...........................................................
+  API Key .................................................. ********4f2a
+  Daily Requests Remaining ........................... 99,412 of 100,000
+  Rate Limit Store ................................................ redis
+```
+
+- **API Key** — the configured key, masked down to its last four characters so
+  the output stays safe to paste into a bug report. Shows `NOT SET` when no key
+  is configured.
+- **Rate Limit Store** — the cache store the daily counter lives in, i.e. your
+  `cache.default`.
+- **Daily Requests Remaining** — what is left of the 100 000 request budget,
+  read from that store. Shows `UNKNOWN` while no key is set, since the counter
+  belongs to the connector.
+
+Nothing here runs on boot: the values are computed only when the command renders,
+and no request is ever sent to Steam.
