@@ -30,6 +30,32 @@ foreach ($summaries as $summary) {
 }
 ```
 
+### `friendList()`
+
+```text
+Steam::friendList(SteamId $steamId, ?FriendRelationship $relationship = null): list<Friend>
+```
+
+Lists a player's friends, each with the relationship and the date it started.
+`relationship` narrows the result — pass the `FriendRelationship` enum
+(`FriendRelationship::Friend` or `FriendRelationship::All`); omit it to let Steam
+decide.
+
+- Returns `list<Friend>`.
+- Throws Saloon's `UnauthorizedException` (a `401`) when the friend list is private
+  — unlike `ownedGames()`, this endpoint refuses the request rather than returning
+  an empty payload, so there is no `ProfileNotPublicException` here.
+
+```php
+use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
+
+$friends = Steam::friendList($steamId, FriendRelationship::Friend);
+
+foreach ($friends as $friend) {
+    echo $friend->steamId->value, ' — since ', $friend->friendSince->format('Y-m-d'), PHP_EOL;
+}
+```
+
 ### `ownedGames()`
 
 ```text
