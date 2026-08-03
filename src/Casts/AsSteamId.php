@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * @implements CastsAttributes<SteamId, SteamId|string>
  */
-class AsSteamId implements CastsAttributes
+final class AsSteamId implements CastsAttributes
 {
     /**
      * {@inheritDoc}

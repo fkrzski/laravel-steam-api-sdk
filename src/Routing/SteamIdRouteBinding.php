@@ -15,7 +15,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  * {@see SteamServiceProvider}. Swap the behaviour by
  * rebinding this class in the container.
  */
-class SteamIdRouteBinding
+final class SteamIdRouteBinding
 {
     /**
      * @throws NotFoundHttpException when the value is not a resolvable Steam ID

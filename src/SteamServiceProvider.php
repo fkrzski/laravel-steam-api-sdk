@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\ServiceProvider;
 use Saloon\RateLimitPlugin\Stores\LaravelCacheStore;
 
-class SteamServiceProvider extends ServiceProvider
+final class SteamServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
@@ -62,7 +62,7 @@ class SteamServiceProvider extends ServiceProvider
      *
      * @throws SteamApiKeyMissingException when the key is unset, blank, or not a string
      */
-    protected function steamApiKey(): string
+    private function steamApiKey(): string
     {
         $apiKey = config('steam-api.key');
 
@@ -79,7 +79,7 @@ class SteamServiceProvider extends ServiceProvider
      * The binder is resolved from the container so its behaviour can be swapped
      * by rebinding {@see SteamIdRouteBinding}.
      */
-    protected function registerRouteBinding(): void
+    private function registerRouteBinding(): void
     {
         if (config('steam-api.route_binding.enabled', true) !== true) {
             return;

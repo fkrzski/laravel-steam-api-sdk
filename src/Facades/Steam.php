@@ -17,11 +17,11 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Fkrzski\SteamApiSdk\Dto\UserStats userStatsForGame(\Fkrzski\SteamApiSdk\ValueObjects\SteamId $steamId, int $appId, ?string $language = null)
  * @method static \Fkrzski\SteamApiSdk\Dto\PlayerAchievements playerAchievements(\Fkrzski\SteamApiSdk\ValueObjects\SteamId $steamId, int $appId, ?string $language = null)
  * @method static \Fkrzski\SteamApiSdk\ValueObjects\SteamId resolveVanityUrl(string $vanityName)
- * @method static \Saloon\Http\Faking\MockClient fake(array<class-string, mixed> $responses = [])
+ * @method static \Saloon\Http\Faking\MockClient fake(array<array-key, (callable(): mixed)|\Saloon\Http\Faking\Fixture|\Saloon\Http\Faking\MockResponse> $responses = [])
  *
  * @see SteamManager
  */
-class Steam extends Facade
+final class Steam extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
