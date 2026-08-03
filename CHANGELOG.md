@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `php artisan about` — a "Steam API" section with the masked API key (last four characters only), the cache store backing the rate limit, and the remaining daily request budget. Values are resolved when the command renders, never on boot.
 
+### Changed
+
+- Requires `fkrzski/php-steam-api-sdk` `^0.3`, which groups its request classes into per-interface subnamespaces — `Http\Requests\ISteamUser`, `Http\Requests\ISteamUserStats` and `Http\Requests\IPlayerService`. The facade helpers are unaffected, but code that names a request class directly — a `Steam::fake()` response map, `assertSent()`, or a request passed to `send()` or `pool()` — has to update its imports.
+
 ### Fixed
 
 - A missing Steam Web API key now throws `SteamApiKeyMissingException` naming both the `STEAM_API_KEY` env var and the `steam-api.key` config value, instead of surfacing a `TypeError` from `SteamConfig` inside the container. `env('STEAM_API_KEY')` resolves to `null` when unset, so the default in `config('steam-api.key', '')` never applied. Blank and non-string values are rejected the same way, and a key is trimmed before use. The check runs when the connector is first built rather than at boot, so an application without a key can still boot and publish the config.

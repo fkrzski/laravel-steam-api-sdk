@@ -55,8 +55,8 @@ Use `pool()` to fan out several requests at once instead of sending them seriall
 
 ```php
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\SteamApiSdk\Http\Requests\GetOwnedGamesRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\GetPlayerSummariesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Saloon\Http\Response;
 
 Steam::pool(

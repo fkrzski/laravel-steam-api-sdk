@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Console\AboutSection;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\SteamApiSdk\Http\Requests\ResolveVanityUrlRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Support\Facades\Artisan;
