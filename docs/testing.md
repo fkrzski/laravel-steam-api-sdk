@@ -14,7 +14,7 @@ under test sends is answered from the map instead of the network:
 
 ```php
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\SteamApiSdk\Http\Requests\GetPlayerSummariesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Saloon\Http\Faking\MockResponse;
 
 $mock = Steam::fake([
@@ -60,7 +60,7 @@ A complete test with Pest:
 
 ```php
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\SteamApiSdk\Http\Requests\GetPlayerSummariesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Saloon\Http\Faking\MockResponse;
 
