@@ -5,12 +5,15 @@ declare(strict_types=1);
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
+use Fkrzski\SteamApiSdk\Dto\Friend;
 use Fkrzski\SteamApiSdk\Dto\OwnedGame;
 use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
 use Fkrzski\SteamApiSdk\Dto\PlayerSummary;
 use Fkrzski\SteamApiSdk\Dto\UserStats;
+use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsRequest;
@@ -130,6 +133,56 @@ it('fetches player summaries through the convenience method', function (): void 
         ->and($summaries[0]->personaName)->toBe('Gabe');
 
     $mock->assertSent(GetPlayerSummariesRequest::class);
+});
+
+it('fetches a friend list', function (): void {
+    $mock = Steam::fake([
+        GetFriendListRequest::class => MockResponse::make([
+            'friendslist' => [
+                'friends' => [
+                    [
+                        'steamid' => '76561198000000001',
+                        'relationship' => 'friend',
+                        'friend_since' => 1600000000,
+                    ],
+                ],
+            ],
+        ]),
+    ]);
+
+    $friends = Steam::friendList(steamId());
+
+    expect($friends)->toHaveCount(1)
+        ->and($friends[0])->toBeInstanceOf(Friend::class)
+        ->and($friends[0]->steamId->value)->toBe('76561198000000001')
+        ->and($friends[0]->relationship)->toBe(FriendRelationship::Friend)
+        ->and($friends[0]->friendSince->getTimestamp())->toBe(1600000000);
+
+    $mock->assertSent(GetFriendListRequest::class);
+});
+
+it('sends no relationship filter by default', function (): void {
+    $mock = Steam::fake([
+        GetFriendListRequest::class => MockResponse::make(['friendslist' => ['friends' => []]]),
+    ]);
+
+    expect(Steam::friendList(steamId()))->toBe([]);
+
+    $mock->assertSent(
+        fn (GetFriendListRequest $request): bool => ! $request->relationship instanceof FriendRelationship,
+    );
+});
+
+it('narrows the friend list to a relationship', function (): void {
+    $mock = Steam::fake([
+        GetFriendListRequest::class => MockResponse::make(['friendslist' => ['friends' => []]]),
+    ]);
+
+    Steam::friendList(steamId(), FriendRelationship::All);
+
+    $mock->assertSent(
+        fn (GetFriendListRequest $request): bool => $request->relationship === FriendRelationship::All,
+    );
 });
 
 it('fetches owned games', function (): void {

@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk;
 
 use Closure;
+use Fkrzski\SteamApiSdk\Dto\Friend;
 use Fkrzski\SteamApiSdk\Dto\OwnedGame;
 use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
 use Fkrzski\SteamApiSdk\Dto\PlayerSummary;
 use Fkrzski\SteamApiSdk\Dto\UserStats;
+use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsRequest;
@@ -78,6 +81,18 @@ class SteamManager
     public function playerSummaries(array $steamIds): array
     {
         $request = new GetPlayerSummariesRequest($steamIds);
+
+        return $request->createDtoFromResponse($this->send($request));
+    }
+
+    /**
+     * Fetch a player's friend list, optionally narrowed to one relationship.
+     *
+     * @return list<Friend>
+     */
+    public function friendList(SteamId $steamId, ?FriendRelationship $relationship = null): array
+    {
+        $request = new GetFriendListRequest($steamId, $relationship);
 
         return $request->createDtoFromResponse($this->send($request));
     }
