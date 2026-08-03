@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Facade;
  *
  * @see SteamManager
  */
-class Steam extends Facade
+final class Steam extends Facade
 {
     protected static function getFacadeAccessor(): string
     {

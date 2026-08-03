@@ -17,9 +17,9 @@ use Stringable;
  * "/profiles/<id>" URL passes. Call {@see self::strict()} to accept only a raw
  * 64-bit ID. The rule never touches the network — it validates format alone.
  */
-class SteamIdRule implements ValidationRule
+final class SteamIdRule implements ValidationRule
 {
-    protected bool $strict = false;
+    private bool $strict = false;
 
     public static function make(): self
     {
@@ -56,7 +56,7 @@ class SteamIdRule implements ValidationRule
     /**
      * Whether the trimmed input resolves to a Steam ID under the active mode.
      */
-    protected function resolves(string $input): bool
+    private function resolves(string $input): bool
     {
         if (! $this->strict) {
             return SteamId::tryFromInput($input) instanceof SteamId;
@@ -71,7 +71,7 @@ class SteamIdRule implements ValidationRule
         return true;
     }
 
-    protected function messageKey(): string
+    private function messageKey(): string
     {
         return $this->strict
             ? 'steam-api::validation.steam_id_strict'

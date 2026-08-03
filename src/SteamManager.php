@@ -32,13 +32,13 @@ use Saloon\Http\Response;
  * Resolves the connector lazily so the manager stays safe to register as a
  * singleton under Octane.
  */
-class SteamManager
+final readonly class SteamManager
 {
     /**
      * @param  Closure(): SteamConnector  $connectorResolver
      */
     public function __construct(
-        protected readonly Closure $connectorResolver,
+        private Closure $connectorResolver,
     ) {}
 
     /**
