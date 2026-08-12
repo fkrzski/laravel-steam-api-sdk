@@ -49,7 +49,7 @@ jobs:
       run: composer update --prefer-stable --no-interaction --prefer-dist
 
     - name: Profanity Checks
-      run: composer test:profanity
+      run: composer test:profanity -- --ci
 
     - name: Coding Style Checks
       run: composer test:lint
@@ -58,4 +58,4 @@ jobs:
       run: composer test:types
 
     - name: Type Coverage Checks
-      run: composer test:type-coverage
+      run: composer test:type-coverage -- --ci

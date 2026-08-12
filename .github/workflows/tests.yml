@@ -72,7 +72,7 @@ jobs:
       run: composer update --${{ matrix.dependency-version }} --no-interaction --prefer-dist
 
     - name: Unit Tests
-      run: vendor/bin/pest ${{ matrix.parallel }} --coverage --exactly=100
+      run: vendor/bin/pest --ci ${{ matrix.parallel }} --coverage --exactly=100
 
   mutation:
     runs-on: ubuntu-latest
@@ -122,4 +122,4 @@ jobs:
       run: composer update --prefer-stable --no-interaction --prefer-dist
 
     - name: Mutation Tests
-      run: composer test:mutate
+      run: composer test:mutate -- --ci
