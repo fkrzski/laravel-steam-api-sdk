@@ -156,7 +156,7 @@ it('sends no relationship filter by default', function (): void {
         GetFriendListRequest::class => MockResponse::make(['friendslist' => ['friends' => []]]),
     ]);
 
-    expect(Steam::friendList(steamId()))->toBe([]);
+    expect(Steam::friendList(steamId()))->toBeEmpty();
 
     $mock->assertSent(
         fn (GetFriendListRequest $request): bool => ! $request->relationship instanceof FriendRelationship,
