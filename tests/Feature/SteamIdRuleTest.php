@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Rules\SteamIdRule;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
-use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Stringable;
+use Illuminate\Validation\Validator as ValidatorInstance;
 
 mutates(SteamIdRule::class);
 
 const RULE_STEAM_ID_64 = '76561198000000000';
 
-function validateSteamId(mixed $value, ?SteamIdRule $rule = null): ValidatorContract
+function validateSteamId(mixed $value, ?SteamIdRule $rule = null): ValidatorInstance
 {
     return Validator::make(
         ['steam_id' => $value],

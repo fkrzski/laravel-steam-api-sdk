@@ -5,13 +5,7 @@ declare(strict_types=1);
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
-use Fkrzski\SteamApiSdk\Dto\Friend;
-use Fkrzski\SteamApiSdk\Dto\OwnedGame;
-use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
-use Fkrzski\SteamApiSdk\Dto\PlayerSummary;
-use Fkrzski\SteamApiSdk\Dto\UserStats;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
-use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
@@ -69,14 +63,14 @@ it('names the env var and the config key in the exception', function (): void {
     $resolve = fn (): SteamConnector => app(SteamConnector::class);
 
     expect($resolve)->toThrow(SteamApiKeyMissingException::class, 'STEAM_API_KEY')
-        ->and($resolve)->toThrow(SteamApiKeyMissingException::class, 'steam-api.key')
-        ->and(new SteamApiKeyMissingException)->toBeInstanceOf(SteamApiException::class);
+        ->and($resolve)->toThrow(SteamApiKeyMissingException::class, 'steam-api.key');
 });
 
 it('does not require the api key until the connector is built', function (): void {
     config()->set(['steam-api.key' => null]);
 
-    expect(app(SteamManager::class))->toBeInstanceOf(SteamManager::class)
+    expect(fn (): SteamManager => app(SteamManager::class))
+        ->not->toThrow(SteamApiKeyMissingException::class)
         ->and(fn (): SteamConnector => Steam::connector())
         ->toThrow(SteamApiKeyMissingException::class);
 });
@@ -98,9 +92,7 @@ it('fakes responses and resolves a vanity url', function (): void {
 
     $steamId = Steam::resolveVanityUrl('gabelogannewell');
 
-    expect($steamId)->toBeInstanceOf(SteamId::class)
-        ->and($steamId->value
-        )->toBe('76561198000000000');
+    expect($steamId->value)->toBe('76561198000000000');
 
     $mock->assertSent(ResolveVanityUrlRequest::class);
 });
@@ -129,7 +121,6 @@ it('fetches player summaries through the convenience method', function (): void 
     $summaries = Steam::playerSummaries([SteamId::fromSteamId64('76561198000000000')]);
 
     expect($summaries)->toHaveCount(1)
-        ->and($summaries[0])->toBeInstanceOf(PlayerSummary::class)
         ->and($summaries[0]->personaName)->toBe('Gabe');
 
     $mock->assertSent(GetPlayerSummariesRequest::class);
@@ -153,7 +144,6 @@ it('fetches a friend list', function (): void {
     $friends = Steam::friendList(steamId());
 
     expect($friends)->toHaveCount(1)
-        ->and($friends[0])->toBeInstanceOf(Friend::class)
         ->and($friends[0]->steamId->value)->toBe('76561198000000001')
         ->and($friends[0]->relationship)->toBe(FriendRelationship::Friend)
         ->and($friends[0]->friendSince->getTimestamp())->toBe(1600000000);
@@ -200,7 +190,6 @@ it('fetches owned games', function (): void {
     $games = Steam::ownedGames(steamId(), appIdsFilter: [381210]);
 
     expect($games)->toHaveCount(1)
-        ->and($games[0])->toBeInstanceOf(OwnedGame::class)
         ->and($games[0]->appId)->toBe(381210);
 
     $mock->assertSent(GetOwnedGamesRequest::class);
@@ -220,8 +209,7 @@ it('fetches user stats for a game', function (): void {
 
     $stats = Steam::userStatsForGame(steamId(), appId: 381210);
 
-    expect($stats)->toBeInstanceOf(UserStats::class)
-        ->and($stats->gameName)->toBe('Dead by Daylight');
+    expect($stats->gameName)->toBe('Dead by Daylight');
 
     $mock->assertSent(GetUserStatsForGameRequest::class);
 });
@@ -242,7 +230,8 @@ it('fetches player achievements', function (): void {
 
     $achievements = Steam::playerAchievements(steamId(), appId: 381210);
 
-    expect($achievements)->toBeInstanceOf(PlayerAchievements::class);
+    expect($achievements->gameName)->toBe('Dead by Daylight')
+        ->and($achievements->achievements)->toHaveCount(1);
 
     $mock->assertSent(GetPlayerAchievementsRequest::class);
 });
@@ -256,8 +245,7 @@ it('sends an arbitrary request and returns the raw response', function (): void 
 
     $response = Steam::send(new ResolveVanityUrlRequest('gabelogannewell'));
 
-    expect($response)->toBeInstanceOf(Response::class)
-        ->and($response->status())->toBe(200);
+    expect($response->status())->toBe(200);
 });
 
 it('sends requests concurrently through a pool', function (): void {

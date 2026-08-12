@@ -23,8 +23,7 @@ function binding(): SteamIdRouteBinding
 it('resolves a 64-bit steam id to a value object', function (): void {
     $steamId = binding()(ROUTE_STEAM_ID_64);
 
-    expect($steamId)->toBeInstanceOf(SteamId::class)
-        ->and($steamId->value)->toBe(ROUTE_STEAM_ID_64);
+    expect($steamId->value)->toBe(ROUTE_STEAM_ID_64);
 });
 
 it('resolves a profile url to a value object', function (): void {
@@ -60,10 +59,10 @@ it('registers the binding under the configured parameter by default', function (
 it('does not register the binding when disabled', function (): void {
     config()->set('steam-api.route_binding.enabled', false);
 
-    $router = new Router(new Dispatcher, $this->app);
-    $this->app->instance('router', $router);
+    $router = new Router(new Dispatcher, app());
+    app()->instance('router', $router);
 
-    new SteamServiceProvider($this->app)->boot();
+    new SteamServiceProvider(app())->boot();
 
     expect($router->getBindingCallback('steamId'))->toBeNull();
 });
@@ -71,10 +70,10 @@ it('does not register the binding when disabled', function (): void {
 it('registers the binding under a custom parameter name', function (): void {
     config()->set('steam-api.route_binding.parameter', 'gamer');
 
-    $router = new Router(new Dispatcher, $this->app);
-    $this->app->instance('router', $router);
+    $router = new Router(new Dispatcher, app());
+    app()->instance('router', $router);
 
-    new SteamServiceProvider($this->app)->boot();
+    new SteamServiceProvider(app())->boot();
 
     expect($router->getBindingCallback('gamer'))->not->toBeNull()
         ->and($router->getBindingCallback('steamId'))->toBeNull();

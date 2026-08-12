@@ -21,6 +21,7 @@
         "laravel/pint": "^1.29.1",
         "orchestra/testbench": "^11.0",
         "pestphp/pest": "^5.0.0",
+        "pestphp/pest-plugin-phpstan": "^5.0.2",
         "pestphp/pest-plugin-type-coverage": "^5.0.0",
         "phpstan/phpstan": "^2.2.7",
         "rector/rector": "^2.4.2",
