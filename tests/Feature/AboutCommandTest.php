@@ -125,7 +125,7 @@ it('reports an unknown budget when the api key is missing', function (): void {
 });
 
 it('reports an unknown budget when the connector declares no upfront limit', function (): void {
-    $this->app->instance(SteamConnector::class, new class(new SteamConfig('test-steam-api-key')) extends SteamConnector
+    app()->instance(SteamConnector::class, new class(new SteamConfig('test-steam-api-key')) extends SteamConnector
     {
         /**
          * @return array<Limit>
@@ -142,5 +142,5 @@ it('reports an unknown budget when the connector declares no upfront limit', fun
 it('does not resolve the connector while booting', function (): void {
     config()->set(['steam-api.key' => null]);
 
-    expect($this->app->resolved(SteamConnector::class))->toBeFalse();
+    expect(app()->resolved(SteamConnector::class))->toBeFalse();
 });

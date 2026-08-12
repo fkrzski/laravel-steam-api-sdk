@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use Pest\Rector\Set\PestSetList;
 use Rector\Config\RectorConfig;
-use Rector\Php83\Rector\ClassMethod\AddOverrideAttributeToOverriddenMethodsRector;
 use Rector\Php85\Rector\Property\AddOverrideAttributeToOverriddenPropertiesRector;
 
 return RectorConfig::configure()
@@ -12,7 +12,6 @@ return RectorConfig::configure()
         __DIR__.'/tests',
     ])
     ->withSkip([
-        AddOverrideAttributeToOverriddenMethodsRector::class,
         AddOverrideAttributeToOverriddenPropertiesRector::class,
     ])
     ->withCache(
@@ -26,4 +25,7 @@ return RectorConfig::configure()
         privatization: true,
         earlyReturn: true,
     )
+    ->withSets([
+        PestSetList::CODING_STYLE,
+    ])
     ->withPhpSets();

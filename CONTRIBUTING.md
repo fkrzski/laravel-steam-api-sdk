@@ -47,3 +47,28 @@ Unit tests:
 ```bash
 composer test:unit
 ```
+
+## Test impact analysis
+
+Local runs only re-run the tests your changes actually reach and replay the rest
+from a cached dependency graph. Nothing to enable — it is on by default, and the
+first run after a change records the graph.
+
+Force a full run when you want one:
+```bash
+vendor/bin/pest --no-tia
+```
+
+Rebuild the graph if it ever looks stale:
+```bash
+vendor/bin/pest --tia --fresh
+```
+
+After a fresh clone, pull master's graph instead of recording your own (needs
+the `gh` CLI, authenticated):
+```bash
+vendor/bin/pest --tia --baselined
+```
+
+CI passes `--ci`, which turns this off — every workflow run executes the whole
+suite.

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 
 arch('laravel preset')->preset()->laravel();
 
@@ -22,3 +23,9 @@ arch('strict preset, facade aside from its accessor')
     ->toBeFinal()
     ->toUseStrictTypes()
     ->toUseStrictEquality();
+
+// Callers catch the base SDK exception to handle every Steam failure in one
+// place; a bridge exception outside that hierarchy would slip past them.
+arch('package exceptions extend the base sdk exception')
+    ->expect('Fkrzski\\LaravelSteamApiSdk\\Exceptions')
+    ->toExtend(SteamApiException::class);

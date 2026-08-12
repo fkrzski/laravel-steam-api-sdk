@@ -35,8 +35,8 @@ beforeEach(function (): void {
     File::ensureDirectoryExists(installDirectory().'/config');
     File::put(envFile(), "APP_NAME=Laravel\n");
 
-    $this->app->useEnvironmentPath(installDirectory());
-    $this->app->useConfigPath(installDirectory().'/config');
+    app()->useEnvironmentPath(installDirectory());
+    app()->useConfigPath(installDirectory().'/config');
 });
 
 afterEach(function (): void {
@@ -44,7 +44,7 @@ afterEach(function (): void {
 });
 
 it('publishes the config file', function (): void {
-    $this->artisan('steam:install')
+    $this->pendingCommand('steam:install')
         ->expectsQuestion(KEY_QUESTION, 'test-steam-api-key')
         ->expectsOutputToContain('Published config/steam-api.php.')
         ->assertSuccessful();
@@ -56,7 +56,7 @@ it('publishes the config file', function (): void {
 it('leaves an already published config file untouched', function (): void {
     File::put(publishedConfig(), '<?php return [];');
 
-    $this->artisan('steam:install')
+    $this->pendingCommand('steam:install')
         ->expectsQuestion(KEY_QUESTION, 'test-steam-api-key')
         ->expectsOutputToContain('config/steam-api.php already exists')
         ->assertSuccessful();
@@ -65,7 +65,7 @@ it('leaves an already published config file untouched', function (): void {
 });
 
 it('appends the key to the env file', function (): void {
-    $this->artisan('steam:install')
+    $this->pendingCommand('steam:install')
         ->expectsQuestion(KEY_QUESTION, 'test-steam-api-key')
         ->expectsOutputToContain('Wrote STEAM_API_KEY to .env')
         ->assertSuccessful();
@@ -76,7 +76,7 @@ it('appends the key to the env file', function (): void {
 it('breaks the line before appending to an env file that does not end in one', function (): void {
     File::put(envFile(), 'APP_NAME=Laravel');
 
-    $this->artisan('steam:install')
+    $this->pendingCommand('steam:install')
         ->expectsQuestion(KEY_QUESTION, 'test-steam-api-key')
         ->assertSuccessful();
 
@@ -86,7 +86,7 @@ it('breaks the line before appending to an env file that does not end in one', f
 it('writes to an empty env file without a leading blank line', function (): void {
     File::put(envFile(), '');
 
-    $this->artisan('steam:install')
+    $this->pendingCommand('steam:install')
         ->expectsQuestion(KEY_QUESTION, 'test-steam-api-key')
         ->assertSuccessful();
 
@@ -94,7 +94,7 @@ it('writes to an empty env file without a leading blank line', function (): void
 });
 
 it('trims the entered key', function (): void {
-    $this->artisan('steam:install')
+    $this->pendingCommand('steam:install')
         ->expectsQuestion(KEY_QUESTION, '  test-steam-api-key  ')
         ->assertSuccessful();
 
@@ -104,7 +104,7 @@ it('trims the entered key', function (): void {
 it('replaces an existing key in place once confirmed', function (): void {
     File::put(envFile(), "APP_NAME=Laravel\nSTEAM_API_KEY=old-key\nAPP_ENV=local\n");
 
-    $this->artisan('steam:install')
+    $this->pendingCommand('steam:install')
         ->expectsConfirmation(REPLACE_QUESTION, 'yes')
         ->expectsQuestion(KEY_QUESTION, 'new-key')
         ->expectsOutputToContain('Wrote STEAM_API_KEY to .env')
@@ -116,7 +116,7 @@ it('replaces an existing key in place once confirmed', function (): void {
 it('writes a key containing regex backreference syntax verbatim', function (): void {
     File::put(envFile(), "STEAM_API_KEY=old-key\n");
 
-    $this->artisan('steam:install')
+    $this->pendingCommand('steam:install')
         ->expectsConfirmation(REPLACE_QUESTION, 'yes')
         ->expectsQuestion(KEY_QUESTION, '$1\\2')
         ->assertSuccessful();
@@ -127,7 +127,7 @@ it('writes a key containing regex backreference syntax verbatim', function (): v
 it('keeps the existing key when the replacement is declined', function (): void {
     File::put(envFile(), "STEAM_API_KEY=old-key\n");
 
-    $this->artisan('steam:install')
+    $this->pendingCommand('steam:install')
         ->expectsConfirmation(REPLACE_QUESTION, 'no')
         ->expectsOutputToContain('Kept the existing STEAM_API_KEY')
         ->assertSuccessful();
@@ -138,7 +138,7 @@ it('keeps the existing key when the replacement is declined', function (): void 
 it('does not treat a commented out key as one that is already set', function (): void {
     File::put(envFile(), "# STEAM_API_KEY=old-key\n");
 
-    $this->artisan('steam:install')
+    $this->pendingCommand('steam:install')
         ->expectsQuestion(KEY_QUESTION, 'test-steam-api-key')
         ->assertSuccessful();
 
@@ -146,7 +146,7 @@ it('does not treat a commented out key as one that is already set', function ():
 });
 
 it('leaves the env file untouched when no key is given', function (): void {
-    $this->artisan('steam:install')
+    $this->pendingCommand('steam:install')
         ->expectsQuestion(KEY_QUESTION, '   ')
         ->expectsOutputToContain('No key given')
         ->assertSuccessful();
@@ -155,7 +155,7 @@ it('leaves the env file untouched when no key is given', function (): void {
 });
 
 it('leaves the env file untouched when the prompt is answered with nothing', function (): void {
-    $this->artisan('steam:install')
+    $this->pendingCommand('steam:install')
         ->expectsQuestion(KEY_QUESTION, null)
         ->expectsOutputToContain('No key given')
         ->assertSuccessful();
@@ -166,7 +166,7 @@ it('leaves the env file untouched when the prompt is answered with nothing', fun
 it('still publishes the config when the application has no env file', function (): void {
     File::delete(envFile());
 
-    $this->artisan('steam:install')
+    $this->pendingCommand('steam:install')
         ->expectsOutputToContain('No .env file found')
         ->assertSuccessful();
 

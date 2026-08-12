@@ -1,10 +1,24 @@
 includes:
     - vendor/larastan/larastan/extension.neon
+    - vendor/pestphp/pest-plugin-phpstan/extension.neon
 
 parameters:
     level: max
     tmpDir: .cache/phpstan
     paths:
         - src
+        - tests
 
     reportUnmatchedIgnoredErrors: true
+
+    ignoreErrors:
+        # Command::secret() returns ?string, and InstallCommand::askForKey()
+        # has a branch for the null. PendingCommand::expectsQuestion() is
+        # annotated string|bool, so the test that covers that branch cannot
+        # be written without tripping this. Laravel's annotation is narrower
+        # than its own runtime contract.
+        -
+            identifier: argument.type
+            message: '#expectsQuestion\(\) expects bool\|string, null given#'
+            path: tests/Feature/InstallCommandTest.php
+            count: 1
