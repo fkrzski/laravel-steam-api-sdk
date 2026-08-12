@@ -48,7 +48,7 @@ final class InstallCommand extends Command
 
         $files->copy(__DIR__.'/../../config/'.self::CONFIG_FILE, $path);
 
-        $this->components->info('Published config/'.self::CONFIG_FILE.'.');
+        $this->components->info('Published config/'.self::CONFIG_FILE);
     }
 
     private function storeApiKey(Application $app, Filesystem $files): void
