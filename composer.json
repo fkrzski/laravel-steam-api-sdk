@@ -20,8 +20,8 @@
         "larastan/larastan": "^3.0",
         "laravel/pint": "^1.29.1",
         "orchestra/testbench": "^11.0",
-        "pestphp/pest": "^4.0.0",
-        "pestphp/pest-plugin-type-coverage": "^4.0.0",
+        "pestphp/pest": "^5.0.0",
+        "pestphp/pest-plugin-type-coverage": "^5.0.0",
         "phpstan/phpstan": "^2.2.7",
         "rector/rector": "^2.4.2",
         "symfony/var-dumper": "^8.0.8"
