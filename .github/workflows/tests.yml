@@ -34,6 +34,21 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v7.0.1
 
+    - name: Setup extension cache
+      id: extcache
+      uses: shivammathur/cache-extensions@v1
+      with:
+        php-version: ${{ matrix.php }}
+        extensions: dom, mbstring, zip, fileinfo, pcov
+        key: php-extensions-v1
+
+    - name: Cache extensions
+      uses: actions/cache@v6
+      with:
+        path: ${{ steps.extcache.outputs.dir }}
+        key: ${{ steps.extcache.outputs.key }}
+        restore-keys: ${{ steps.extcache.outputs.key }}
+
     - name: Setup PHP
       uses: shivammathur/setup-php@2.37.2
       with:
@@ -68,6 +83,21 @@ jobs:
 
     - name: Checkout
       uses: actions/checkout@v7.0.1
+
+    - name: Setup extension cache
+      id: extcache
+      uses: shivammathur/cache-extensions@v1
+      with:
+        php-version: 8.5
+        extensions: dom, mbstring, zip, fileinfo, pcov
+        key: php-extensions-v1
+
+    - name: Cache extensions
+      uses: actions/cache@v6
+      with:
+        path: ${{ steps.extcache.outputs.dir }}
+        key: ${{ steps.extcache.outputs.key }}
+        restore-keys: ${{ steps.extcache.outputs.key }}
 
     - name: Setup PHP
       uses: shivammathur/setup-php@2.37.2
