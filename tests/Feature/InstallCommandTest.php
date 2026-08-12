@@ -46,7 +46,7 @@ afterEach(function (): void {
 it('publishes the config file', function (): void {
     $this->artisan('steam:install')
         ->expectsQuestion(KEY_QUESTION, 'test-steam-api-key')
-        ->expectsOutputToContain('Published config/steam-api.php')
+        ->expectsOutputToContain('Published config/steam-api.php.')
         ->assertSuccessful();
 
     expect(publishedConfig())->toBeFile()
