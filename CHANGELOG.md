@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `Steam::friendList()` — wraps `GetFriendListRequest` and returns `list<Friend>`, each entry carrying the friend's `SteamId`, the `FriendRelationship` enum and the `DateTimeImmutable` the friendship started. An optional second argument narrows the result to one relationship. A private friend list is a `401` from Steam, so the call throws Saloon's `UnauthorizedException` rather than returning an empty list.
 - `php artisan about` — a "Steam API" section with the masked API key (last four characters only), the cache store backing the rate limit, and the remaining daily request budget. Values are resolved when the command renders, never on boot.
+- `php artisan steam:install` — publishes `config/steam-api.php` and appends the prompted `STEAM_API_KEY` to `.env`. Safe to re-run: an existing config file is kept, and an existing key is only replaced once confirmed.
 
 ### Changed
 

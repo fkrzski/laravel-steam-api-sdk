@@ -7,6 +7,22 @@ The bridge wires the `SteamConnector` for you from a single config file. In most
 apps the only value you set is your API key; everything else has a sensible
 Laravel-native default.
 
+## Installing
+
+One command covers both setup steps:
+
+```bash
+php artisan steam:install
+```
+
+It publishes `config/steam-api.php`, then prompts for your
+[Steam Web API key](https://steamcommunity.com/dev) — hidden as you type it — and
+appends `STEAM_API_KEY` to `.env`.
+
+Re-running it is safe: an existing config file is kept, an existing key is only
+replaced once you confirm, and a blank answer leaves `.env` alone. Both steps are
+just as fine to do by hand, as below.
+
 ## The config file
 
 The service provider merges its own `steam-api` config, so the package works

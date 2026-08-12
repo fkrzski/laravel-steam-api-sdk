@@ -25,13 +25,17 @@ Laravel bridge for [`fkrzski/php-steam-api-sdk`](https://github.com/fkrzski/php-
 composer require fkrzski/laravel-steam-api-sdk
 ```
 
-The service provider and `Steam` facade are auto-discovered. Publish the config to override defaults:
+The service provider and `Steam` facade are auto-discovered. Run the installer to publish the config and store your key:
+
+```bash
+php artisan steam:install
+```
+
+It writes `config/steam-api.php` and asks for your [Steam Web API key](https://steamcommunity.com/dev), appending it to `.env`. Both steps are also fine to do by hand:
 
 ```bash
 php artisan vendor:publish --tag=steam-api-config
 ```
-
-Set your Steam Web API key in `.env`:
 
 ```dotenv
 STEAM_API_KEY=your-steam-web-api-key
