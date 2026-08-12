@@ -102,10 +102,13 @@ final class InstallCommand extends Command
             ->toString();
     }
 
+    /**
+     * LF rather than PHP_EOL: `.env` files stay LF-only, Windows included.
+     */
     private function appendKey(string $contents, string $key): string
     {
-        $separator = $contents === '' || str_ends_with($contents, PHP_EOL) ? '' : PHP_EOL;
+        $separator = $contents === '' || str_ends_with($contents, "\n") ? '' : "\n";
 
-        return $contents.$separator.self::ENV_KEY.'='.$key.PHP_EOL;
+        return $contents.$separator.self::ENV_KEY.'='.$key."\n";
     }
 }
