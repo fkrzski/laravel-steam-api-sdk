@@ -1,0 +1,88 @@
+name: TIA Baseline
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+# Records the test impact analysis dependency graph for master and publishes it
+# as an artifact. Contributors pick it up with `pest --tia --baselined`, so a
+# fresh clone replays from master's graph instead of recording its own from a
+# cold full run. Nothing in CI consumes this — the gating workflows pass --ci
+# and always run the whole suite.
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+
+    name: Record TIA baseline P8.5
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v7.0.1
+      with:
+        # TIA anchors the graph to the commit it was recorded at and diffs
+        # against it later; a shallow clone has nothing to diff.
+        fetch-depth: 0
+
+    - name: Setup extension cache
+      id: extcache
+      uses: shivammathur/cache-extensions@v1
+      with:
+        php-version: 8.5
+        extensions: dom, mbstring, zip, fileinfo, pcov
+        key: php-extensions-v1
+
+    - name: Cache extensions
+      uses: actions/cache@v6
+      with:
+        path: ${{ steps.extcache.outputs.dir }}
+        key: ${{ steps.extcache.outputs.key }}
+        restore-keys: ${{ steps.extcache.outputs.key }}
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@2.37.2
+      with:
+        php-version: 8.5
+        extensions: dom, mbstring, zip, fileinfo
+        coverage: pcov
+
+    - name: Get Composer cache directory
+      id: composer-cache
+      shell: bash
+      run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+    - name: Cache dependencies
+      uses: actions/cache@v6
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: dependencies-php-8.5-os-ubuntu-latest-version-prefer-stable-composer-${{ hashFiles('composer.json') }}
+        restore-keys: dependencies-php-8.5-os-ubuntu-latest-version-prefer-stable-composer-
+
+    - name: Install Composer dependencies
+      run: composer update --prefer-stable --no-interaction --prefer-dist
+
+    # No --ci here: that flag is what turns TIA off, and this job exists to
+    # record it. --fresh keeps the graph a product of this commit alone.
+    - name: Record baseline
+      run: vendor/bin/pest --tia --fresh --coverage
+
+    - name: Collect baseline assets
+      id: baseline
+      run: |
+        dir="$(vendor/bin/pest --baseline | tail -1 | tr -d '\r')"
+        test -f "$dir/graph.json" || { echo "no graph recorded at $dir"; exit 1; }
+        echo "dir=$dir" >> "$GITHUB_OUTPUT"
+
+    # Artifact name and asset names are the contract pest --baselined looks for.
+    - name: Publish baseline
+      uses: actions/upload-artifact@v7.0.1
+      with:
+        name: pest-tia-baseline
+        path: |
+          ${{ steps.baseline.outputs.dir }}/graph.json
+          ${{ steps.baseline.outputs.dir }}/coverage.bin.gz
+        if-no-files-found: error
+        retention-days: 30

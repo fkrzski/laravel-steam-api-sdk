@@ -64,5 +64,11 @@ Rebuild the graph if it ever looks stale:
 vendor/bin/pest --tia --fresh
 ```
 
+After a fresh clone, pull master's graph instead of recording your own (needs
+the `gh` CLI, authenticated):
+```bash
+vendor/bin/pest --tia --baselined
+```
+
 CI passes `--ci`, which turns this off — every workflow run executes the whole
 suite.
