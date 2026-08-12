@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk;
 
 use Fkrzski\LaravelSteamApiSdk\Console\AboutSection;
+use Fkrzski\LaravelSteamApiSdk\Console\InstallCommand;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
 use Fkrzski\SteamApiSdk\SteamConfig;
@@ -49,6 +50,10 @@ final class SteamServiceProvider extends ServiceProvider
             ], 'steam-api-translations');
 
             AboutCommand::add('Steam API', AboutSection::class);
+
+            $this->commands([
+                InstallCommand::class,
+            ]);
         }
 
         $this->registerRouteBinding();

@@ -32,18 +32,16 @@ Laravel way — no manual connector wiring, no raw JSON.
 composer require fkrzski/laravel-steam-api-sdk
 ```
 
-The service provider and `Steam` facade are auto-discovered. Publish the config to
-override the defaults:
+The service provider and `Steam` facade are auto-discovered. Run the installer to
+publish the config and store your key:
 
 ```bash
-php artisan vendor:publish --tag=steam-api-config
+php artisan steam:install
 ```
 
-Set your Steam Web API key in `.env`:
-
-```dotenv
-STEAM_API_KEY=your-steam-web-api-key
-```
+It writes `config/steam-api.php` and asks for your Steam Web API key, appending it
+to `.env`. See [Configuration](/laravel-steam-api-sdk/configuration) for doing either
+step by hand.
 
 ## Quickstart
 
