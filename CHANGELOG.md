@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `SteamConnector` and `SteamManager` are bound as **scoped** instances rather than singletons, so both are rebuilt per request. A connector held beyond the request that resolved it is now stale — on a long-lived worker the shared one carried its API key into every later request.
+- `Steam::fake()` throws `FakeOutsideTestsException` unless the application environment is `testing`. Nothing detaches the mock once it is attached.
 - Requires `fkrzski/php-steam-api-sdk` `^0.3`, which groups its request classes into per-interface subnamespaces — `Http\Requests\ISteamUser`, `Http\Requests\ISteamUserStats` and `Http\Requests\IPlayerService`. The facade helpers are unaffected, but code that names a request class directly — a `Steam::fake()` response map, `assertSent()`, or a request passed to `send()` or `pool()` — has to update its imports.
 
 ### Fixed

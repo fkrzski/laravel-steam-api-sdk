@@ -35,6 +35,7 @@ final class SteamServiceProvider extends ServiceProvider
             SteamManager::class,
             fn (Application $app): SteamManager => new SteamManager(
                 fn (): SteamConnector => $app->make(SteamConnector::class),
+                $app,
             ),
         );
     }

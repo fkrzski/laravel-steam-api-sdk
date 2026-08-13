@@ -194,3 +194,4 @@ Attaches a Saloon `MockClient` to the connector and returns it for assertions. S
 [Testing](/laravel-steam-api-sdk/testing).
 
 - Returns `Saloon\Http\Faking\MockClient`.
+- Throws `FakeOutsideTestsException` unless the application environment is `testing`.

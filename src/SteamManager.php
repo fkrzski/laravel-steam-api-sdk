@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk;
 
 use Closure;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\SteamApiSdk\Dto\Friend;
 use Fkrzski\SteamApiSdk\Dto\OwnedGame;
 use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
@@ -19,6 +20,7 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsReque
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use Illuminate\Contracts\Foundation\Application;
 use Saloon\Http\Faking\Fixture;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
@@ -39,6 +41,7 @@ final readonly class SteamManager
      */
     public function __construct(
         private Closure $connectorResolver,
+        private Application $app,
     ) {}
 
     /**
@@ -152,10 +155,18 @@ final readonly class SteamManager
     /**
      * Swap the connector's HTTP client for a Saloon mock, returning it for assertions.
      *
+     * Nothing detaches the mock, so faking is refused outside tests.
+     *
      * @param  array<array-key, (callable(): mixed)|Fixture|MockResponse>  $responses
+     *
+     * @throws FakeOutsideTestsException when the application is not running tests
      */
     public function fake(array $responses = []): MockClient
     {
+        if (! $this->app->runningUnitTests()) {
+            throw new FakeOutsideTestsException;
+        }
+
         $mockClient = new MockClient($responses);
 
         $this->connector()->withMockClient($mockClient);

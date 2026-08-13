@@ -42,6 +42,11 @@ request leaves your machine, so the value is irrelevant — set a placeholder in
 <env name="STEAM_API_KEY" value="testing"/>
 ```
 
+## Only in the testing environment
+
+`Steam::fake()` throws `FakeOutsideTestsException` unless the application
+environment is `testing`. Nothing detaches the mock once it is attached.
+
 ## Asserting
 
 The returned `MockClient` exposes Saloon's assertion helpers:

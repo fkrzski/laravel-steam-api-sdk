@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
@@ -14,6 +15,7 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsReque
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\Response;
 
@@ -128,6 +130,13 @@ it('does not leak the fake past the scope that installed it', function (): void 
     app()->forgetScopedInstances();
 
     expect(app(SteamConnector::class)->hasMockClient())->toBeFalse();
+});
+
+it('refuses to fake outside the testing environment', function (): void {
+    app()->instance('env', 'production');
+
+    expect(fn (): MockClient => Steam::fake())
+        ->toThrow(FakeOutsideTestsException::class, 'only available while running tests');
 });
 
 it('fetches player summaries through the convenience method', function (): void {
