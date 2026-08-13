@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
@@ -14,6 +15,7 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsReque
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\Response;
 
@@ -24,9 +26,28 @@ function steamId(): SteamId
     return SteamId::fromSteamId64('76561198000000000');
 }
 
-it('registers the connector and manager as singletons', function (): void {
+it('resolves the connector and manager once per container', function (): void {
     expect(app(SteamConnector::class))->toBe(app(SteamConnector::class))
         ->and(app(SteamManager::class))->toBe(app(SteamManager::class));
+});
+
+it('rebuilds the connector once scoped instances are flushed', function (): void {
+    $connector = app(SteamConnector::class);
+
+    app()->forgetScopedInstances();
+
+    expect(app(SteamConnector::class))->not->toBe($connector);
+});
+
+// Mirrors Octane, which serves each request from a shallow clone of the app.
+it('resolves the connector from the container that built the manager', function (): void {
+    $sandbox = clone app();
+    $sandbox->forgetScopedInstances();
+
+    $manager = $sandbox->make(SteamManager::class);
+
+    expect($manager->connector())->toBe($sandbox->make(SteamConnector::class))
+        ->and($manager->connector())->not->toBe(app(SteamConnector::class));
 });
 
 it('merges the package config', function (): void {
@@ -95,6 +116,27 @@ it('fakes responses and resolves a vanity url', function (): void {
     expect($steamId->value)->toBe('76561198000000000');
 
     $mock->assertSent(ResolveVanityUrlRequest::class);
+});
+
+it('does not leak the fake past the scope that installed it', function (): void {
+    Steam::fake([
+        ResolveVanityUrlRequest::class => MockResponse::make([
+            'response' => ['success' => 1, 'steamid' => '76561198000000000'],
+        ]),
+    ]);
+
+    expect(app(SteamConnector::class)->hasMockClient())->toBeTrue();
+
+    app()->forgetScopedInstances();
+
+    expect(app(SteamConnector::class)->hasMockClient())->toBeFalse();
+});
+
+it('refuses to fake outside the testing environment', function (): void {
+    app()->instance('env', 'production');
+
+    expect(fn (): MockClient => Steam::fake())
+        ->toThrow(FakeOutsideTestsException::class, 'only available while running tests');
 });
 
 it('fetches player summaries through the convenience method', function (): void {

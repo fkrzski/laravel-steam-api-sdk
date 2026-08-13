@@ -15,10 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `SteamConnector` and `SteamManager` are bound as **scoped** instances rather than singletons, so both are rebuilt per request. A connector held beyond the request that resolved it is now stale — on a long-lived worker the shared one carried its API key into every later request.
+- `Steam::fake()` throws `FakeOutsideTestsException` unless the application environment is `testing`. Nothing detaches the mock once it is attached.
 - Requires `fkrzski/php-steam-api-sdk` `^0.3`, which groups its request classes into per-interface subnamespaces — `Http\Requests\ISteamUser`, `Http\Requests\ISteamUserStats` and `Http\Requests\IPlayerService`. The facade helpers are unaffected, but code that names a request class directly — a `Steam::fake()` response map, `assertSent()`, or a request passed to `send()` or `pool()` — has to update its imports.
 
 ### Fixed
 
+- `Steam::fake()` no longer leaks its `MockClient` into later requests. The manager resolved the connector from the container captured at registration rather than the one that built it, so under Octane the mock stayed attached to a connector shared by the whole worker.
 - A missing Steam Web API key now throws `SteamApiKeyMissingException` naming both the `STEAM_API_KEY` env var and the `steam-api.key` config value, instead of surfacing a `TypeError` from `SteamConfig` inside the container. `env('STEAM_API_KEY')` resolves to `null` when unset, so the default in `config('steam-api.key', '')` never applied. Blank and non-string values are rejected the same way, and a key is trimmed before use. The check runs when the connector is first built rather than at boot, so an application without a key can still boot and publish the config.
 
 ## [0.2.0] - 2026-07-29

@@ -11,6 +11,7 @@ use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Console\AboutCommand;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Cache;
@@ -23,16 +24,19 @@ final class SteamServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/steam-api.php', 'steam-api');
 
-        $this->app->singleton(SteamConnector::class, fn (): SteamConnector => new SteamConnector(
+        $this->app->scoped(SteamConnector::class, fn (): SteamConnector => new SteamConnector(
             new SteamConfig(
                 apiKey: $this->steamApiKey(),
                 rateLimitStore: new LaravelCacheStore(Cache::store()),
             ),
         ));
 
-        $this->app->singleton(
+        $this->app->scoped(
             SteamManager::class,
-            fn (): SteamManager => new SteamManager(fn (): SteamConnector => $this->app->make(SteamConnector::class)),
+            fn (Application $app): SteamManager => new SteamManager(
+                fn (): SteamConnector => $app->make(SteamConnector::class),
+                $app,
+            ),
         );
     }
 

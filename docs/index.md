@@ -13,7 +13,7 @@ Laravel way — no manual connector wiring, no raw JSON.
 
 ## Why laravel-steam-api-sdk
 
-- **Auto-discovered facade** — the `Steam` facade and its `SteamConnector` singleton register themselves, Octane-safe.
+- **Auto-discovered facade** — the `Steam` facade and its `SteamConnector` binding register themselves, scoped per request and safe under Octane.
 - **Shared rate-limit budget** — the daily quota is tracked through your Laravel cache store, so every process draws on one counter.
 - **First-class request helpers** — `Steam::playerSummaries()`, `ownedGames()`, `userStatsForGame()`, and friends return typed DTOs.
 - **Eloquent cast** — store a Steam ID on a model and read it back as a `SteamId` value object with the [`AsSteamId`](/laravel-steam-api-sdk/eloquent-cast) cast.
