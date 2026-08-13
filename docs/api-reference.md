@@ -178,8 +178,9 @@ Sends any Saloon `Request` through the shared connector and returns the raw
 Steam::connector(): SteamConnector
 ```
 
-Returns the underlying `SteamConnector` singleton. Use it for advanced Saloon
-features not exposed on the facade.
+Returns the underlying `SteamConnector` for the current request. Use it for
+advanced Saloon features not exposed on the facade. The binding is scoped — do not
+hold the instance past the request.
 
 - Returns `Fkrzski\SteamApiSdk\SteamConnector`.
 

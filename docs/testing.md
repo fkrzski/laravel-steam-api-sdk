@@ -4,8 +4,8 @@ description: Fake the Steam Web API in your tests with Steam::fake() — attach 
 ---
 
 `Steam::fake()` attaches a Saloon [`MockClient`](https://docs.saloon.dev/testing/recording-responses)
-to the singleton connector and returns it for assertions, so your tests never hit
-the real Steam Web API.
+to the connector and returns it for assertions, so your tests never hit the real
+Steam Web API.
 
 ## Faking responses
 
@@ -26,8 +26,9 @@ $mock = Steam::fake([
 // ... exercise code that calls Steam::playerSummaries() ...
 ```
 
-Because the fake is attached to the shared connector singleton, it covers every
-call made through the facade — the request helpers, `pool()`, and `send()` alike.
+The fake is attached to the connector, so it covers every call made through the
+facade — the request helpers, `pool()`, and `send()` alike. The binding is scoped,
+so the fake goes away with the request that installed it.
 
 ## A key is still required
 

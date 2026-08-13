@@ -29,8 +29,8 @@ use Saloon\Http\Response;
 /**
  * Laravel-friendly wrapper around the framework-agnostic {@see SteamConnector}.
  *
- * Resolves the connector lazily so the manager stays safe to register as a
- * singleton under Octane.
+ * Resolves the connector through the container that built this manager, so a
+ * long-lived worker never hands one request's connector to the next.
  */
 final readonly class SteamManager
 {

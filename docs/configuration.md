@@ -75,14 +75,16 @@ The `route_binding` block controls the `steamId` route binding, which resolves a
 route parameter straight into a `SteamId` value object. It is enabled by default;
 see [Route binding](/laravel-steam-api-sdk/route-binding) for the full guide.
 
-## The connector singleton
+## The connector binding
 
-The provider binds `SteamConnector` as a singleton. It resolves lazily — the
-`Steam` facade only builds it on first use — so the binding stays safe under
-[Laravel Octane](https://laravel.com/docs/octane), where the container survives
-between requests. You never construct the connector yourself; reach it via
-[`Steam::connector()`](/laravel-steam-api-sdk/api-reference#connector) if you need the
-raw object.
+The provider binds `SteamConnector` as a **scoped** instance: one per request,
+torn down with it. Under [Laravel Octane](https://laravel.com/docs/octane) — and
+between queue jobs — the container outlives the request, and a shared connector
+would carry its API key into the next one.
+
+It resolves lazily, so an application without a key can still boot. Reach it via
+[`Steam::connector()`](/laravel-steam-api-sdk/api-reference#connector), and only for
+the current request.
 
 ## Rate limiting
 
