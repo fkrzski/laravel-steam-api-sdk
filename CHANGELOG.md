@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-15
+
 ### Added
 
 - `Steam::friendList()` — wraps `GetFriendListRequest` and returns `list<Friend>`, each entry carrying the friend's `SteamId`, the `FriendRelationship` enum and the `DateTimeImmutable` the friendship started. An optional second argument narrows the result to one relationship. A private friend list is a `401` from Steam, so the call throws Saloon's `UnauthorizedException` rather than returning an empty list.
@@ -17,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `SteamConnector` and `SteamManager` are bound as **scoped** instances rather than singletons, so both are rebuilt per request. A connector held beyond the request that resolved it is now stale — on a long-lived worker the shared one carried its API key into every later request.
 - `Steam::fake()` throws `FakeOutsideTestsException` unless the application environment is `testing`. Nothing detaches the mock once it is attached.
+- Every class the package ships is now `final`. The documented extension points go through container rebinding — `SteamIdRouteBinding`, the `SteamConnector` binding — not inheritance, so nothing supported breaks, but a subclass of `SteamManager`, `SteamIdRule`, `AsSteamId` or the provider no longer compiles.
 - Requires `fkrzski/php-steam-api-sdk` `^0.3`, which groups its request classes into per-interface subnamespaces — `Http\Requests\ISteamUser`, `Http\Requests\ISteamUserStats` and `Http\Requests\IPlayerService`. The facade helpers are unaffected, but code that names a request class directly — a `Steam::fake()` response map, `assertSent()`, or a request passed to `send()` or `pool()` — has to update its imports.
 
 ### Fixed
@@ -43,6 +46,7 @@ Initial release. Laravel bridge for [`fkrzski/php-steam-api-sdk`](https://github
 - `Steam` facade for static access to the manager.
 - `Steam::fake()` — attaches a Saloon `MockClient` to the singleton connector and returns it for assertions, removing per-test connector wiring.
 
-[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.2.0...HEAD
+[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.3.0...HEAD
+[0.3.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/fkrzski/laravel-steam-api-sdk/releases/tag/0.1.0
