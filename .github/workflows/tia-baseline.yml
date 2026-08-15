@@ -66,14 +66,18 @@ jobs:
 
     # No --ci here: that flag is what turns TIA off, and this job exists to
     # record it. --fresh keeps the graph a product of this commit alone.
-    - name: Record baseline
-      run: vendor/bin/pest --tia --fresh --coverage
+    - name: Record baseline graph
+      run: vendor/bin/pest --tia --fresh
+
+    - name: Record baseline coverage
+      run: vendor/bin/pest --tia --coverage
 
     - name: Collect baseline assets
       id: baseline
       run: |
         dir="$(vendor/bin/pest --baseline | tail -1 | tr -d '\r')"
         test -f "$dir/graph.json" || { echo "no graph recorded at $dir"; exit 1; }
+        test -f "$dir/coverage.bin.gz" || { echo "no coverage cache recorded at $dir"; exit 1; }
         echo "dir=$dir" >> "$GITHUB_OUTPUT"
 
     # Artifact name and asset names are the contract pest --baselined looks for.
