@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Requires `fkrzski/php-steam-api-sdk` `^0.4`, which raises every HTTP failure as an SDK exception instead of a Saloon `RequestException` subclass. Code catching Saloon's `UnauthorizedException` for a private profile has to catch `ProfileNotPublicException` — or the root `SteamApiException` — instead ([#34](https://github.com/fkrzski/laravel-steam-api-sdk/issues/34)).
+- The daily rate-limit counter is keyed by API key rather than by connector class, so the budget `php artisan about` reports starts from a fresh count after the upgrade. Only the cached counter is orphaned — the quota Steam enforces is untouched.
+
 ## [0.3.0] - 2026-08-15
 
 ### Added
