@@ -120,6 +120,7 @@ php artisan about --only=steam_api
   API Key .................................................. ********4f2a
   Daily Requests Remaining ........................... 99,412 of 100,000
   Rate Limit Store ................................................ redis
+  Route Binding ....................................... enabled (steamId)
 ```
 
 - **API Key** — the configured key, masked down to its last four characters so
@@ -130,6 +131,8 @@ php artisan about --only=steam_api
 - **Daily Requests Remaining** — what is left of the 100 000 request budget,
   read from that store. Shows `UNKNOWN` while no key is set, since the counter
   belongs to the connector.
+- **Route Binding** — `disabled`, or `enabled` with the route parameter name it
+  claims application-wide.
 
 Nothing here runs on boot: the values are computed only when the command renders,
 and no request is ever sent to Steam.

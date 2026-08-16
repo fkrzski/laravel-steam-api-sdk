@@ -40,6 +40,8 @@ final readonly class AboutSection
 
     private const string UNKNOWN = 'UNKNOWN';
 
+    private const string DISABLED = 'disabled';
+
     public function __construct(
         private Container $container,
         private ConfigRepository $config,
@@ -54,7 +56,25 @@ final readonly class AboutSection
             'API Key' => $this->maskedApiKey(...),
             'Rate Limit Store' => $this->rateLimitStore(...),
             'Daily Requests Remaining' => $this->remainingDailyRequests(...),
+            'Route Binding' => $this->routeBinding(...),
         ];
+    }
+
+    /**
+     * Whether the binding claims a route parameter, and which one.
+     *
+     * Repeats the provider's strict check so the row cannot report a state the
+     * provider does not act on.
+     */
+    private function routeBinding(): string
+    {
+        if ($this->config->get('steam-api.route_binding.enabled') !== true) {
+            return self::DISABLED;
+        }
+
+        $parameter = $this->config->get('steam-api.route_binding.parameter');
+
+        return sprintf('enabled (%s)', is_string($parameter) ? $parameter : self::UNKNOWN);
     }
 
     /**
