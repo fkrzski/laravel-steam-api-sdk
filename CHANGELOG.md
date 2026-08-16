@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `php artisan about` — a "Route Binding" row reporting `disabled`, or `enabled` with the route parameter the binding claims ([#41](https://github.com/fkrzski/laravel-steam-api-sdk/issues/41)).
+
 ### Changed
 
+- **BC break.** The `{steamId}` route binding is opt-in — `steam-api.route_binding.enabled` defaults to `false`, in the shipped config and in the provider's fallback alike, so applications relying on the old default must set it to `true`. `Router::bind()` claims the parameter name application-wide and the package ships no routes of its own, so the binding could only ever capture the application's own `{steamId}` routes ([#41](https://github.com/fkrzski/laravel-steam-api-sdk/issues/41)).
 - Requires `fkrzski/php-steam-api-sdk` `^0.4`, which raises every HTTP failure as an SDK exception instead of a Saloon `RequestException` subclass. Code catching Saloon's `UnauthorizedException` for a private profile has to catch `ProfileNotPublicException` — or the root `SteamApiException` — instead ([#34](https://github.com/fkrzski/laravel-steam-api-sdk/issues/34)).
 - The daily rate-limit counter is keyed by API key rather than by connector class, so the budget `php artisan about` reports starts from a fresh count after the upgrade. Only the cached counter is orphaned — the quota Steam enforces is untouched.
 

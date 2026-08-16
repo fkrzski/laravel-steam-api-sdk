@@ -20,6 +20,17 @@ function binding(): SteamIdRouteBinding
     return new SteamIdRouteBinding;
 }
 
+/**
+ * Opt in and register the binding on the application's own router — the one the
+ * HTTP kernel substitutes bindings on.
+ */
+function enableRouteBinding(): void
+{
+    config()->set('steam-api.route_binding.enabled', true);
+
+    new SteamServiceProvider(app())->boot();
+}
+
 it('resolves a 64-bit steam id to a value object', function (): void {
     $steamId = binding()(ROUTE_STEAM_ID_64);
 
@@ -37,6 +48,8 @@ it('throws a 404 for an unresolvable value', function (): void {
 })->throws(NotFoundHttpException::class);
 
 it('resolves a route parameter to a SteamId through the container', function (): void {
+    enableRouteBinding();
+
     Route::middleware(SubstituteBindings::class)
         ->get('players/{steamId}', fn (SteamId $steamId): array => ['value' => $steamId->value]);
 
@@ -46,14 +59,27 @@ it('resolves a route parameter to a SteamId through the container', function ():
 });
 
 it('returns a 404 when the route parameter is not a steam id', function (): void {
+    enableRouteBinding();
+
     Route::middleware(SubstituteBindings::class)
         ->get('players/{steamId}', fn (SteamId $steamId): string => $steamId->value);
 
     $this->get('players/not-a-steam-id')->assertNotFound();
 });
 
-it('registers the binding under the configured parameter by default', function (): void {
-    expect(app('router')->getBindingCallback('steamId'))->not->toBeNull();
+it('leaves the parameter alone until the application opts in', function (): void {
+    expect(app('router')->getBindingCallback('steamId'))->toBeNull();
+});
+
+it('registers the binding under the configured parameter once enabled', function (): void {
+    config()->set('steam-api.route_binding.enabled', true);
+
+    $router = new Router(new Dispatcher, app());
+    app()->instance('router', $router);
+
+    new SteamServiceProvider(app())->boot();
+
+    expect($router->getBindingCallback('steamId'))->not->toBeNull();
 });
 
 it('does not register the binding when disabled', function (): void {
@@ -67,8 +93,24 @@ it('does not register the binding when disabled', function (): void {
     expect($router->getBindingCallback('steamId'))->toBeNull();
 });
 
+// mergeConfigFrom() is shallow, so a config published before the key existed
+// arrives without it.
+it('does not register the binding when the published config drops the enabled key', function (): void {
+    config()->set('steam-api.route_binding', ['parameter' => 'steamId']);
+
+    $router = new Router(new Dispatcher, app());
+    app()->instance('router', $router);
+
+    new SteamServiceProvider(app())->boot();
+
+    expect($router->getBindingCallback('steamId'))->toBeNull();
+});
+
 it('registers the binding under a custom parameter name', function (): void {
-    config()->set('steam-api.route_binding.parameter', 'gamer');
+    config()->set([
+        'steam-api.route_binding.enabled' => true,
+        'steam-api.route_binding.parameter' => 'gamer',
+    ]);
 
     $router = new Router(new Dispatcher, app());
     app()->instance('router', $router);

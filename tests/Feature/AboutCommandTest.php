@@ -36,6 +36,7 @@ it('registers the Steam API section on the about command', function (): void {
         'api_key',
         'rate_limit_store',
         'daily_requests_remaining',
+        'route_binding',
     ]);
 });
 
@@ -47,6 +48,7 @@ it('renders the section under its own heading', function (): void {
         ->toContain('API Key')
         ->toContain('Rate Limit Store')
         ->toContain('Daily Requests Remaining')
+        ->toContain('Route Binding')
         ->not->toContain('Application Name');
 });
 
@@ -137,6 +139,40 @@ it('reports an unknown budget when the connector declares no upfront limit', fun
     });
 
     expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
+});
+
+it('reports the route binding as disabled by default', function (): void {
+    expect(steamAboutSection()['route_binding'])->toBe('disabled');
+});
+
+it('names the parameter the binding claims once it is enabled', function (): void {
+    config()->set('steam-api.route_binding.enabled', true);
+
+    expect(steamAboutSection()['route_binding'])->toBe('enabled (steamId)');
+});
+
+it('names a custom claimed parameter', function (): void {
+    config()->set([
+        'steam-api.route_binding.enabled' => true,
+        'steam-api.route_binding.parameter' => 'gamer',
+    ]);
+
+    expect(steamAboutSection()['route_binding'])->toBe('enabled (gamer)');
+});
+
+it('reports a truthy non-boolean as disabled, matching what the provider acts on', function (): void {
+    config()->set('steam-api.route_binding.enabled', 1);
+
+    expect(steamAboutSection()['route_binding'])->toBe('disabled');
+});
+
+it('reports an unknown parameter when the configured name is not a string', function (): void {
+    config()->set([
+        'steam-api.route_binding.enabled' => true,
+        'steam-api.route_binding.parameter' => null,
+    ]);
+
+    expect(steamAboutSection()['route_binding'])->toBe('enabled (UNKNOWN)');
 });
 
 it('does not resolve the connector while booting', function (): void {

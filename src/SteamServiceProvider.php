@@ -90,7 +90,7 @@ final class SteamServiceProvider extends ServiceProvider
      */
     private function registerRouteBinding(): void
     {
-        if (config('steam-api.route_binding.enabled', true) !== true) {
+        if (config('steam-api.route_binding.enabled', false) !== true) {
             return;
         }
 
@@ -101,7 +101,6 @@ final class SteamServiceProvider extends ServiceProvider
         $router = $this->app->make('router');
 
         $router->bind($parameter, function (string $value): SteamId {
-            /** @var SteamIdRouteBinding $binding */
             $binding = $this->app->make(SteamIdRouteBinding::class);
 
             return $binding($value);

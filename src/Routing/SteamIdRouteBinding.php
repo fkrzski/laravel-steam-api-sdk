@@ -12,8 +12,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  * Resolves a route parameter into a {@see SteamId} value object.
  *
  * Registered as the binder for the configured route parameter by
- * {@see SteamServiceProvider}. Swap the behaviour by
- * rebinding this class in the container.
+ * {@see SteamServiceProvider}, which resolves it from the container per request.
+ * Rebind this class to swap the behaviour: a replacement must be invokable, take
+ * a string, return a {@see SteamId} and throw on input it cannot resolve.
+ * Resolution is format-only, so a vanity name needs an API call to become one.
  */
 final class SteamIdRouteBinding
 {
