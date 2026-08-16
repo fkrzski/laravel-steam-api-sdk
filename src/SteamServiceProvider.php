@@ -90,7 +90,7 @@ final class SteamServiceProvider extends ServiceProvider
      */
     private function registerRouteBinding(): void
     {
-        if (config('steam-api.route_binding.enabled', true) !== true) {
+        if (config('steam-api.route_binding.enabled', false) !== true) {
             return;
         }
 

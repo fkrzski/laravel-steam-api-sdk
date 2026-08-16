@@ -42,10 +42,10 @@ return [
     // Sent as the "key" query parameter on every request to api.steampowered.com.
     'key' => env('STEAM_API_KEY'),
 
-    // Resolve a route parameter into a SteamId value object. See the
+    // Resolve a route parameter into a SteamId value object. Opt-in. See the
     // route binding guide for details.
     'route_binding' => [
-        'enabled' => true,
+        'enabled' => false,
         'parameter' => 'steamId',
     ],
 
@@ -72,8 +72,10 @@ is ever set; the error surfaces on your first Steam call.
 ## Route binding
 
 The `route_binding` block controls the `steamId` route binding, which resolves a
-route parameter straight into a `SteamId` value object. It is enabled by default;
-see [Route binding](/laravel-steam-api-sdk/route-binding) for the full guide.
+route parameter straight into a `SteamId` value object. It is **off by default** —
+the parameter name is claimed application-wide, so the only routes it can claim are
+your own. Set `enabled` to `true` to opt in; see
+[Route binding](/laravel-steam-api-sdk/route-binding) for the full guide.
 
 ## The connector binding
 

@@ -22,16 +22,15 @@ return [
     | Route Model Binding
     |--------------------------------------------------------------------------
     |
-    | Bind a route parameter to a SteamId value object. When enabled, any route
-    | segment matching the configured parameter name is resolved through
+    | Resolve a route parameter into a SteamId value object through
     | SteamId::tryFromInput() — a 64-bit ID or a profile URL becomes a SteamId,
-    | while an unresolvable value aborts with a 404. Set "enabled" to false to
-    | leave routing untouched, or change "parameter" to claim a different name.
+    | anything else aborts with a 404. Opt-in: the binding is registered under a
+    | global parameter name, so the only routes it can claim are yours.
     |
     */
 
     'route_binding' => [
-        'enabled' => true,
+        'enabled' => false,
         'parameter' => 'steamId',
     ],
 
