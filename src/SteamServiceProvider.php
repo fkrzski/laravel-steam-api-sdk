@@ -101,7 +101,6 @@ final class SteamServiceProvider extends ServiceProvider
         $router = $this->app->make('router');
 
         $router->bind($parameter, function (string $value): SteamId {
-            /** @var SteamIdRouteBinding $binding */
             $binding = $this->app->make(SteamIdRouteBinding::class);
 
             return $binding($value);
