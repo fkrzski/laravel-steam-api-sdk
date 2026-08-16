@@ -19,6 +19,20 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 * You may need to [rebase](https://git-scm.com/book/en/v2/Git-Branching-Rebasing) to avoid merge conflicts.
 * Please remember that we follow [SemVer](http://semver.org/).
 
+## Changelog
+
+`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+New entries go under `## [Unreleased]`; keep them uniform:
+
+* **Fixed section order:** Added, Changed, Deprecated, Removed, Fixed, Security. Omit the ones with no entries.
+* **Start with the subject, not a verb.** Describe the state after the change — "Request classes are grouped into per-interface subnamespaces", not "Reorganize request classes".
+* **One sentence for the change, at most one more for the reason or the consequence.** Anything longer belongs in the docs.
+* **Name classes exactly as they exist in `src/`,** in backticks — `GetPlayerBansRequest`, not `GetPlayerBans`.
+* **Prefix breaking changes with `**BC break.**`** and say what callers must update.
+* **Put the issue link last, in parentheses:** `([#20](https://github.com/fkrzski/php-steam-api-sdk/issues/20))`.
+* **No prose paragraph under a version heading** — the sections carry everything.
+* **Collapse dependency bumps into a single line** rather than one per package.
+
 ## Setup
 
 Clone your fork, then install the dev dependencies:
