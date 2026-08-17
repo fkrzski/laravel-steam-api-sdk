@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BC break.** The `{steamId}` route binding is opt-in — `steam-api.route_binding.enabled` defaults to `false`, in the shipped config and in the provider's fallback alike. Applications that relied on the old default have to set it to `true` ([#41](https://github.com/fkrzski/laravel-steam-api-sdk/issues/41)).
 - **BC break.** `fkrzski/php-steam-api-sdk` `^0.4` is required, and it raises every HTTP failure as an SDK exception instead of a Saloon `RequestException` subclass. Code catching Saloon's `UnauthorizedException` for a private profile has to catch `ProfileNotPublicException` — or the root `SteamApiException` — instead ([#34](https://github.com/fkrzski/laravel-steam-api-sdk/issues/34)).
+- **BC break.** `AsSteamId` implements `SerializesCastableAttributes`, so `toArray()` — and every API Resource built on it — emits the plain 64-bit string instead of the `SteamId` value object. Code reading `$model->toArray()['steam_id']` as an object has to read the attribute directly instead; `toJson()` already emitted the string, and now matches ([#39](https://github.com/fkrzski/laravel-steam-api-sdk/issues/39)).
 - The daily rate-limit counter is keyed by API key rather than by connector class, so the budget `php artisan about` reports starts from a fresh count after the upgrade. Only the cached counter is orphaned — the quota Steam enforces is untouched.
 
 ### Fixed
