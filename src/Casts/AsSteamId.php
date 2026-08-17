@@ -8,9 +8,10 @@ use Fkrzski\SteamApiSdk\Exceptions\InvalidSteamIdException;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Model;
+use Stringable;
 
 /**
- * @implements CastsAttributes<SteamId, SteamId|string>
+ * @implements CastsAttributes<SteamId, SteamId|string|int|Stringable>
  */
 final class AsSteamId implements CastsAttributes
 {
@@ -32,6 +33,10 @@ final class AsSteamId implements CastsAttributes
 
     /**
      * {@inheritDoc}
+     *
+     * Wider than TSet on purpose — the guard below catches callers that ignore it.
+     *
+     * @phpstan-param mixed $value
      */
     public function set(Model $model, string $key, mixed $value, array $attributes): ?string
     {
@@ -39,10 +44,10 @@ final class AsSteamId implements CastsAttributes
             return null;
         }
 
-        if ($value instanceof SteamId) {
-            return $value->value;
+        if (! is_scalar($value) && ! $value instanceof Stringable) {
+            throw new InvalidSteamIdException(sprintf('"%s" is not a valid 64-bit Steam ID.', get_debug_type($value)));
         }
 
-        return SteamId::fromSteamId64($value)->value;
+        return SteamId::fromSteamId64((string) $value)->value;
     }
 }
