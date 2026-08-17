@@ -30,6 +30,27 @@ foreach ($summaries as $summary) {
 }
 ```
 
+### `playerBans()`
+
+```text
+Steam::playerBans(list<SteamId> $steamIds): list<PlayerBan>
+```
+
+Fetches the ban record of a batch of players — community, VAC, game and economy
+bans. Accepts **1 to 100** IDs. Ban records are public, so a hidden profile still
+returns a row.
+
+- Returns `list<PlayerBan>`.
+- Throws `TooManySteamIdsException` when more than 100 IDs are passed.
+
+```php
+$bans = Steam::playerBans([$steamId]);
+
+foreach ($bans as $ban) {
+    echo $ban->steamId->value, ' — ', $ban->isVacBanned ? 'VAC banned' : 'clean', PHP_EOL;
+}
+```
+
 ### `friendList()`
 
 ```text
@@ -53,6 +74,27 @@ $friends = Steam::friendList($steamId, FriendRelationship::Friend);
 
 foreach ($friends as $friend) {
     echo $friend->steamId->value, ' — since ', $friend->friendSince->format('Y-m-d'), PHP_EOL;
+}
+```
+
+### `userGroupList()`
+
+```text
+Steam::userGroupList(SteamId $steamId): list<UserGroup>
+```
+
+Lists the community groups a player belongs to, each as a `UserGroup` carrying its
+`gid`. Steam returns group IDs only — resolve names through the community API
+yourself.
+
+- Returns `list<UserGroup>`, empty when the player is in no group.
+- Throws `ProfileNotPublicException` when the profile is hidden.
+
+```php
+$groups = Steam::userGroupList($steamId);
+
+foreach ($groups as $group) {
+    echo $group->gid, PHP_EOL;
 }
 ```
 
