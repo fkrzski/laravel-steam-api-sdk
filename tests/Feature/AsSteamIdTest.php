@@ -64,3 +64,35 @@ it('serializes a steam id 64 string on set', function (): void {
 it('throws when the value is not a valid steam id 64 on set', function (): void {
     asSteamId()->set(castModel(), 'steam_id', 'not-a-steam-id', []);
 })->throws(InvalidSteamIdException::class);
+
+it('serializes an integer steam id 64 on set', function (): void {
+    expect(asSteamId()->set(castModel(), 'steam_id', 76561198000000000, []))->toBe(STEAM_ID_64);
+});
+
+it('serializes a stringable steam id 64 on set', function (): void {
+    expect(asSteamId()->set(castModel(), 'steam_id', str(STEAM_ID_64), []))->toBe(STEAM_ID_64);
+});
+
+it('serializes an object with __toString on set', function (): void {
+    $value = new class
+    {
+        public function __toString(): string
+        {
+            return STEAM_ID_64;
+        }
+    };
+
+    expect(asSteamId()->set(castModel(), 'steam_id', $value, []))->toBe(STEAM_ID_64);
+});
+
+it('throws when the value is a float on set', function (): void {
+    asSteamId()->set(castModel(), 'steam_id', 1.5, []);
+})->throws(InvalidSteamIdException::class, '"1.5" is not a valid 64-bit Steam ID.');
+
+it('throws when the value is a boolean on set', function (): void {
+    asSteamId()->set(castModel(), 'steam_id', true, []);
+})->throws(InvalidSteamIdException::class, '"1" is not a valid 64-bit Steam ID.');
+
+it('throws when the value is not a scalar on set', function (): void {
+    asSteamId()->set(castModel(), 'steam_id', ['not', 'scalar'], []);
+})->throws(InvalidSteamIdException::class, '"array" is not a valid 64-bit Steam ID.');
