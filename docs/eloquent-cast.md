@@ -72,3 +72,17 @@ rejected write raises one catchable domain exception, never a `TypeError`.
 A profile URL is rejected — widening input is the job of the
 [validation rule](/laravel-steam-api-sdk/validation) and the
 [route binding](/laravel-steam-api-sdk/route-binding).
+
+## Serialization
+
+`toArray()`, `toJson()` and an API Resource all emit the plain 64-bit string, not
+the value object and not a nested `{"value": ...}` shape:
+
+```php
+$user->toArray();  // ['steam_id' => '76561198000000000', ...]
+$user->toJson();   // {"steam_id":"76561198000000000", ...}
+```
+
+`null` stays `null`, and the serialized value goes through the same validation as
+a write — a stored value that is not a valid Steam ID throws
+`InvalidSteamIdException` rather than reaching the response.
