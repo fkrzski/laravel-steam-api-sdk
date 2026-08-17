@@ -38,7 +38,9 @@ objects, never arrays:
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 
 $summaries    = Steam::playerSummaries([$id]);
+$bans         = Steam::playerBans([$id]);
 $friends      = Steam::friendList($id);
+$groups       = Steam::userGroupList($id);
 $library      = Steam::ownedGames($id, appIdsFilter: [381210]);
 $stats        = Steam::userStatsForGame($id, appId: 381210);
 $achievements = Steam::playerAchievements($id, appId: 381210);

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Steam::playerBans()` — wraps `GetPlayerBansRequest` and returns `list<PlayerBan>` for a batch of up to 100 IDs. Ban records are public, so a hidden profile still returns a row ([#35](https://github.com/fkrzski/laravel-steam-api-sdk/issues/35)).
+- `Steam::userGroupList()` — wraps `GetUserGroupListRequest` and returns `list<UserGroup>`, each carrying the group's `gid`. A hidden profile raises `ProfileNotPublicException` rather than returning an empty list ([#35](https://github.com/fkrzski/laravel-steam-api-sdk/issues/35)).
 - `php artisan about` — a "Route Binding" row reporting `disabled`, or `enabled` with the route parameter the binding claims ([#41](https://github.com/fkrzski/laravel-steam-api-sdk/issues/41)).
 
 ### Changed

@@ -6,10 +6,13 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
+use Fkrzski\SteamApiSdk\Enums\EconomyBan;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerBansRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetUserGroupListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
@@ -168,6 +171,51 @@ it('fetches player summaries through the convenience method', function (): void 
     $mock->assertSent(GetPlayerSummariesRequest::class);
 });
 
+it('fetches player bans', function (): void {
+    $mock = Steam::fake([
+        GetPlayerBansRequest::class => MockResponse::make([
+            'players' => [
+                [
+                    'SteamId' => '76561198000000000',
+                    'CommunityBanned' => false,
+                    'VACBanned' => true,
+                    'NumberOfVACBans' => 2,
+                    'DaysSinceLastBan' => 1337,
+                    'NumberOfGameBans' => 1,
+                    'EconomyBan' => 'probation',
+                ],
+            ],
+        ]),
+    ]);
+
+    $bans = Steam::playerBans([steamId()]);
+
+    expect($bans)->toHaveCount(1)
+        ->and($bans[0]->steamId->value)->toBe('76561198000000000')
+        ->and($bans[0]->isCommunityBanned)->toBeFalse()
+        ->and($bans[0]->isVacBanned)->toBeTrue()
+        ->and($bans[0]->numberOfVacBans)->toBe(2)
+        ->and($bans[0]->numberOfGameBans)->toBe(1)
+        ->and($bans[0]->daysSinceLastBan)->toBe(1337)
+        ->and($bans[0]->economyBan)->toBe(EconomyBan::Probation);
+
+    $mock->assertSent(GetPlayerBansRequest::class);
+});
+
+it('batches every steam id into one ban lookup', function (): void {
+    $mock = Steam::fake([
+        GetPlayerBansRequest::class => MockResponse::make(['players' => []]),
+    ]);
+
+    $ids = [steamId(), SteamId::fromSteamId64('76561198000000001')];
+
+    expect(Steam::playerBans($ids))->toBeEmpty();
+
+    $mock->assertSent(
+        fn (GetPlayerBansRequest $request): bool => $request->steamIds === $ids,
+    );
+});
+
 it('fetches a friend list', function (): void {
     $mock = Steam::fake([
         GetFriendListRequest::class => MockResponse::make([
@@ -214,6 +262,26 @@ it('narrows the friend list to a relationship', function (): void {
 
     $mock->assertSent(
         fn (GetFriendListRequest $request): bool => $request->relationship === FriendRelationship::All,
+    );
+});
+
+it('fetches the group list', function (): void {
+    $mock = Steam::fake([
+        GetUserGroupListRequest::class => MockResponse::make([
+            'response' => [
+                'success' => true,
+                'groups' => [['gid' => '103582791429521412']],
+            ],
+        ]),
+    ]);
+
+    $groups = Steam::userGroupList(steamId());
+
+    expect($groups)->toHaveCount(1)
+        ->and($groups[0]->gid)->toBe('103582791429521412');
+
+    $mock->assertSent(
+        fn (GetUserGroupListRequest $request): bool => $request->steamId->value === steamId()->value,
     );
 });
 

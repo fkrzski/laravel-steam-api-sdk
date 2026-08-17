@@ -9,12 +9,16 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\SteamApiSdk\Dto\Friend;
 use Fkrzski\SteamApiSdk\Dto\OwnedGame;
 use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
+use Fkrzski\SteamApiSdk\Dto\PlayerBan;
 use Fkrzski\SteamApiSdk\Dto\PlayerSummary;
+use Fkrzski\SteamApiSdk\Dto\UserGroup;
 use Fkrzski\SteamApiSdk\Dto\UserStats;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerBansRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetUserGroupListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
@@ -89,6 +93,19 @@ final readonly class SteamManager
     }
 
     /**
+     * Fetch ban records for up to 100 Steam IDs.
+     *
+     * @param  list<SteamId>  $steamIds
+     * @return list<PlayerBan>
+     */
+    public function playerBans(array $steamIds): array
+    {
+        $request = new GetPlayerBansRequest($steamIds);
+
+        return $request->createDtoFromResponse($this->send($request));
+    }
+
+    /**
      * Fetch a player's friend list, optionally narrowed to one relationship.
      *
      * @return list<Friend>
@@ -96,6 +113,18 @@ final readonly class SteamManager
     public function friendList(SteamId $steamId, ?FriendRelationship $relationship = null): array
     {
         $request = new GetFriendListRequest($steamId, $relationship);
+
+        return $request->createDtoFromResponse($this->send($request));
+    }
+
+    /**
+     * Fetch the community groups a player belongs to.
+     *
+     * @return list<UserGroup>
+     */
+    public function userGroupList(SteamId $steamId): array
+    {
+        $request = new GetUserGroupListRequest($steamId);
 
         return $request->createDtoFromResponse($this->send($request));
     }
