@@ -63,9 +63,9 @@ Lists a player's friends, each with the relationship and the date it started.
 decide.
 
 - Returns `list<Friend>`.
-- Throws Saloon's `UnauthorizedException` (a `401`) when the friend list is private
-  — unlike `ownedGames()`, this endpoint refuses the request rather than returning
-  an empty payload, so there is no `ProfileNotPublicException` here.
+- Throws `ProfileNotPublicException` when the friend list is private — unlike
+  `ownedGames()`, this endpoint refuses the request with a `401` rather than
+  returning an empty payload.
 
 ```php
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
