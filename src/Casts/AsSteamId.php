@@ -7,13 +7,14 @@ namespace Fkrzski\LaravelSteamApiSdk\Casts;
 use Fkrzski\SteamApiSdk\Exceptions\InvalidSteamIdException;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
+use Illuminate\Contracts\Database\Eloquent\SerializesCastableAttributes;
 use Illuminate\Database\Eloquent\Model;
 use Stringable;
 
 /**
  * @implements CastsAttributes<SteamId, SteamId|string|int|Stringable>
  */
-final class AsSteamId implements CastsAttributes
+final class AsSteamId implements CastsAttributes, SerializesCastableAttributes
 {
     /**
      * {@inheritDoc}
@@ -49,5 +50,15 @@ final class AsSteamId implements CastsAttributes
         }
 
         return SteamId::fromSteamId64((string) $value)->value;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * `toArray()` unwraps an `Arrayable` only — a contract `SteamId` cannot implement.
+     */
+    public function serialize(Model $model, string $key, mixed $value, array $attributes): ?string
+    {
+        return $this->set($model, $key, $value, $attributes);
     }
 }

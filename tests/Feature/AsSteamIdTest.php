@@ -19,6 +19,20 @@ function asSteamId(): AsSteamId
     return new AsSteamId;
 }
 
+function castingModel(): Model
+{
+    return new class extends Model
+    {
+        /**
+         * @return array<string, string>
+         */
+        protected function casts(): array
+        {
+            return ['steam_id' => AsSteamId::class];
+        }
+    };
+}
+
 const STEAM_ID_64 = '76561198000000000';
 
 it('casts a null db value to null on get', function (): void {
@@ -96,3 +110,35 @@ it('throws when the value is a boolean on set', function (): void {
 it('throws when the value is not a scalar on set', function (): void {
     asSteamId()->set(castModel(), 'steam_id', ['not', 'scalar'], []);
 })->throws(InvalidSteamIdException::class, '"array" is not a valid 64-bit Steam ID.');
+
+it('serializes a SteamId value object to its id 64 string on serialize', function (): void {
+    $value = SteamId::fromSteamId64(STEAM_ID_64);
+
+    expect(asSteamId()->serialize(castModel(), 'steam_id', $value, []))->toBe(STEAM_ID_64);
+});
+
+it('serializes a null value to null on serialize', function (): void {
+    expect(asSteamId()->serialize(castModel(), 'steam_id', null, []))->toBeNull();
+});
+
+it('throws when the value is not a valid steam id 64 on serialize', function (): void {
+    asSteamId()->serialize(castModel(), 'steam_id', 'not-a-steam-id', []);
+})->throws(InvalidSteamIdException::class);
+
+it('serializes the cast attribute to a flat string in toArray', function (): void {
+    $model = castingModel()->setRawAttributes(['steam_id' => STEAM_ID_64]);
+
+    expect($model->toArray())->toBe(['steam_id' => STEAM_ID_64]);
+});
+
+it('keeps a null cast attribute null in toArray', function (): void {
+    $model = castingModel()->setRawAttributes(['steam_id' => null]);
+
+    expect($model->toArray())->toBe(['steam_id' => null]);
+});
+
+it('serializes the cast attribute to a flat string in toJson', function (): void {
+    $model = castingModel()->setRawAttributes(['steam_id' => STEAM_ID_64]);
+
+    expect($model->toJson())->toBe(sprintf('{"steam_id":"%s"}', STEAM_ID_64));
+});
