@@ -43,15 +43,17 @@ Schema::table('users', function (Blueprint $table): void {
 
 ## Reading and writing
 
-Assign either a `SteamId` value object or a plain string; both are validated and
-persisted as the canonical 64-bit string. Reading the attribute always gives you a
-`SteamId` back:
+Assign a `SteamId` value object, a string, an `int`, or any `Stringable` — all of
+them are validated and persisted as the canonical 64-bit string. Reading the
+attribute always gives you a `SteamId` back:
 
 ```php
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 
 $user->steam_id = SteamId::fromSteamId64('76561198000000000');
-$user->steam_id = '76561198000000000'; // a plain string works too
+$user->steam_id = '76561198000000000';
+$user->steam_id = 76561198000000000; // a JSON body sends the ID as an int
+$user->steam_id = $request->string('steam_id');
 $user->save();
 
 $user->steam_id;        // SteamId value object
@@ -61,6 +63,12 @@ $user->steam_id->value; // '76561198000000000'
 ## Validation and null
 
 On both read and write the value passes through `SteamId::fromSteamId64`; an
-invalid stored or assigned value throws `InvalidSteamIdException`. A non-scalar
-stored value throws the same exception rather than casting silently. `null` is
-preserved in both directions, so a nullable column stays nullable.
+invalid stored or assigned value throws `InvalidSteamIdException`. A stored value
+that is not a scalar, and an assigned value that is neither a scalar nor a
+`Stringable`, throw the same exception rather than casting silently — every
+rejected write raises one catchable domain exception, never a `TypeError`.
+`null` is preserved in both directions, so a nullable column stays nullable.
+
+A profile URL is rejected — widening input is the job of the
+[validation rule](/laravel-steam-api-sdk/validation) and the
+[route binding](/laravel-steam-api-sdk/route-binding).
