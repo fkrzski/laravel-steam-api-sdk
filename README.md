@@ -12,7 +12,7 @@ Laravel bridge for [`fkrzski/php-steam-api-sdk`](https://github.com/fkrzski/php-
 - Auto-discovered `SteamConnector` binding, scoped per request and safe under Octane.
 - Rate-limit budget shared across processes through the Laravel cache store.
 - Fluent `Steam` facade with first-class request helpers.
-- `AsSteamId` Eloquent cast, `SteamIdRule` validation rule and one-liner test fakes via Saloon's `MockClient`.
+- `AsSteamId` Eloquent cast, `SteamIdRule` validation rule and one-liner test fakes via Saloon's `MockClient`, with DTO factories for the payloads.
 
 ## Requirements
 
