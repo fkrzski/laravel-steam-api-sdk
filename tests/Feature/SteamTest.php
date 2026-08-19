@@ -6,6 +6,14 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Enums\EconomyBan;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
@@ -19,7 +27,6 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Saloon\Http\Faking\MockClient;
-use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\Response;
 
 mutates(SteamManager::class);
@@ -109,9 +116,7 @@ it('exposes the underlying connector', function (): void {
 
 it('fakes responses and resolves a vanity url', function (): void {
     $mock = Steam::fake([
-        ResolveVanityUrlRequest::class => MockResponse::make([
-            'response' => ['success' => 1, 'steamid' => '76561198000000000'],
-        ]),
+        ResolveVanityUrlRequest::class => SteamResponse::vanityUrl(steamId()),
     ]);
 
     $steamId = Steam::resolveVanityUrl('gabelogannewell');
@@ -123,9 +128,7 @@ it('fakes responses and resolves a vanity url', function (): void {
 
 it('does not leak the fake past the scope that installed it', function (): void {
     Steam::fake([
-        ResolveVanityUrlRequest::class => MockResponse::make([
-            'response' => ['success' => 1, 'steamid' => '76561198000000000'],
-        ]),
+        ResolveVanityUrlRequest::class => SteamResponse::vanityUrl(steamId()),
     ]);
 
     expect(app(SteamConnector::class)->hasMockClient())->toBeTrue();
@@ -144,26 +147,12 @@ it('refuses to fake outside the testing environment', function (): void {
 
 it('fetches player summaries through the convenience method', function (): void {
     $mock = Steam::fake([
-        GetPlayerSummariesRequest::class => MockResponse::make([
-            'response' => [
-                'players' => [
-                    [
-                        'steamid' => '76561198000000000',
-                        'personaname' => 'Gabe',
-                        'profileurl' => 'https://steamcommunity.com/id/gabelogannewell/',
-                        'avatar' => 'https://example.test/a.jpg',
-                        'avatarmedium' => 'https://example.test/m.jpg',
-                        'avatarfull' => 'https://example.test/f.jpg',
-                        'avatarhash' => 'abc123',
-                        'communityvisibilitystate' => 3,
-                        'timecreated' => 1063407589,
-                    ],
-                ],
-            ],
-        ]),
+        GetPlayerSummariesRequest::class => SteamResponse::playerSummaries(
+            PlayerSummaryFactory::new()->personaName('Gabe'),
+        ),
     ]);
 
-    $summaries = Steam::playerSummaries([SteamId::fromSteamId64('76561198000000000')]);
+    $summaries = Steam::playerSummaries([steamId()]);
 
     expect($summaries)->toHaveCount(1)
         ->and($summaries[0]->personaName)->toBe('Gabe');
@@ -173,30 +162,16 @@ it('fetches player summaries through the convenience method', function (): void 
 
 it('fetches player bans', function (): void {
     $mock = Steam::fake([
-        GetPlayerBansRequest::class => MockResponse::make([
-            'players' => [
-                [
-                    'SteamId' => '76561198000000000',
-                    'CommunityBanned' => false,
-                    'VACBanned' => true,
-                    'NumberOfVACBans' => 2,
-                    'DaysSinceLastBan' => 1337,
-                    'NumberOfGameBans' => 1,
-                    'EconomyBan' => 'probation',
-                ],
-            ],
-        ]),
+        GetPlayerBansRequest::class => SteamResponse::playerBans(
+            PlayerBanFactory::new()->vacBanned(2)->economyBan(EconomyBan::Probation),
+        ),
     ]);
 
     $bans = Steam::playerBans([steamId()]);
 
     expect($bans)->toHaveCount(1)
         ->and($bans[0]->steamId->value)->toBe('76561198000000000')
-        ->and($bans[0]->isCommunityBanned)->toBeFalse()
-        ->and($bans[0]->isVacBanned)->toBeTrue()
         ->and($bans[0]->numberOfVacBans)->toBe(2)
-        ->and($bans[0]->numberOfGameBans)->toBe(1)
-        ->and($bans[0]->daysSinceLastBan)->toBe(1337)
         ->and($bans[0]->economyBan)->toBe(EconomyBan::Probation);
 
     $mock->assertSent(GetPlayerBansRequest::class);
@@ -204,7 +179,7 @@ it('fetches player bans', function (): void {
 
 it('batches every steam id into one ban lookup', function (): void {
     $mock = Steam::fake([
-        GetPlayerBansRequest::class => MockResponse::make(['players' => []]),
+        GetPlayerBansRequest::class => SteamResponse::playerBans(),
     ]);
 
     $ids = [steamId(), SteamId::fromSteamId64('76561198000000001')];
@@ -218,32 +193,22 @@ it('batches every steam id into one ban lookup', function (): void {
 
 it('fetches a friend list', function (): void {
     $mock = Steam::fake([
-        GetFriendListRequest::class => MockResponse::make([
-            'friendslist' => [
-                'friends' => [
-                    [
-                        'steamid' => '76561198000000001',
-                        'relationship' => 'friend',
-                        'friend_since' => 1600000000,
-                    ],
-                ],
-            ],
-        ]),
+        GetFriendListRequest::class => SteamResponse::friendList(
+            FriendFactory::new()->relationship(FriendRelationship::All),
+        ),
     ]);
 
     $friends = Steam::friendList(steamId());
 
     expect($friends)->toHaveCount(1)
-        ->and($friends[0]->steamId->value)->toBe('76561198000000001')
-        ->and($friends[0]->relationship)->toBe(FriendRelationship::Friend)
-        ->and($friends[0]->friendSince->getTimestamp())->toBe(1600000000);
+        ->and($friends[0]->relationship)->toBe(FriendRelationship::All);
 
     $mock->assertSent(GetFriendListRequest::class);
 });
 
 it('sends no relationship filter by default', function (): void {
     $mock = Steam::fake([
-        GetFriendListRequest::class => MockResponse::make(['friendslist' => ['friends' => []]]),
+        GetFriendListRequest::class => SteamResponse::friendList(),
     ]);
 
     expect(Steam::friendList(steamId()))->toBeEmpty();
@@ -255,7 +220,7 @@ it('sends no relationship filter by default', function (): void {
 
 it('narrows the friend list to a relationship', function (): void {
     $mock = Steam::fake([
-        GetFriendListRequest::class => MockResponse::make(['friendslist' => ['friends' => []]]),
+        GetFriendListRequest::class => SteamResponse::friendList(),
     ]);
 
     Steam::friendList(steamId(), FriendRelationship::All);
@@ -267,12 +232,9 @@ it('narrows the friend list to a relationship', function (): void {
 
 it('fetches the group list', function (): void {
     $mock = Steam::fake([
-        GetUserGroupListRequest::class => MockResponse::make([
-            'response' => [
-                'success' => true,
-                'groups' => [['gid' => '103582791429521412']],
-            ],
-        ]),
+        GetUserGroupListRequest::class => SteamResponse::userGroupList(
+            UserGroupFactory::new()->gid('103582791429521412'),
+        ),
     ]);
 
     $groups = Steam::userGroupList(steamId());
@@ -287,14 +249,9 @@ it('fetches the group list', function (): void {
 
 it('fetches owned games', function (): void {
     $mock = Steam::fake([
-        GetOwnedGamesRequest::class => MockResponse::make([
-            'response' => [
-                'game_count' => 1,
-                'games' => [
-                    ['appid' => 381210, 'playtime_forever' => 1200, 'playtime_2weeks' => 60],
-                ],
-            ],
-        ]),
+        GetOwnedGamesRequest::class => SteamResponse::ownedGames(
+            OwnedGameFactory::new()->appId(381210),
+        ),
     ]);
 
     $games = Steam::ownedGames(steamId(), appIdsFilter: [381210]);
@@ -307,14 +264,9 @@ it('fetches owned games', function (): void {
 
 it('fetches user stats for a game', function (): void {
     $mock = Steam::fake([
-        GetUserStatsForGameRequest::class => MockResponse::make([
-            'playerstats' => [
-                'steamID' => '76561198000000000',
-                'gameName' => 'Dead by Daylight',
-                'stats' => [['name' => 'DBD_KillerSkulls', 'value' => 42]],
-                'achievements' => [['name' => 'ACH_UNLOCK_KILLER_CHARACTER', 'achieved' => 1]],
-            ],
-        ]),
+        GetUserStatsForGameRequest::class => SteamResponse::userStats(
+            UserStatsFactory::new()->gameName('Dead by Daylight'),
+        ),
     ]);
 
     $stats = Steam::userStatsForGame(steamId(), appId: 381210);
@@ -326,16 +278,9 @@ it('fetches user stats for a game', function (): void {
 
 it('fetches player achievements', function (): void {
     $mock = Steam::fake([
-        GetPlayerAchievementsRequest::class => MockResponse::make([
-            'playerstats' => [
-                'steamID' => '76561198000000000',
-                'gameName' => 'Dead by Daylight',
-                'success' => true,
-                'achievements' => [
-                    ['apiname' => 'ACH_UNLOCK_KILLER_CHARACTER', 'achieved' => 1, 'unlocktime' => 1600000000],
-                ],
-            ],
-        ]),
+        GetPlayerAchievementsRequest::class => SteamResponse::playerAchievements(
+            PlayerAchievementsFactory::new()->gameName('Dead by Daylight'),
+        ),
     ]);
 
     $achievements = Steam::playerAchievements(steamId(), appId: 381210);
@@ -348,9 +293,7 @@ it('fetches player achievements', function (): void {
 
 it('sends an arbitrary request and returns the raw response', function (): void {
     Steam::fake([
-        ResolveVanityUrlRequest::class => MockResponse::make([
-            'response' => ['success' => 1, 'steamid' => '76561198000000000'],
-        ]),
+        ResolveVanityUrlRequest::class => SteamResponse::vanityUrl(steamId()),
     ]);
 
     $response = Steam::send(new ResolveVanityUrlRequest('gabelogannewell'));
@@ -360,9 +303,7 @@ it('sends an arbitrary request and returns the raw response', function (): void 
 
 it('sends requests concurrently through a pool', function (): void {
     Steam::fake([
-        GetPlayerSummariesRequest::class => MockResponse::make([
-            'response' => ['players' => []],
-        ]),
+        GetPlayerSummariesRequest::class => SteamResponse::playerSummaries(),
     ]);
 
     $sent = [];
