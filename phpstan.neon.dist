@@ -13,12 +13,13 @@ parameters:
 
     ignoreErrors:
         # Command::secret() returns ?string, and InstallCommand::askForKey()
-        # has a branch for the null. PendingCommand::expectsQuestion() is
-        # annotated string|bool, so the test that covers that branch cannot
-        # be written without tripping this. Laravel's annotation is narrower
-        # than its own runtime contract.
+        # has a branch for the null. PendingCommand::expectsQuestion() rejects
+        # null, so the test covering that branch cannot be written without
+        # tripping this. Laravel's annotation is narrower than its own runtime
+        # contract, and the union it lists widens between releases, so the
+        # pattern matches on the null argument rather than on the union.
         -
             identifier: argument.type
-            message: '#expectsQuestion\(\) expects bool\|string, null given#'
+            message: '#expectsQuestion\(\) expects .+, null given#'
             path: tests/Feature/InstallCommandTest.php
             count: 1
