@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Steam::playerBans()` — wraps `GetPlayerBansRequest` and returns `list<PlayerBan>` for a batch of up to 100 IDs. Ban records are public, so a hidden profile still returns a row ([#35](https://github.com/fkrzski/laravel-steam-api-sdk/issues/35)).
 - `Steam::userGroupList()` — wraps `GetUserGroupListRequest` and returns `list<UserGroup>`, each carrying the group's `gid`. A hidden profile raises `ProfileNotPublicException` rather than returning an empty list ([#35](https://github.com/fkrzski/laravel-steam-api-sdk/issues/35)).
 - `php artisan about` — a "Route Binding" row reporting `disabled`, or `enabled` with the route parameter the binding claims ([#41](https://github.com/fkrzski/laravel-steam-api-sdk/issues/41)).
+- DTO factories in `Fkrzski\LaravelSteamApiSdk\Testing\Factories` — one for every DTO the facade returns, building the raw Steam payload with `toArray()` or the DTO itself with `make()`. Named states cover the variations worth naming: `->private()`, `->online()`, `->vacBanned()`, `->locked()` ([#36](https://github.com/fkrzski/laravel-steam-api-sdk/issues/36)).
+- `SteamResponse` — builds a `MockResponse` for every endpoint the facade wraps, filled from the DTO factories. No two endpoints nest their collection alike, and the failure builders cover the three separate shapes Steam refuses a request with ([#36](https://github.com/fkrzski/laravel-steam-api-sdk/issues/36)).
 
 ### Changed
 
