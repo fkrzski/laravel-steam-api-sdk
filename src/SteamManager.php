@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk;
 
 use Closure;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeNotInstalledException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\SteamApiSdk\Dto\Friend;
 use Fkrzski\SteamApiSdk\Dto\OwnedGame;
@@ -199,6 +200,74 @@ final readonly class SteamManager
         $mockClient = new MockClient($responses);
 
         $this->connector()->withMockClient($mockClient);
+
+        return $mockClient;
+    }
+
+    /**
+     * Assert that a request matching the class name, URL pattern or closure was sent.
+     *
+     * @throws FakeNotInstalledException when no fake is attached
+     */
+    public function assertSent(string|callable $value): void
+    {
+        $this->mockClient()->assertSent($value);
+    }
+
+    /**
+     * Assert that no request matching the class name, URL pattern or closure was sent.
+     *
+     * @throws FakeNotInstalledException when no fake is attached
+     */
+    public function assertNotSent(string|callable $request): void
+    {
+        $this->mockClient()->assertNotSent($request);
+    }
+
+    /**
+     * Assert that the fake recorded no requests at all.
+     *
+     * @throws FakeNotInstalledException when no fake is attached
+     */
+    public function assertNothingSent(): void
+    {
+        $this->mockClient()->assertNothingSent();
+    }
+
+    /**
+     * Assert how many requests were sent, optionally narrowed to one request class.
+     *
+     * @throws FakeNotInstalledException when no fake is attached
+     */
+    public function assertSentCount(int $count, ?string $requestClass = null): void
+    {
+        $this->mockClient()->assertSentCount($count, $requestClass);
+    }
+
+    /**
+     * Assert that the requests were sent in the given order, and nothing else with them.
+     *
+     * @param  array<Closure|class-string<Request>|string>  $callbacks
+     *
+     * @throws FakeNotInstalledException when no fake is attached
+     */
+    public function assertSentInOrder(array $callbacks): void
+    {
+        $this->mockClient()->assertSentInOrder($callbacks);
+    }
+
+    /**
+     * The mock attached by {@see self::fake()}, which the assertions read from.
+     *
+     * @throws FakeNotInstalledException when no fake is attached
+     */
+    private function mockClient(): MockClient
+    {
+        $mockClient = $this->connector()->getMockClient();
+
+        if (! $mockClient instanceof MockClient) {
+            throw new FakeNotInstalledException;
+        }
 
         return $mockClient;
     }
