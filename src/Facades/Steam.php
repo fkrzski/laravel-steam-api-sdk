@@ -20,6 +20,11 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Fkrzski\SteamApiSdk\Dto\PlayerAchievements playerAchievements(\Fkrzski\SteamApiSdk\ValueObjects\SteamId $steamId, int $appId, ?string $language = null)
  * @method static \Fkrzski\SteamApiSdk\ValueObjects\SteamId resolveVanityUrl(string $vanityName)
  * @method static \Saloon\Http\Faking\MockClient fake(array<array-key, (callable(): mixed)|\Saloon\Http\Faking\Fixture|\Saloon\Http\Faking\MockResponse> $responses = [])
+ * @method static void assertSent(string|callable $value)
+ * @method static void assertNotSent(string|callable $request)
+ * @method static void assertNothingSent()
+ * @method static void assertSentCount(int $count, ?string $requestClass = null)
+ * @method static void assertSentInOrder(array<\Closure|class-string<\Saloon\Http\Request>|string> $callbacks)
  *
  * @see SteamManager
  */

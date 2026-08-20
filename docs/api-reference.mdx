@@ -214,7 +214,9 @@ Steam::fake(array<class-string, mixed> $responses = []): Saloon\Http\Faking\Mock
 <Badge text="throws FakeOutsideTestsException" variant="danger" size="small" />
 
 Attaches a Saloon `MockClient` to the connector and returns it for assertions.
-Refused unless the application environment is `testing`. See
+Refused unless the application environment is `testing`. The same assertions sit
+on the facade — see [Test assertions](#test-assertions) — so the return value is
+only worth keeping for the rest of the mock's API. See
 [Testing](/laravel-steam-api-sdk/testing).
 
 ### `pool()`
@@ -240,3 +242,65 @@ Steam::send(Saloon\Http\Request $request): Saloon\Http\Response
 Sends any Saloon `Request` through the shared connector and returns the raw
 `Response` — the escape hatch for requests the helpers don't cover. Decode it with
 `->dto()` yourself; whatever the request raises reaches you unchanged.
+
+## Test assertions
+
+Saloon's `MockClient` assertions, proxied onto the facade so a test never has to
+hold the mock in a variable. See [Asserting](/laravel-steam-api-sdk/testing#asserting).
+
+<Aside type="caution" title="Fake first">
+Every assertion here reads the mock attached by [`fake()`](#fake). Without one
+there is nothing to assert against, so they raise `FakeNotInstalledException`
+rather than passing.
+</Aside>
+
+### `assertNothingSent()`
+
+```text frame="none"
+Steam::assertNothingSent(): void
+```
+
+Asserts that the fake recorded no requests at all.
+
+### `assertNotSent()`
+
+```text frame="none"
+Steam::assertNotSent(string|callable $request): void
+```
+
+Asserts that no request matching the class name, URL pattern or closure was sent.
+
+### `assertSent()`
+
+```text frame="none"
+Steam::assertSent(string|callable $value): void
+```
+
+Asserts that a request matching the class name, URL pattern or closure was sent.
+The closure receives the request and its response, so it can assert on query
+parameters, headers or the payload that came back.
+
+```php
+Steam::assertSent(
+    fn (GetPlayerBansRequest $request): bool => count($request->steamIds) === 2,
+);
+```
+
+### `assertSentCount()`
+
+```text frame="none"
+Steam::assertSentCount(int $count, ?string $requestClass = null): void
+```
+
+Asserts how many requests were sent. `requestClass` narrows the count to a single
+request; omit it to count everything the fake recorded.
+
+### `assertSentInOrder()`
+
+```text frame="none"
+Steam::assertSentInOrder(array<Closure|class-string<Request>|string> $callbacks): void
+```
+
+Asserts that these requests were sent, in this order, and nothing else with them.
+Saloon falls back to searching the whole history when a position does not match,
+so the count is the part it enforces strictly.

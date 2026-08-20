@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `php artisan about` — a "Route Binding" row reporting `disabled`, or `enabled` with the route parameter the binding claims ([#41](https://github.com/fkrzski/laravel-steam-api-sdk/issues/41)).
 - DTO factories in `Fkrzski\LaravelSteamApiSdk\Testing\Factories` — one for every DTO the facade returns, building the raw Steam payload with `toArray()` or the DTO itself with `make()`. Named states cover the variations worth naming: `->private()`, `->online()`, `->vacBanned()`, `->locked()` ([#36](https://github.com/fkrzski/laravel-steam-api-sdk/issues/36)).
 - `SteamResponse` — builds a `MockResponse` for every endpoint the facade wraps, filled from the DTO factories. No two endpoints nest their collection alike, and the failure builders cover the three separate shapes Steam refuses a request with ([#36](https://github.com/fkrzski/laravel-steam-api-sdk/issues/36)).
+- `Steam::assertSent()`, `assertNotSent()`, `assertNothingSent()`, `assertSentCount()` and `assertSentInOrder()` — Saloon's `MockClient` assertions on the facade, so a test no longer has to hold the mock `Steam::fake()` returns. Asserting without a fake raises `FakeNotInstalledException` rather than passing on an empty history ([#38](https://github.com/fkrzski/laravel-steam-api-sdk/issues/38)).
 
 ### Changed
 

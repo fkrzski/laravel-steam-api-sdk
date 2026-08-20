@@ -6,8 +6,8 @@ description: Fake the Steam Web API with Steam::fake() — build responses from 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 `Steam::fake()` attaches a Saloon [`MockClient`](https://docs.saloon.dev/testing/recording-responses)
-to the connector and returns it for assertions — your tests never hit the real Steam
-Web API.
+to the connector — your tests never hit the real Steam Web API, and assert on what
+they sent through the facade itself.
 
 <Aside type="danger" title="Tests only">
 `Steam::fake()` throws `FakeOutsideTestsException` unless the application
@@ -25,7 +25,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 
-$mock = Steam::fake([
+Steam::fake([
     GetPlayerSummariesRequest::class => SteamResponse::playerSummaries(
         PlayerSummaryFactory::new()->personaName('Gabe')->online(),
     ),
@@ -187,29 +187,58 @@ request leaves your machine, so the value is irrelevant:
 
 ## Asserting
 
-The returned `MockClient` exposes Saloon's assertion helpers:
+Saloon's assertions are proxied onto the facade, so nothing has to hold the mock:
+
+```php
+Steam::assertSent(GetPlayerSummariesRequest::class);
+Steam::assertNotSent(GetPlayerBansRequest::class);
+Steam::assertSentCount(1);
+Steam::assertSentCount(1, GetPlayerSummariesRequest::class);
+Steam::assertNothingSent();
+
+Steam::assertSentInOrder([
+    ResolveVanityUrlRequest::class,
+    GetPlayerSummariesRequest::class,
+]);
+```
+
+`assertSent()` and `assertNotSent()` also take a closure — assert on the request's
+query parameters, body or headers when the class alone isn't enough:
+
+```php
+Steam::assertSent(
+    fn (GetPlayerBansRequest $request): bool => $request->steamIds === $ids,
+);
+```
+
+<Aside type="caution" title="Fake first">
+Each assertion reads the mock `Steam::fake()` attached. Calling one without a fake
+raises `FakeNotInstalledException` rather than passing on an empty history.
+</Aside>
+
+The facade proxies the assertions and nothing else. Keep the `MockClient` that
+`fake()` returns when a test needs the recorded traffic itself —
+`getRecordedResponses()`, `getLastRequest()`:
 
 <Tabs syncKey="php-test-runner">
   <TabItem label="Pest">
     ```php
-    $mock->assertSent(GetPlayerSummariesRequest::class);
-    $mock->assertSentCount(1);
+    $mock = Steam::fake([/* … */]);
 
     expect($mock->getRecordedResponses())->toHaveCount(1);
     ```
   </TabItem>
   <TabItem label="PHPUnit">
     ```php
-    $mock->assertSent(GetPlayerSummariesRequest::class);
-    $mock->assertSentCount(1);
+    $mock = Steam::fake([/* … */]);
 
     $this->assertCount(1, $mock->getRecordedResponses());
     ```
   </TabItem>
 </Tabs>
 
-`assertSent` also takes a closure — assert on the request's query parameters, body
-or headers when the class alone isn't enough.
+Saloon's `assertSentJson()` is deprecated upstream, so the facade does not proxy it
+— call it on the mock if a test still needs it.
 
 ## A complete example
 
@@ -223,7 +252,7 @@ or headers when the class alone isn't enough.
     use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 
     it('fetches player summaries', function (): void {
-        $mock = Steam::fake([
+        Steam::fake([
             GetPlayerSummariesRequest::class => SteamResponse::playerSummaries(
                 PlayerSummaryFactory::new()->personaName('Gabe'),
             ),
@@ -233,7 +262,7 @@ or headers when the class alone isn't enough.
 
         expect($summaries[0]->personaName)->toBe('Gabe');
 
-        $mock->assertSent(GetPlayerSummariesRequest::class);
+        Steam::assertSent(GetPlayerSummariesRequest::class);
     });
     ```
   </TabItem>
@@ -249,7 +278,7 @@ or headers when the class alone isn't enough.
     {
         public function test_it_fetches_player_summaries(): void
         {
-            $mock = Steam::fake([
+            Steam::fake([
                 GetPlayerSummariesRequest::class => SteamResponse::playerSummaries(
                     PlayerSummaryFactory::new()->personaName('Gabe'),
                 ),
@@ -259,7 +288,7 @@ or headers when the class alone isn't enough.
 
             $this->assertSame('Gabe', $summaries[0]->personaName);
 
-            $mock->assertSent(GetPlayerSummariesRequest::class);
+            Steam::assertSent(GetPlayerSummariesRequest::class);
         }
     }
     ```

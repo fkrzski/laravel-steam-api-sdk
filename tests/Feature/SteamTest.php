@@ -31,11 +31,6 @@ use Saloon\Http\Response;
 
 mutates(SteamManager::class);
 
-function steamId(): SteamId
-{
-    return SteamId::fromSteamId64('76561198000000000');
-}
-
 it('resolves the connector and manager once per container', function (): void {
     expect(app(SteamConnector::class))->toBe(app(SteamConnector::class))
         ->and(app(SteamManager::class))->toBe(app(SteamManager::class));

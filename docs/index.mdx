@@ -28,7 +28,8 @@ JSON.
 - **Validation rule** — [`SteamIdRule`](/laravel-steam-api-sdk/validation) validates
   a submitted ID or profile URL without touching the API.
 - **One-liner fakes** — `Steam::fake()` swaps in Saloon's `MockClient`, with DTO
-  factories and `SteamResponse` builders for the payloads.
+  factories and `SteamResponse` builders for the payloads, and `Steam::assertSent()`
+  for the requests that went out.
 
 ## Requirements
 
