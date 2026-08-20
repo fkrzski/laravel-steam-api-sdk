@@ -1,0 +1,242 @@
+---
+title: API reference
+description: Every method on the Steam facade — its signature, the value object or DTO it returns, and the exceptions it can raise, each with a runnable example.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+Every method here lives on the `Steam` facade
+(`Fkrzski\LaravelSteamApiSdk\Facades\Steam`). The request helpers take a
+[`SteamId`](/laravel-steam-api-sdk/guide#the-steamid-value-object) wherever they
+identify a user and return readonly DTOs from the underlying SDK, documented in
+[Data objects](/php-steam-api-sdk/dto-reference).
+
+<Aside title="Three exceptions every request can raise">
+`SteamApiKeyMissingException` (no key configured), `InvalidApiKeyException` (Steam
+rejected it) and `SteamRateLimitException` (daily quota spent). They are listed
+per method only where a helper raises them on its own. Every exception below
+extends `SteamApiException`.
+</Aside>
+
+## Request helpers
+
+### `friendList()`
+
+```text frame="none"
+Steam::friendList(SteamId $steamId, ?FriendRelationship $relationship = null): list<Friend>
+```
+
+<Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
+
+Lists a player's friends, each with the relationship and the date it started.
+`relationship` narrows the result; omit it to let Steam decide.
+
+```php
+use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
+
+$friends = Steam::friendList($steamId, FriendRelationship::Friend);
+
+foreach ($friends as $friend) {
+    echo $friend->steamId->value, ' — since ', $friend->friendSince->format('Y-m-d'), PHP_EOL;
+}
+```
+
+<Aside type="caution" title="A private friend list is a 401">
+Unlike `ownedGames()`, this endpoint refuses the request rather than returning an
+empty payload — a hidden list never reaches you as an empty result.
+</Aside>
+
+### `ownedGames()`
+
+```text frame="none"
+Steam::ownedGames(
+    SteamId $steamId,
+    list<int> $appIdsFilter = [],
+    bool $includeAppInfo = false,
+    bool $includePlayedFreeGames = false,
+): list<OwnedGame>
+```
+
+<Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
+
+Lists the games a player owns. `appIdsFilter` narrows the result to specific app
+IDs, `includeAppInfo` adds names and icons, `includePlayedFreeGames` includes free
+games the player has launched.
+
+```php
+$library = Steam::ownedGames(
+    steamId: $steamId,
+    appIdsFilter: [381210],
+    includeAppInfo: true,
+);
+```
+
+### `playerAchievements()`
+
+```text frame="none"
+Steam::playerAchievements(SteamId $steamId, int $appId, ?string $language = null): PlayerAchievements
+```
+
+<Badge text="throws StatsUnavailableException" variant="danger" size="small" />
+<Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
+
+Returns a player's achievements for one game, each with its unlock state and time.
+`language` localises the achievement name and description. Steam answers a private
+profile and an app without achievements identically, so a `400` becomes
+`StatsUnavailableException` either way; a `401` is the hidden-profile case.
+
+```php
+$result = Steam::playerAchievements($steamId, appId: 381210, language: 'english');
+
+foreach ($result->achievements as $achievement) {
+    echo $achievement->apiName, ' — ', $achievement->achieved ? 'unlocked' : 'locked', PHP_EOL;
+}
+```
+
+### `playerBans()`
+
+```text frame="none"
+Steam::playerBans(list<SteamId> $steamIds): list<PlayerBan>
+```
+
+<Badge text="throws TooManySteamIdsException" variant="danger" size="small" />
+<Badge text="throws InvalidArgumentException" variant="danger" size="small" />
+
+Fetches community, VAC, game and economy bans for **1 to 100** players. Ban records
+are public, so a hidden profile still returns a row. An empty list of IDs raises
+`InvalidArgumentException`, more than 100 raises `TooManySteamIdsException`.
+
+```php
+$bans = Steam::playerBans([$steamId]);
+
+foreach ($bans as $ban) {
+    echo $ban->steamId->value, ' — ', $ban->isVacBanned ? 'VAC banned' : 'clean', PHP_EOL;
+}
+```
+
+### `playerSummaries()`
+
+```text frame="none"
+Steam::playerSummaries(list<SteamId> $steamIds): list<PlayerSummary>
+```
+
+<Badge text="throws TooManySteamIdsException" variant="danger" size="small" />
+<Badge text="throws InvalidArgumentException" variant="danger" size="small" />
+
+Fetches public profile summaries for **1 to 100** players. Same bounds as
+`playerBans()`: an empty list and more than 100 IDs each raise before a request is
+sent.
+
+```php
+$summaries = Steam::playerSummaries([$steamId]);
+
+foreach ($summaries as $summary) {
+    echo $summary->personaName, ' — ', $summary->profileUrl, PHP_EOL;
+}
+```
+
+### `resolveVanityUrl()`
+
+```text frame="none"
+Steam::resolveVanityUrl(string $vanityName): SteamId
+```
+
+<Badge text="throws SteamUserNotFoundException" variant="danger" size="small" />
+
+Resolves a vanity slug — the `<name>` in `steamcommunity.com/id/<name>` — to a
+`SteamId`.
+
+```php
+$steamId = Steam::resolveVanityUrl('gabelogannewell');
+```
+
+### `userGroupList()`
+
+```text frame="none"
+Steam::userGroupList(SteamId $steamId): list<UserGroup>
+```
+
+<Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
+
+Lists the community groups a player belongs to, each as a `UserGroup` carrying its
+`gid`; empty when the player is in no group. Steam returns group IDs only — resolve
+names through the community API yourself.
+
+```php
+$groups = Steam::userGroupList($steamId);
+
+foreach ($groups as $group) {
+    echo $group->gid, PHP_EOL;
+}
+```
+
+### `userStatsForGame()`
+
+```text frame="none"
+Steam::userStatsForGame(SteamId $steamId, int $appId, ?string $language = null): UserStats
+```
+
+<Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
+
+Returns a player's stats and achievement flags for one game. `language` localises
+achievement metadata (e.g. `'english'`).
+
+```php
+$stats = Steam::userStatsForGame($steamId, appId: 381210);
+
+foreach ($stats->stats as $stat) {
+    echo $stat->name, ' = ', $stat->value, PHP_EOL;
+}
+```
+
+## Low-level helpers
+
+### `connector()`
+
+```text frame="none"
+Steam::connector(): SteamConnector
+```
+
+Returns the underlying `Fkrzski\SteamApiSdk\SteamConnector` for the current
+request. Use it for Saloon features the facade does not expose.
+
+<Aside type="caution">
+The binding is **scoped** — do not hold the instance past the request that
+resolved it. See [The connector binding](/laravel-steam-api-sdk/configuration#the-connector-binding).
+</Aside>
+
+### `fake()`
+
+```text frame="none"
+Steam::fake(array<class-string, mixed> $responses = []): Saloon\Http\Faking\MockClient
+```
+
+<Badge text="throws FakeOutsideTestsException" variant="danger" size="small" />
+
+Attaches a Saloon `MockClient` to the connector and returns it for assertions.
+Refused unless the application environment is `testing`. See
+[Testing](/laravel-steam-api-sdk/testing).
+
+### `pool()`
+
+```text frame="none"
+Steam::pool(
+    iterable<Request>|callable $requests = [],
+    int|callable $concurrency = 5,
+    ?callable $responseHandler = null,
+    ?callable $exceptionHandler = null,
+): Saloon\Http\Pool
+```
+
+Builds a Saloon `Pool` for sending Steam requests concurrently. See
+[Concurrent requests](/laravel-steam-api-sdk/guide#concurrent-requests).
+
+### `send()`
+
+```text frame="none"
+Steam::send(Saloon\Http\Request $request): Saloon\Http\Response
+```
+
+Sends any Saloon `Request` through the shared connector and returns the raw
+`Response` — the escape hatch for requests the helpers don't cover. Decode it with
+`->dto()` yourself; whatever the request raises reaches you unchanged.

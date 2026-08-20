@@ -119,17 +119,20 @@ extend `SteamApiException`, so one catch handles the lot:
 ```text frame="none"
 SteamApiException                (root, extends RuntimeException)
 ├── InvalidSteamIdException      Malformed SteamID64.
+├── InvalidApiKeyException       Steam rejected the key, or received none.
 ├── SteamUserNotFoundException   Vanity URL unresolved or profile missing.
 ├── ProfileNotPublicException    Profile, games list, or stats are private.
+├── StatsUnavailableException    No stats for that game, or the profile hides them.
 ├── TooManySteamIdsException     More than 100 IDs in a batch request.
 ├── SteamRateLimitException      Daily quota reached; exposes the offending Limit.
-└── SteamApiKeyMissingException  No API key configured. (Laravel bridge)
+├── SteamApiKeyMissingException  No API key configured. (Laravel bridge)
+└── FakeOutsideTestsException    Steam::fake() outside tests. (Laravel bridge)
 ```
 
 Catch the leaf you care about, or the root. The
 [API reference](/laravel-steam-api-sdk/api-reference) notes which helper raises which.
 
-Every leaf but the last lives in `Fkrzski\SteamApiSdk\Exceptions`.
-`SteamApiKeyMissingException` is the bridge's own
-(`Fkrzski\LaravelSteamApiSdk\Exceptions`) and signals a misconfiguration rather
-than a failed call — see [Configuration](/laravel-steam-api-sdk/configuration#the-api-key).
+The last two are the bridge's own (`Fkrzski\LaravelSteamApiSdk\Exceptions`) and
+signal a misconfiguration rather than a failed call — see
+[Configuration](/laravel-steam-api-sdk/configuration#the-api-key). The rest live in
+`Fkrzski\SteamApiSdk\Exceptions`.
