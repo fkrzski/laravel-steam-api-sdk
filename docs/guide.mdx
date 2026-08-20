@@ -126,13 +126,14 @@ SteamApiException                (root, extends RuntimeException)
 ├── TooManySteamIdsException     More than 100 IDs in a batch request.
 ├── SteamRateLimitException      Daily quota reached; exposes the offending Limit.
 ├── SteamApiKeyMissingException  No API key configured. (Laravel bridge)
+├── FakeNotInstalledException    Facade assertion without Steam::fake(). (Laravel bridge)
 └── FakeOutsideTestsException    Steam::fake() outside tests. (Laravel bridge)
 ```
 
 Catch the leaf you care about, or the root. The
 [API reference](/laravel-steam-api-sdk/api-reference) notes which helper raises which.
 
-The last two are the bridge's own (`Fkrzski\LaravelSteamApiSdk\Exceptions`) and
-signal a misconfiguration rather than a failed call — see
+The last three are the bridge's own (`Fkrzski\LaravelSteamApiSdk\Exceptions`) and
+signal a misconfiguration, or a test wired up wrong, rather than a failed call — see
 [Configuration](/laravel-steam-api-sdk/configuration#the-api-key). The rest live in
 `Fkrzski\SteamApiSdk\Exceptions`.
