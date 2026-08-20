@@ -1,0 +1,138 @@
+---
+title: Route binding
+description: Opt in to resolving a route parameter into a SteamId value object — a 64-bit ID or a profile URL becomes a SteamId, an unresolvable value returns a 404.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+The bridge ships a [route binding](https://laravel.com/docs/routing#route-model-binding)
+that turns a route parameter into a
+[`SteamId`](/laravel-steam-api-sdk/guide#the-steamid-value-object) before it reaches
+your controller — no manual parsing, no validation boilerplate.
+
+<Aside type="caution" title="Off by default, and deliberately so">
+`Router::bind()` claims a parameter name across your whole application, and this
+package ships no routes of its own — so the only routes the binding can ever claim
+are yours.
+</Aside>
+
+## Enabling the binding
+
+<Steps>
+
+1. Publish the config and flip `enabled`:
+
+   ```php title="config/steam-api.php" del={2} ins={3}
+   'route_binding' => [
+       'enabled' => false,
+       'enabled' => true,
+       'parameter' => 'steamId',
+   ],
+   ```
+
+   `parameter` is the segment name to claim. It applies to **every** route using
+   that name, so pick one your application does not already use.
+
+2. Name a route parameter `steamId` and type-hint the value object:
+
+   ```php title="routes/web.php"
+   use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+   use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+
+   Route::get('/players/{steamId}', function (SteamId $steamId) {
+       return Steam::playerSummaries([$steamId]);
+   });
+   ```
+
+</Steps>
+
+`/players/76561198000000000` now hands your closure a ready `SteamId`. Resolution
+runs through `SteamId::tryFromInput`, so a `/profiles/<id>` URL segment works too;
+anything unresolvable aborts with a **404**, exactly as a missing model would.
+
+## Format only, so vanity names 404
+
+The binder never calls the Steam Web API — it parses the segment and nothing more:
+
+```text frame="none"
+/players/76561198000000000  → SteamId
+/players/gaben              → 404
+```
+
+<Aside title="The 404 lands before your controller">
+It is thrown during `SubstituteBindings`. If your application resolves vanity
+names itself, keep your own binder for that parameter, claim a different
+`parameter` name here, or swap the resolver below.
+</Aside>
+
+## Swapping the resolver
+
+`Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding` is pulled from the
+container on every request. A replacement must be invokable, take the segment as a
+`string`, return a `SteamId`, and throw
+`Symfony\Component\HttpKernel\Exception\NotFoundHttpException` on input it cannot
+resolve.
+
+Wrap the shipped binder instead of reimplementing it — then you only pay for an API
+call on what it rejects:
+
+```php title="app/Routing/VanityAwareSteamIdBinding.php"
+namespace App\Routing;
+
+use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
+use Fkrzski\SteamApiSdk\Exceptions\SteamUserNotFoundException;
+use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+
+final readonly class VanityAwareSteamIdBinding
+{
+    public function __construct(private SteamIdRouteBinding $binding) {}
+
+    public function __invoke(string $value): SteamId
+    {
+        try {
+            return ($this->binding)($value);
+        } catch (NotFoundHttpException) {
+            // Neither an ID nor a profile URL — try it as a vanity name.
+        }
+
+        try {
+            return Steam::resolveVanityUrl($value);
+        } catch (SteamUserNotFoundException) {
+            throw new NotFoundHttpException(sprintf('"%s" is not a Steam profile.', $value));
+        }
+    }
+}
+```
+
+Register it in a service provider:
+
+```php title="app/Providers/AppServiceProvider.php"
+use App\Routing\VanityAwareSteamIdBinding;
+use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
+
+$this->app->bind(
+    SteamIdRouteBinding::class,
+    fn (): VanityAwareSteamIdBinding => new VanityAwareSteamIdBinding(new SteamIdRouteBinding),
+);
+```
+
+<Aside type="caution" title="Build the wrapped binder with new">
+Autowiring that constructor would resolve `SteamIdRouteBinding` back to your
+replacement. The class is `final`, so the seam is the container binding, never a
+subclass.
+</Aside>
+
+Vanity routes now cost a Steam call per request — cache the resolution if the route
+is hot.
+
+## Checking what is claimed
+
+```bash
+php artisan about --only=steam_api
+```
+
+```text frame="terminal" title="php artisan about --only=steam_api"
+  Route Binding ..................................... enabled (steamId)
+```

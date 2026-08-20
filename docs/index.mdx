@@ -1,0 +1,81 @@
+---
+title: laravel-steam-api-sdk
+description: Laravel bridge for the Steam Web API — an auto-discovered Steam facade, a cache-backed rate-limit budget, an Eloquent cast, and one-liner test fakes.
+repository: https://github.com/fkrzski/laravel-steam-api-sdk
+packagist: fkrzski/laravel-steam-api-sdk
+status: stable
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+The Laravel bridge for [`fkrzski/php-steam-api-sdk`](https://github.com/fkrzski/php-steam-api-sdk):
+a service provider, a fluent `Steam` facade, and a `Steam::fake()` test helper for
+the [Steam Web API](https://steamcommunity.com/dev) — no connector wiring, no raw
+JSON.
+
+## Why laravel-steam-api-sdk
+
+- **Auto-discovered facade** — the `Steam` facade and its `SteamConnector` binding
+  register themselves, scoped per request and safe under Octane.
+- **Shared rate-limit budget** — the daily quota lives in your Laravel cache store,
+  so every process draws on one counter.
+- **First-class request helpers** — `playerSummaries()`, `ownedGames()`,
+  `userStatsForGame()` and friends return typed DTOs.
+- **Eloquent cast** — [`AsSteamId`](/laravel-steam-api-sdk/eloquent-cast) stores a
+  Steam ID on a model and reads it back as a `SteamId` value object.
+- **Route binding** — opt in and a `{steamId}` route parameter arrives as a
+  `SteamId`, with a 404 on unresolvable input.
+- **Validation rule** — [`SteamIdRule`](/laravel-steam-api-sdk/validation) validates
+  a submitted ID or profile URL without touching the API.
+- **One-liner fakes** — `Steam::fake()` swaps in Saloon's `MockClient`, with DTO
+  factories and `SteamResponse` builders for the payloads.
+
+## Requirements
+
+- PHP **8.5+**
+- Laravel **13+**
+
+## Installation
+
+<Steps>
+
+1. Pull the package in — the service provider and facade are auto-discovered:
+
+   ```bash
+   composer require fkrzski/laravel-steam-api-sdk
+   ```
+
+2. Publish the config and store your key:
+
+   ```bash
+   php artisan steam:install
+   ```
+
+3. Check what the package sees:
+
+   ```bash
+   php artisan about --only=steam_api
+   ```
+
+</Steps>
+
+<Aside type="tip" title="Prefer doing it by hand?">
+Publish the config with `vendor:publish` and set `STEAM_API_KEY` in `.env` —
+[Configuration](/laravel-steam-api-sdk/configuration) covers both paths.
+</Aside>
+
+## Quickstart
+
+```php
+use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+
+$id = SteamId::fromSteamId64('76561198000000000');
+
+$summaries = Steam::playerSummaries([$id]);
+
+echo $summaries[0]->personaName;
+```
+
+Every helper sends its request through the shared connector and hands back the
+readonly DTO — you never touch the Saloon response.

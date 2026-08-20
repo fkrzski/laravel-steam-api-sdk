@@ -1,0 +1,119 @@
+---
+title: Validation rule
+description: Validate Steam IDs in requests with SteamIdRule — a 64-bit ID or a profile URL passes, strict mode takes raw IDs only, and the messages are publishable.
+---
+
+import { Aside, Badge, FileTree, Tabs, TabItem } from '@astrojs/starlight/components';
+
+`SteamIdRule` validates that submitted input resolves to a
+[`SteamId`](/laravel-steam-api-sdk/guide#the-steamid-value-object). It mirrors the
+[route binding](/laravel-steam-api-sdk/route-binding): a 64-bit ID or a
+`/profiles/<id>` URL passes, anything else fails.
+
+<Aside type="tip" title="Format-only, so it costs nothing">
+The rule never calls the Steam Web API — no latency, no request budget spent inside
+a validation cycle.
+</Aside>
+
+## Using the rule
+
+<Tabs syncKey="laravel-validation-style">
+  <TabItem label="Inline">
+    ```php title="app/Http/Controllers/SteamAccountController.php"
+    use Fkrzski\LaravelSteamApiSdk\Rules\SteamIdRule;
+
+    $request->validate([
+        'steam_id' => ['required', SteamIdRule::make()],
+    ]);
+    ```
+  </TabItem>
+  <TabItem label="Form request">
+    ```php title="app/Http/Requests/LinkSteamAccountRequest.php"
+    use Fkrzski\LaravelSteamApiSdk\Rules\SteamIdRule;
+    use Illuminate\Foundation\Http\FormRequest;
+
+    class LinkSteamAccountRequest extends FormRequest
+    {
+        public function rules(): array
+        {
+            return [
+                'steam_id' => ['required', SteamIdRule::make()],
+            ];
+        }
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+The rule validates, it does not transform. Build the value object yourself, or let
+the [`AsSteamId`](/laravel-steam-api-sdk/eloquent-cast) cast do it on persist:
+
+```php
+use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+
+$steamId = SteamId::tryFromInput($request->string('steam_id')->value());
+```
+
+## Strict mode
+
+`strict()` accepts a raw 64-bit ID only — for an API endpoint documenting an exact
+format, rather than a field a person types into:
+
+```php
+'steam_id' => ['required', SteamIdRule::make()->strict()],
+```
+
+| Input | Default | `strict()` |
+| --- | --- | --- |
+| `76561198000000000` | <Badge text="passes" variant="success" /> | <Badge text="passes" variant="success" /> |
+| `https://steamcommunity.com/profiles/76561198000000000` | <Badge text="passes" variant="success" /> | <Badge text="fails" variant="danger" /> |
+| `https://steamcommunity.com/id/gabelogannewell` | <Badge text="fails" variant="danger" /> | <Badge text="fails" variant="danger" /> |
+| `not-a-steam-id` | <Badge text="fails" variant="danger" /> | <Badge text="fails" variant="danger" /> |
+
+A vanity URL never passes: resolving one needs an API call the rule deliberately
+does not make. Accepting vanity names? Run
+[`Steam::resolveVanityUrl()`](/laravel-steam-api-sdk/api-reference#resolvevanityurl)
+after validation.
+
+## Accepted types
+
+Besides strings the rule takes an `int` (a JSON body sends the ID as one) and any
+`Stringable`, including a `SteamId`. Surrounding whitespace is trimmed. Every other
+type — `null`, arrays, floats, plain objects — fails.
+
+## Error messages
+
+The messages ship as a package translation:
+
+```bash
+php artisan vendor:publish --tag=steam-api-translations
+```
+
+Published files:
+
+<FileTree>
+
+- lang
+  - vendor
+    - steam-api
+      - en
+        - **validation.php** the two message keys, yours to reword
+      - … add a locale directory beside en
+
+</FileTree>
+
+```php title="lang/vendor/steam-api/en/validation.php"
+return [
+    'steam_id' => 'The :attribute field must be a valid Steam ID or profile URL.',
+    'steam_id_strict' => 'The :attribute field must be a valid 64-bit Steam ID.',
+];
+```
+
+For a one-off override, pass a message the usual Laravel way instead:
+
+```php
+$request->validate(
+    ['steam_id' => ['required', SteamIdRule::make()]],
+    ['steam_id' => 'Paste your Steam profile link.'],
+);
+```

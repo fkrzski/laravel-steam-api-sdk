@@ -1,0 +1,94 @@
+---
+title: Eloquent cast
+description: Store a Steam ID on an Eloquent model with the AsSteamId cast — read it back as a SteamId value object, with validation on every read and write.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+`AsSteamId` is an Eloquent [custom cast](https://laravel.com/docs/eloquent-mutators#custom-casts)
+that keeps a Steam ID in a plain column but exposes it as a
+[`SteamId`](/laravel-steam-api-sdk/guide#the-steamid-value-object). Every read and
+write goes through `SteamId::fromSteamId64`, so an invalid ID never round-trips
+silently.
+
+## Applying the cast
+
+<Steps>
+
+1. Add the cast to a model's `casts()` method:
+
+   ```php title="app/Models/User.php" ins={1,9}
+   use Fkrzski\LaravelSteamApiSdk\Casts\AsSteamId;
+   use Illuminate\Database\Eloquent\Model;
+
+   class User extends Model
+   {
+       protected function casts(): array
+       {
+           return [
+               'steam_id' => AsSteamId::class,
+           ];
+       }
+   }
+   ```
+
+2. Store the column as a **`string`**:
+
+   ```php title="database/migrations/2026_01_01_000000_add_steam_id_to_users_table.php"
+   use Illuminate\Database\Schema\Blueprint;
+
+   Schema::table('users', function (Blueprint $table): void {
+       $table->string('steam_id')->nullable();
+   });
+   ```
+
+</Steps>
+
+<Aside type="danger" title="Never a bigint column">
+A 64-bit Steam ID overflows a signed `bigint`: it comes back mangled and the cast
+throws on a value it never stored.
+</Aside>
+
+## Reading and writing
+
+Assign a `SteamId`, a string, an `int` or any `Stringable` — each is validated and
+persisted as the canonical 64-bit string. Reads always give back a `SteamId`:
+
+```php
+use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+
+$user->steam_id = SteamId::fromSteamId64('76561198000000000');
+$user->steam_id = '76561198000000000';
+$user->steam_id = 76561198000000000; // a JSON body sends the ID as an int
+$user->steam_id = $request->string('steam_id');
+$user->save();
+
+$user->steam_id;        // SteamId value object
+$user->steam_id->value; // '76561198000000000'
+```
+
+## Validation and null
+
+An invalid value — stored or assigned — throws `InvalidSteamIdException`. So does a
+stored non-scalar, and an assigned value that is neither scalar nor `Stringable`:
+one catchable domain exception, never a `TypeError` from inside the model. `null`
+is preserved in both directions, so a nullable column stays nullable.
+
+<Aside type="caution" title="A profile URL is rejected">
+Widening input is the job of the [validation rule](/laravel-steam-api-sdk/validation)
+and the [route binding](/laravel-steam-api-sdk/route-binding) — the cast takes the
+canonical 64-bit ID only.
+</Aside>
+
+## Serialization
+
+`toArray()`, `toJson()` and API Resources emit the plain 64-bit string — not the
+value object, not a nested `{"value": ...}` shape:
+
+```php
+$user->toArray();  // ['steam_id' => '76561198000000000', ...]
+$user->toJson();   // {"steam_id":"76561198000000000", ...}
+```
+
+`null` stays `null`, and serialization validates like a write — an invalid stored
+value throws rather than reaching the response.
