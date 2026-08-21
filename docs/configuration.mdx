@@ -121,6 +121,10 @@ The Steam Web API allows **100 000 requests per API key per day**. The connector
 enforces this through [`saloonphp/rate-limit-plugin`](https://github.com/saloonphp/rate-limit-plugin)
 and throws `SteamRateLimitException` once the budget is spent.
 
+The counter is keyed by the API key itself — hashed, so the key never lands in the
+store — rather than by the connector class. Two keys in one application draw down two
+budgets.
+
 The plugin is pointed at a `LaravelCacheStore` backed by your **default cache
 store**, not per-process memory. With a shared driver (Redis, database, Memcached)
 every FPM worker, queue worker and Octane process draws down one counter:
@@ -132,6 +136,12 @@ CACHE_STORE=redis
 <Aside type="caution" title="The array and file drivers do not share">
 Those two keep the budget per process — fine locally, but pick a shared driver in
 production so the quota is enforced app-wide.
+</Aside>
+
+<Aside title="The upgrade to 0.4.0 orphans the old counter">
+It was keyed by the connector class, so a persistent store reads no count under the
+new key and reports the full 100 000 once. What Steam itself has already counted is
+untouched.
 </Aside>
 
 ## Exception rendering
@@ -176,7 +186,7 @@ php artisan about --only=steam_api
   into a bug report. `NOT SET` when no key is configured.
 - **Rate Limit Store** — the cache store the counter lives in, i.e. `cache.default`.
 - **Daily Requests Remaining** — what is left of the 100 000, read from that store.
-  `UNKNOWN` while no key is set, since the counter belongs to the connector.
+  `UNKNOWN` while no key is set, since the API key is what the counter hangs off.
 - **Route Binding** — `disabled`, or `enabled` with the parameter name it claims.
 
 Nothing here runs on boot: the values are computed when the command renders, and no

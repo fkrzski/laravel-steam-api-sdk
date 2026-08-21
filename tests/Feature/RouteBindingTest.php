@@ -43,6 +43,16 @@ it('resolves a profile url to a value object', function (): void {
     expect($steamId->value)->toBe(ROUTE_STEAM_ID_64);
 });
 
+it('resolves a profile url carrying more than the id', function (string $tail): void {
+    $steamId = binding()('https://steamcommunity.com/profiles/'.ROUTE_STEAM_ID_64.$tail);
+
+    expect($steamId->value)->toBe(ROUTE_STEAM_ID_64);
+})->with([
+    'sub-path' => '/games',
+    'query string' => '?tab=all',
+    'fragment' => '#comments',
+]);
+
 it('throws a 404 for an unresolvable value', function (): void {
     binding()('not-a-steam-id');
 })->throws(NotFoundHttpException::class);

@@ -133,6 +133,9 @@ SteamApiException                (root, extends RuntimeException)
 Catch the leaf you care about, or the root. The
 [API reference](/laravel-steam-api-sdk/api-reference) notes which helper raises which.
 
+A status no leaf claims — a 5xx from Steam, an unexpected 4xx — arrives as
+`SteamApiException` itself, carrying the response and Steam's status as the code.
+
 The last three are the bridge's own (`Fkrzski\LaravelSteamApiSdk\Exceptions`) and
 signal a misconfiguration, or a test wired up wrong, rather than a failed call — see
 [Configuration](/laravel-steam-api-sdk/configuration#the-api-key). The rest live in
