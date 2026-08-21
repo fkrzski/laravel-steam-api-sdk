@@ -25,6 +25,8 @@ JSON.
   Steam ID on a model and reads it back as a `SteamId` value object.
 - **Route binding** — opt in and a `{steamId}` route parameter arrives as a
   `SteamId`, with a 404 on unresolvable input.
+- **Renderable exceptions** — an unhandled Steam failure answers with the status it
+  maps to, and never with the one Steam sent for a key of yours it rejected.
 - **Validation rule** — [`SteamIdRule`](/laravel-steam-api-sdk/validation) validates
   a submitted ID or profile URL without touching the API.
 - **One-liner fakes** — `Steam::fake()` swaps in Saloon's `MockClient`, with DTO

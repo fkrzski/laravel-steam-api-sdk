@@ -137,3 +137,24 @@ The last three are the bridge's own (`Fkrzski\LaravelSteamApiSdk\Exceptions`) an
 signal a misconfiguration, or a test wired up wrong, rather than a failed call — see
 [Configuration](/laravel-steam-api-sdk/configuration#the-api-key). The rest live in
 `Fkrzski\SteamApiSdk\Exceptions`.
+
+### Rendering
+
+An exception that reaches Laravel's handler unhandled renders as the status it maps
+to, rather than a blanket 500:
+
+| Exception | Status |
+| --- | --- |
+| `SteamUserNotFoundException` | 404 |
+| `StatsUnavailableException` | 404 — the cause is ambiguous, so the status says nothing about which |
+| `ProfileNotPublicException` | 403 |
+| `SteamRateLimitException` | 429, with `Retry-After` counting down the daily window |
+| `InvalidApiKeyException`, `TooManySteamIdsException`, `SteamApiKeyMissingException`, `FakeOutsideTestsException` | 500 |
+
+`InvalidSteamIdException` and `FakeNotInstalledException` are left alone: an ID that
+fails to parse is already a 404 from the [route binding](/laravel-steam-api-sdk/route-binding),
+and a missing fake only happens in a test.
+
+The first four are turned off together by
+[`steam-api.exceptions.render`](/laravel-steam-api-sdk/configuration#exception-rendering);
+the 500 group is not, and never carries Steam's own status.
