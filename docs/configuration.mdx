@@ -69,6 +69,12 @@ return [
         'parameter' => 'steamId',
     ],
 
+    // Render an unhandled Steam failure as the status it maps to instead of a
+    // blanket 500. On by default.
+    'exceptions' => [
+        'render' => true,
+    ],
+
 ];
 ```
 
@@ -126,6 +132,28 @@ CACHE_STORE=redis
 <Aside type="caution" title="The array and file drivers do not share">
 Those two keep the budget per process — fine locally, but pick a shared driver in
 production so the quota is enforced app-wide.
+</Aside>
+
+## Exception rendering
+
+A Steam failure nothing in the application caught renders as the status it maps to
+rather than a blanket 500 — [the guide](/laravel-steam-api-sdk/guide#rendering) has the
+table. Turn the group off to render it yourself:
+
+```php title="config/steam-api.php" "false"
+'exceptions' => [
+    'render' => false,
+],
+```
+
+The flag does not reach misconfiguration. A rejected API key, a missing one and a batch
+over 100 IDs are a 500 whatever it is set to: Steam answers a bad key with a 400 or a
+403, and passing that on would blame the caller for something only you can fix.
+
+<Aside title="Your own renderer wins either way">
+Callbacks registered in `bootstrap/app.php` run ahead of the package's, so a
+`renderable()` of your own takes the exception first. Reach for the flag only to turn
+the whole group off.
 </Aside>
 
 ## Checking your setup

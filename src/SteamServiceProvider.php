@@ -7,12 +7,15 @@ namespace Fkrzski\LaravelSteamApiSdk;
 use Fkrzski\LaravelSteamApiSdk\Console\AboutSection;
 use Fkrzski\LaravelSteamApiSdk\Console\InstallCommand;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
+use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Console\AboutCommand;
+use Illuminate\Foundation\Exceptions\Handler;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\ServiceProvider;
@@ -61,6 +64,37 @@ final class SteamServiceProvider extends ServiceProvider
         }
 
         $this->registerRouteBinding();
+        $this->registerExceptionRenderers();
+    }
+
+    /**
+     * Register the render callbacks that map a Steam failure onto a status.
+     *
+     * The handler is reached after it resolves rather than at boot: `renderable()`
+     * lives on the framework's concrete handler, not on the contract this package
+     * depends on, and an application free to swap it is free to drop the method.
+     * Registering late also puts these behind the application's own callbacks,
+     * so a `renderable()` in `bootstrap/app.php` still wins.
+     */
+    private function registerExceptionRenderers(): void
+    {
+        $this->callAfterResolving(ExceptionHandler::class, function (ExceptionHandler $handler): void {
+            if (! $handler instanceof Handler) {
+                return;
+            }
+
+            $renderer = $this->app->make(SteamExceptionRenderer::class);
+
+            $handler->renderable($renderer->misconfigured(...));
+
+            if (config('steam-api.exceptions.render', true) === false) {
+                return;
+            }
+
+            $handler->renderable($renderer->notFound(...));
+            $handler->renderable($renderer->forbidden(...));
+            $handler->renderable($renderer->rateLimited(...));
+        });
     }
 
     /**
