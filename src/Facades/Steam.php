@@ -25,6 +25,9 @@ use Illuminate\Support\Facades\Facade;
  * @method static void assertNothingSent()
  * @method static void assertSentCount(int $count, ?string $requestClass = null)
  * @method static void assertSentInOrder(array<\Closure|class-string<\Saloon\Http\Request>|string> $callbacks)
+ * @method static array<\Saloon\Http\Response> recorded()
+ * @method static \Saloon\Http\Request|null lastRequest()
+ * @method static \Saloon\Http\Response|null lastResponse()
  *
  * @see SteamManager
  */

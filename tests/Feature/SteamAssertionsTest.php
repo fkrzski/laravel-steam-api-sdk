@@ -5,23 +5,11 @@ declare(strict_types=1);
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeNotInstalledException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use PHPUnit\Framework\AssertionFailedError;
 
 mutates(SteamManager::class);
-
-function fakeSteamEndpoints(): void
-{
-    Steam::fake([
-        GetPlayerSummariesRequest::class => SteamResponse::playerSummaries(
-            PlayerSummaryFactory::new(),
-        ),
-        ResolveVanityUrlRequest::class => SteamResponse::vanityUrl(steamId()),
-    ]);
-}
 
 it('asserts a request was sent', function (): void {
     fakeSteamEndpoints();
