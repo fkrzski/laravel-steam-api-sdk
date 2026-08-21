@@ -126,11 +126,14 @@ it('does not leak the fake past the scope that installed it', function (): void 
         ResolveVanityUrlRequest::class => SteamResponse::vanityUrl(steamId()),
     ]);
 
-    expect(app(SteamConnector::class)->hasMockClient())->toBeTrue();
+    // Read through a variable: expecting on the same call twice has PHPStan
+    // carry the first result past forgetScopedInstances().
+    $fakedInScope = app(SteamConnector::class)->hasMockClient();
 
     app()->forgetScopedInstances();
 
-    expect(app(SteamConnector::class)->hasMockClient())->toBeFalse();
+    expect($fakedInScope)->toBeTrue()
+        ->and(app(SteamConnector::class)->hasMockClient())->toBeFalse();
 });
 
 it('refuses to fake outside the testing environment', function (): void {

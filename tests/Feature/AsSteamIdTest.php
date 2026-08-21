@@ -43,7 +43,7 @@ it('casts a stored steam id 64 to a SteamId value object on get', function (): v
     $result = asSteamId()->get(castModel(), 'steam_id', STEAM_ID_64, []);
 
     expect($result)->toBeInstanceOf(SteamId::class)
-        ->and($result?->value)->toBe(STEAM_ID_64);
+        ->and($result->value)->toBe(STEAM_ID_64);
 });
 
 it('throws when the stored value is not a valid steam id 64 on get', function (): void {
@@ -54,7 +54,7 @@ it('casts a stored integer steam id 64 to a SteamId value object on get', functi
     $result = asSteamId()->get(castModel(), 'steam_id', 76561198000000000, []);
 
     expect($result)->toBeInstanceOf(SteamId::class)
-        ->and($result?->value)->toBe(STEAM_ID_64);
+        ->and($result->value)->toBe(STEAM_ID_64);
 });
 
 it('throws when the stored value is not a scalar on get', function (): void {
