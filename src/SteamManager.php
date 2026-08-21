@@ -257,7 +257,39 @@ final readonly class SteamManager
     }
 
     /**
-     * The mock attached by {@see self::fake()}, which the assertions read from.
+     * Every response the fake recorded, in the order they came back.
+     *
+     * @return array<Response>
+     *
+     * @throws FakeNotInstalledException when no fake is attached
+     */
+    public function recorded(): array
+    {
+        return $this->mockClient()->getRecordedResponses();
+    }
+
+    /**
+     * The last request the fake handled, or null when nothing was sent.
+     *
+     * @throws FakeNotInstalledException when no fake is attached
+     */
+    public function lastRequest(): ?Request
+    {
+        return $this->mockClient()->getLastRequest();
+    }
+
+    /**
+     * The last response the fake returned, or null when nothing was sent.
+     *
+     * @throws FakeNotInstalledException when no fake is attached
+     */
+    public function lastResponse(): ?Response
+    {
+        return $this->mockClient()->getLastResponse();
+    }
+
+    /**
+     * The mock attached by {@see self::fake()}, which the proxies above read from.
      *
      * @throws FakeNotInstalledException when no fake is attached
      */
