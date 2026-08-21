@@ -47,8 +47,9 @@ are yours.
 </Steps>
 
 `/players/76561198000000000` now hands your closure a ready `SteamId`. Resolution
-runs through `SteamId::tryFromInput`, so a `/profiles/<id>` URL segment works too;
-anything unresolvable aborts with a **404**, exactly as a missing model would.
+runs through `SteamId::tryFromInput`, so a `/profiles/<id>` URL works too — with
+whatever trails the ID, be it a sub-path, a `?` query string or a `#` fragment.
+Anything unresolvable aborts with a **404**, exactly as a missing model would.
 
 ## Format only, so vanity names 404
 

@@ -8,7 +8,9 @@ import { Aside, Badge, FileTree, Tabs, TabItem } from '@astrojs/starlight/compon
 `SteamIdRule` validates that submitted input resolves to a
 [`SteamId`](/laravel-steam-api-sdk/guide#the-steamid-value-object). It mirrors the
 [route binding](/laravel-steam-api-sdk/route-binding): a 64-bit ID or a
-`/profiles/<id>` URL passes, anything else fails.
+`/profiles/<id>` URL passes, anything else fails. The URL keeps whatever follows the
+ID — a sub-path, a `?` query string, a `#` fragment — so a link copied straight out of
+the address bar passes as it stands.
 
 <Aside type="tip" title="Format-only, so it costs nothing">
 The rule never calls the Steam Web API — no latency, no request budget spent inside
@@ -67,6 +69,7 @@ format, rather than a field a person types into:
 | --- | --- | --- |
 | `76561198000000000` | <Badge text="passes" variant="success" /> | <Badge text="passes" variant="success" /> |
 | `https://steamcommunity.com/profiles/76561198000000000` | <Badge text="passes" variant="success" /> | <Badge text="fails" variant="danger" /> |
+| `https://steamcommunity.com/profiles/76561198000000000/games?tab=all` | <Badge text="passes" variant="success" /> | <Badge text="fails" variant="danger" /> |
 | `https://steamcommunity.com/id/gabelogannewell` | <Badge text="fails" variant="danger" /> | <Badge text="fails" variant="danger" /> |
 | `not-a-steam-id` | <Badge text="fails" variant="danger" /> | <Badge text="fails" variant="danger" /> |
 
