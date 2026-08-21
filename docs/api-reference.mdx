@@ -214,9 +214,10 @@ Steam::fake(array<class-string, mixed> $responses = []): Saloon\Http\Faking\Mock
 <Badge text="throws FakeOutsideTestsException" variant="danger" size="small" />
 
 Attaches a Saloon `MockClient` to the connector and returns it for assertions.
-Refused unless the application environment is `testing`. The same assertions sit
-on the facade — see [Test assertions](#test-assertions) — so the return value is
-only worth keeping for the rest of the mock's API. See
+Refused unless the application environment is `testing`. The same assertions and
+readers sit on the facade — see [Test assertions](#test-assertions) and
+[Recorded traffic](#recorded-traffic) — so the return value is only worth keeping
+for the rest of the mock's API. See
 [Testing](/laravel-steam-api-sdk/testing).
 
 ### `pool()`
@@ -304,3 +305,40 @@ Steam::assertSentInOrder(array<Closure|class-string<Request>|string> $callbacks)
 Asserts that these requests were sent, in this order, and nothing else with them.
 Saloon falls back to searching the whole history when a position does not match,
 so the count is the part it enforces strictly.
+
+## Recorded traffic
+
+Saloon's `MockClient` readers, proxied onto the facade for tests that inspect the
+traffic rather than assert on it. See
+[Recorded traffic](/laravel-steam-api-sdk/testing#recorded-traffic).
+
+<Aside type="caution" title="Fake first">
+Every reader here reads the mock attached by [`fake()`](#fake). Without one there
+is no history at all, so they raise `FakeNotInstalledException` rather than
+returning an empty one.
+</Aside>
+
+### `lastRequest()`
+
+```text frame="none"
+Steam::lastRequest(): ?Saloon\Http\Request
+```
+
+The last request the fake handled, or `null` when nothing was sent.
+
+### `lastResponse()`
+
+```text frame="none"
+Steam::lastResponse(): ?Saloon\Http\Response
+```
+
+The last response the fake returned, or `null` when nothing was sent.
+
+### `recorded()`
+
+```text frame="none"
+Steam::recorded(): array<Saloon\Http\Response>
+```
+
+Every response the fake recorded, in the order they came back. Reach the request
+behind one through `$response->getPendingRequest()->getRequest()`.

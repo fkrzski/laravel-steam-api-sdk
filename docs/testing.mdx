@@ -1,6 +1,6 @@
 ---
 title: Testing
-description: Fake the Steam Web API with Steam::fake() — build responses from DTO factories, fake the failure shapes, and assert on the requests you send.
+description: Fake the Steam Web API with Steam::fake() — build responses from DTO factories, fake the failure shapes, and assert on or inspect the requests you send.
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -216,29 +216,46 @@ Each assertion reads the mock `Steam::fake()` attached. Calling one without a fa
 raises `FakeNotInstalledException` rather than passing on an empty history.
 </Aside>
 
-The facade proxies the assertions and nothing else. Keep the `MockClient` that
-`fake()` returns when a test needs the recorded traffic itself —
-`getRecordedResponses()`, `getLastRequest()`:
+Saloon's `assertSentJson()` is deprecated upstream, so the facade does not proxy it
+— call it on the mock if a test still needs it.
+
+## Recorded traffic
+
+When an assertion isn't the shape you want, the mock's readers sit on the facade
+too — the recorded responses, and the last exchange:
 
 <Tabs syncKey="php-test-runner">
   <TabItem label="Pest">
     ```php
-    $mock = Steam::fake([/* … */]);
+    Steam::fake([/* … */]);
 
-    expect($mock->getRecordedResponses())->toHaveCount(1);
+    Steam::playerSummaries([$steamId]);
+
+    expect(Steam::recorded())->toHaveCount(1)
+        ->and(Steam::lastRequest())->toBeInstanceOf(GetPlayerSummariesRequest::class)
+        ->and(Steam::lastResponse()?->json('response.players'))->toHaveCount(1);
     ```
   </TabItem>
   <TabItem label="PHPUnit">
     ```php
-    $mock = Steam::fake([/* … */]);
+    Steam::fake([/* … */]);
 
-    $this->assertCount(1, $mock->getRecordedResponses());
+    Steam::playerSummaries([$steamId]);
+
+    $this->assertCount(1, Steam::recorded());
+    $this->assertInstanceOf(GetPlayerSummariesRequest::class, Steam::lastRequest());
     ```
   </TabItem>
 </Tabs>
 
-Saloon's `assertSentJson()` is deprecated upstream, so the facade does not proxy it
-— call it on the mock if a test still needs it.
+`recorded()` returns the Saloon `Response` objects in the order they came back.
+Both `lastRequest()` and `lastResponse()` return `null` when nothing was sent —
+an empty history is not a failure here, that is what `assertNothingSent()` is for.
+
+<Aside type="caution" title="Fake first">
+Reading the traffic without a fake raises `FakeNotInstalledException`, same as the
+assertions. There is no history to read, and an empty one would say the opposite.
+</Aside>
 
 ## A complete example
 
