@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-21
+
 ### Added
 
 - `Steam::playerBans()` — wraps `GetPlayerBansRequest` and returns `list<PlayerBan>` for a batch of up to 100 IDs. Ban records are public, so a hidden profile still returns a row ([#35](https://github.com/fkrzski/laravel-steam-api-sdk/issues/35)).
@@ -66,7 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Steam` facade for static access to the manager.
 - `Steam::fake()` — attaches a Saloon `MockClient` to the singleton connector and returns it for assertions, removing per-test connector wiring.
 
-[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.3.0...HEAD
+[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.4.0...HEAD
+[0.4.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.3.0...0.4.0
 [0.3.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/fkrzski/laravel-steam-api-sdk/releases/tag/0.1.0
