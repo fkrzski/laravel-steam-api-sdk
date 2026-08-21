@@ -32,6 +32,14 @@ it('passes for a profile url with a trailing slash', function (): void {
     expect(validateSteamId('https://steamcommunity.com/profiles/'.RULE_STEAM_ID_64.'/')->passes())->toBeTrue();
 });
 
+it('passes for a profile url carrying more than the id', function (string $tail): void {
+    expect(validateSteamId('https://steamcommunity.com/profiles/'.RULE_STEAM_ID_64.$tail)->passes())->toBeTrue();
+})->with([
+    'sub-path' => '/games',
+    'query string' => '?tab=all',
+    'fragment' => '#comments',
+]);
+
 it('passes for a value padded with whitespace', function (): void {
     expect(validateSteamId('  '.RULE_STEAM_ID_64.'  ')->passes())->toBeTrue();
 });
@@ -90,6 +98,10 @@ it('passes for a value padded with whitespace in strict mode', function (): void
 
 it('fails for a profile url in strict mode', function (): void {
     expect(validateSteamId('https://steamcommunity.com/profiles/'.RULE_STEAM_ID_64, SteamIdRule::make()->strict())->fails())->toBeTrue();
+});
+
+it('fails for a profile url with a sub-path in strict mode', function (): void {
+    expect(validateSteamId('https://steamcommunity.com/profiles/'.RULE_STEAM_ID_64.'/games?tab=all', SteamIdRule::make()->strict())->fails())->toBeTrue();
 });
 
 it('fails for an unresolvable string in strict mode', function (): void {
