@@ -16,11 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Steam::communityBadgeProgress()` — wraps `GetCommunityBadgeProgressRequest` and returns `list<CommunityBadgeQuest>`, one entry per quest with the flag saying whether it is done ([#57](https://github.com/fkrzski/laravel-steam-api-sdk/issues/57)).
 - `BadgeFactory`, `PlayerBadgesFactory` and `CommunityBadgeQuestFactory`, with `SteamResponse::badges()` and `SteamResponse::communityBadgeProgress()` for the envelopes. Two named states cover what the badge payload does that no other does: `->communityItem()` for the id Steam sends as a string, `->withoutApp()` for a badge tied to no game ([#57](https://github.com/fkrzski/laravel-steam-api-sdk/issues/57)).
 - `SteamResponse::apiKeyUnauthorized()` — the same rejected key `invalidApiKey()` fakes, answered with 401 instead of 403. `GetCommunityBadgeProgress` picks that status, so without this builder the mapping to `InvalidApiKeyException` had nothing to test against ([#57](https://github.com/fkrzski/laravel-steam-api-sdk/issues/57)).
+- `Steam::players()`, `Steam::users()` and `Steam::stats()` — the base SDK's fluent resources, handed back exactly as the connector builds them. A resource reached this way sends through the connector `Steam::fake()` attached its mock to, so one fake covers both the fluent and the flat surface ([#58](https://github.com/fkrzski/laravel-steam-api-sdk/issues/58)).
 
 ### Changed
 
-- **BC break.** `fkrzski/php-steam-api-sdk` `^0.5` is required, and `PlayerSummary::$timeCreated` is nullable there because Steam omits the creation date on a hidden profile. Code reading the date off `Steam::playerSummaries()` needs a null check ([#55](https://github.com/fkrzski/laravel-steam-api-sdk/issues/55)).
+- **BC break.** `fkrzski/php-steam-api-sdk` `^0.5` is required, and `PlayerSummary::$timeCreated` is nullable there because Steam omits the creation date on a hidden profile. Code reading the date off `Steam::summaries()` needs a null check ([#55](https://github.com/fkrzski/laravel-steam-api-sdk/issues/55)).
 - **BC break.** `SteamResponse::ownedGamesNotPublic()` is now `SteamResponse::playerServiceNotPublic()`, because every IPlayerService endpoint refuses a hidden profile with the same empty `response` object. Tests calling the old name have to rename ([#56](https://github.com/fkrzski/laravel-steam-api-sdk/issues/56)).
+- **BC break.** Six facade helpers carry the names of the resource methods they now delegate to: `playerSummaries()` is `summaries()`, `playerBans()` is `bans()`, `friendList()` is `friends()`, `userGroupList()` is `groups()`, `userStatsForGame()` is `userStats()` and `playerAchievements()` is `achievements()`. Calling code has to rename; the `SteamResponse` builders keep their own names, which follow the request classes they fake rather than the helpers ([#58](https://github.com/fkrzski/laravel-steam-api-sdk/issues/58)).
 
 ### Fixed
 
