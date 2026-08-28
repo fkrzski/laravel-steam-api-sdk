@@ -123,9 +123,9 @@ it('refuses a request outright with a 401', function (): void {
         ->and(bodyOf(SteamResponse::profileNotPublic()))->toBe(['message' => 'Access is denied.']);
 });
 
-it('hides owned games behind a 200 with no game count', function (): void {
-    expect(SteamResponse::ownedGamesNotPublic()->status())->toBe(200)
-        ->and(bodyOf(SteamResponse::ownedGamesNotPublic()))->toBe(['response' => []]);
+it('hides a player service result behind a 200 with an empty response', function (): void {
+    expect(SteamResponse::playerServiceNotPublic()->status())->toBe(200)
+        ->and(bodyOf(SteamResponse::playerServiceNotPublic()))->toBe(['response' => []]);
 });
 
 it('refuses stats with a 400 carrying an empty json object', function (): void {
@@ -246,7 +246,7 @@ it('raises a not public profile from a refused group list', function (): void {
 });
 
 it('raises a not public profile from owned games without a game count', function (): void {
-    Steam::fake([GetOwnedGamesRequest::class => SteamResponse::ownedGamesNotPublic()]);
+    Steam::fake([GetOwnedGamesRequest::class => SteamResponse::playerServiceNotPublic()]);
 
     expect(fn (): array => Steam::ownedGames(fakedId()))
         ->toThrow(ProfileNotPublicException::class);

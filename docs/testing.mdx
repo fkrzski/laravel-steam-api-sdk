@@ -121,7 +121,7 @@ Which refusal you need depends on the endpoint under test:
 | Builder | Raises | On |
 | --- | --- | --- |
 | `SteamResponse::profileNotPublic()` | `ProfileNotPublicException` | `GetFriendListRequest`, `GetUserGroupListRequest` |
-| `SteamResponse::ownedGamesNotPublic()` | `ProfileNotPublicException` | `GetOwnedGamesRequest` |
+| `SteamResponse::playerServiceNotPublic()` | `ProfileNotPublicException` | `GetOwnedGamesRequest` |
 | `SteamResponse::statsRefused()` | `ProfileNotPublicException` | `GetUserStatsForGameRequest` |
 | `SteamResponse::statsRefused()` | `StatsUnavailableException` | `GetPlayerAchievementsRequest` |
 | `SteamResponse::vanityNotFound()` | `SteamUserNotFoundException` | `ResolveVanityUrlRequest` |
@@ -158,10 +158,10 @@ Which refusal you need depends on the endpoint under test:
 </Tabs>
 
 Three shapes because Steam genuinely answers three ways: `profileNotPublic()` is a
-`401`, `ownedGamesNotPublic()` a **`200`** whose only tell is a missing `game_count`,
-and `statsRefused()` a `400` with an empty JSON object — which the two
-ISteamUserStats endpoints read as different exceptions, because the cause is
-ambiguous and the SDK does not guess.
+`401`, `playerServiceNotPublic()` a **`200`** whose only tell is the missing key the
+endpoint reads — `game_count` for `ownedGames()` — and `statsRefused()` a `400` with
+an empty JSON object, which the two ISteamUserStats endpoints read as different
+exceptions, because the cause is ambiguous and the SDK does not guess.
 
 <Aside type="caution" title="Two failures cannot be faked with a response">
 Neither comes from one: `SteamRateLimitException` is raised by the rate-limit
