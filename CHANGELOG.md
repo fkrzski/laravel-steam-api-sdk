@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BC break.** `fkrzski/php-steam-api-sdk` `^0.5` is required, and `PlayerSummary::$timeCreated` is nullable there because Steam omits the creation date on a hidden profile. Code reading the date off `Steam::playerSummaries()` needs a null check ([#55](https://github.com/fkrzski/laravel-steam-api-sdk/issues/55)).
+
 ## [0.4.0] - 2026-08-21
 
 ### Added
