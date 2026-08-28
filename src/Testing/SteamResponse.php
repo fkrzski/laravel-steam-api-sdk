@@ -9,6 +9,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
@@ -89,6 +90,24 @@ final class SteamResponse
                     $games,
                 ),
             ],
+        ]);
+    }
+
+    /**
+     * `total_count` is Steam's own total for the window, so it is independent of how
+     * many games the payload lists — see {@see RecentlyPlayedGamesFactory::totalCount()}.
+     */
+    public static function recentlyPlayedGames(RecentlyPlayedGamesFactory $games): MockResponse
+    {
+        return MockResponse::make([
+            'response' => $games->toArray(),
+        ]);
+    }
+
+    public static function steamLevel(int $level): MockResponse
+    {
+        return MockResponse::make([
+            'response' => ['player_level' => $level],
         ]);
     }
 
