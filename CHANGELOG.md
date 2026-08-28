@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Steam::badges()` — wraps `GetBadgesRequest` and returns `PlayerBadges`, the badges a player has earned alongside the level and XP they add up to. A hidden profile raises `ProfileNotPublicException` rather than returning an empty list ([#57](https://github.com/fkrzski/laravel-steam-api-sdk/issues/57)).
+- `Steam::communityBadgeProgress()` — wraps `GetCommunityBadgeProgressRequest` and returns `list<CommunityBadgeQuest>`, one entry per quest with the flag saying whether it is done ([#57](https://github.com/fkrzski/laravel-steam-api-sdk/issues/57)).
+- `BadgeFactory`, `PlayerBadgesFactory` and `CommunityBadgeQuestFactory`, with `SteamResponse::badges()` and `SteamResponse::communityBadgeProgress()` for the envelopes. Two named states cover what the badge payload does that no other does: `->communityItem()` for the id Steam sends as a string, `->withoutApp()` for a badge tied to no game ([#57](https://github.com/fkrzski/laravel-steam-api-sdk/issues/57)).
+- `SteamResponse::apiKeyUnauthorized()` — the same rejected key `invalidApiKey()` fakes, answered with 401 instead of 403. `GetCommunityBadgeProgress` picks that status, so without this builder the mapping to `InvalidApiKeyException` had nothing to test against ([#57](https://github.com/fkrzski/laravel-steam-api-sdk/issues/57)).
+
 ### Changed
 
 - **BC break.** `fkrzski/php-steam-api-sdk` `^0.5` is required, and `PlayerSummary::$timeCreated` is nullable there because Steam omits the creation date on a hidden profile. Code reading the date off `Steam::playerSummaries()` needs a null check ([#55](https://github.com/fkrzski/laravel-steam-api-sdk/issues/55)).
