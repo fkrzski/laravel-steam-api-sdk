@@ -52,13 +52,13 @@ use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 
 $id = SteamId::fromSteamId64('76561198000000000');
 
-$summaries    = Steam::playerSummaries([$id]);
-$bans         = Steam::playerBans([$id]);
-$friends      = Steam::friendList($id);
-$groups       = Steam::userGroupList($id);
+$summaries    = Steam::summaries([$id]);
+$bans         = Steam::bans([$id]);
+$friends      = Steam::friends($id);
+$groups       = Steam::groups($id);
 $library      = Steam::ownedGames($id, appIdsFilter: [381210]);
-$stats        = Steam::userStatsForGame($id, appId: 381210);
-$achievements = Steam::playerAchievements($id, appId: 381210);
+$stats        = Steam::userStats($id, appId: 381210);
+$achievements = Steam::achievements($id, appId: 381210);
 $resolvedId   = Steam::resolveVanityUrl('gabelogannewell');
 ```
 

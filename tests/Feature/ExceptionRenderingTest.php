@@ -65,7 +65,7 @@ it('renders an unresolved vanity name as a 404', function (): void {
 it('renders unavailable stats as a 404', function (): void {
     Steam::fake([GetPlayerAchievementsRequest::class => SteamResponse::statsRefused()]);
 
-    Route::get('steam/achievements', fn (): array => Steam::playerAchievements(steamId(), 440)->achievements);
+    Route::get('steam/achievements', fn (): array => Steam::achievements(steamId(), 440)->achievements);
 
     $this->getJson('steam/achievements')->assertNotFound();
 });
@@ -73,7 +73,7 @@ it('renders unavailable stats as a 404', function (): void {
 it('renders a private profile as a 403', function (): void {
     Steam::fake([GetUserGroupListRequest::class => SteamResponse::profileNotPublic()]);
 
-    Route::get('steam/groups', fn (): array => Steam::userGroupList(steamId()));
+    Route::get('steam/groups', fn (): array => Steam::groups(steamId()));
 
     $this->getJson('steam/groups')->assertForbidden();
 });
@@ -105,7 +105,7 @@ it('renders a rejected api key as a 500, not the status steam sent', function ()
 
     Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::invalidApiKey()]);
 
-    Route::get('steam/summaries', fn (): array => Steam::playerSummaries([steamId()]));
+    Route::get('steam/summaries', fn (): array => Steam::summaries([steamId()]));
 
     $this->getJson('steam/summaries')
         ->assertStatus(500)
@@ -115,7 +115,7 @@ it('renders a rejected api key as a 500, not the status steam sent', function ()
 it('renders an oversized batch as a 500', function (): void {
     config()->set('app.debug', false);
 
-    Route::get('steam/batch', fn (): array => Steam::playerSummaries(array_fill(0, 101, steamId())));
+    Route::get('steam/batch', fn (): array => Steam::summaries(array_fill(0, 101, steamId())));
 
     $this->getJson('steam/batch')->assertStatus(500);
 });

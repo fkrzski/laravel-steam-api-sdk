@@ -159,7 +159,7 @@ it('fetches player summaries through the convenience method', function (): void 
         ),
     ]);
 
-    $summaries = Steam::playerSummaries([steamId()]);
+    $summaries = Steam::summaries([steamId()]);
 
     expect($summaries)->toHaveCount(1)
         ->and($summaries[0]->personaName)->toBe('Gabe');
@@ -174,7 +174,7 @@ it('fetches player bans', function (): void {
         ),
     ]);
 
-    $bans = Steam::playerBans([steamId()]);
+    $bans = Steam::bans([steamId()]);
 
     expect($bans)->toHaveCount(1)
         ->and($bans[0]->steamId->value)->toBe('76561198000000000')
@@ -191,7 +191,7 @@ it('batches every steam id into one ban lookup', function (): void {
 
     $ids = [steamId(), SteamId::fromSteamId64('76561198000000001')];
 
-    expect(Steam::playerBans($ids))->toBeEmpty();
+    expect(Steam::bans($ids))->toBeEmpty();
 
     $mock->assertSent(
         fn (GetPlayerBansRequest $request): bool => $request->steamIds === $ids,
@@ -205,7 +205,7 @@ it('fetches a friend list', function (): void {
         ),
     ]);
 
-    $friends = Steam::friendList(steamId());
+    $friends = Steam::friends(steamId());
 
     expect($friends)->toHaveCount(1)
         ->and($friends[0]->relationship)->toBe(FriendRelationship::All);
@@ -218,7 +218,7 @@ it('sends no relationship filter by default', function (): void {
         GetFriendListRequest::class => SteamResponse::friendList(),
     ]);
 
-    expect(Steam::friendList(steamId()))->toBeEmpty();
+    expect(Steam::friends(steamId()))->toBeEmpty();
 
     $mock->assertSent(
         fn (GetFriendListRequest $request): bool => ! $request->relationship instanceof FriendRelationship,
@@ -230,7 +230,7 @@ it('narrows the friend list to a relationship', function (): void {
         GetFriendListRequest::class => SteamResponse::friendList(),
     ]);
 
-    Steam::friendList(steamId(), FriendRelationship::All);
+    Steam::friends(steamId(), FriendRelationship::All);
 
     $mock->assertSent(
         fn (GetFriendListRequest $request): bool => $request->relationship === FriendRelationship::All,
@@ -244,7 +244,7 @@ it('fetches the group list', function (): void {
         ),
     ]);
 
-    $groups = Steam::userGroupList(steamId());
+    $groups = Steam::groups(steamId());
 
     expect($groups)->toHaveCount(1)
         ->and($groups[0]->gid)->toBe('103582791429521412');
@@ -348,7 +348,7 @@ it('fetches user stats for a game', function (): void {
         ),
     ]);
 
-    $stats = Steam::userStatsForGame(steamId(), appId: 381210);
+    $stats = Steam::userStats(steamId(), appId: 381210);
 
     expect($stats->gameName)->toBe('Dead by Daylight');
 
@@ -362,7 +362,7 @@ it('fetches player achievements', function (): void {
         ),
     ]);
 
-    $achievements = Steam::playerAchievements(steamId(), appId: 381210);
+    $achievements = Steam::achievements(steamId(), appId: 381210);
 
     expect($achievements->gameName)->toBe('Dead by Daylight')
         ->and($achievements->achievements)->toHaveCount(1);

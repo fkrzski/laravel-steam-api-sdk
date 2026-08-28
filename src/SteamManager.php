@@ -93,7 +93,7 @@ final readonly class SteamManager
      * @param  list<SteamId>  $steamIds
      * @return list<PlayerSummary>
      */
-    public function playerSummaries(array $steamIds): array
+    public function summaries(array $steamIds): array
     {
         $request = new GetPlayerSummariesRequest($steamIds);
 
@@ -106,7 +106,7 @@ final readonly class SteamManager
      * @param  list<SteamId>  $steamIds
      * @return list<PlayerBan>
      */
-    public function playerBans(array $steamIds): array
+    public function bans(array $steamIds): array
     {
         $request = new GetPlayerBansRequest($steamIds);
 
@@ -118,7 +118,7 @@ final readonly class SteamManager
      *
      * @return list<Friend>
      */
-    public function friendList(SteamId $steamId, ?FriendRelationship $relationship = null): array
+    public function friends(SteamId $steamId, ?FriendRelationship $relationship = null): array
     {
         $request = new GetFriendListRequest($steamId, $relationship);
 
@@ -130,7 +130,7 @@ final readonly class SteamManager
      *
      * @return list<UserGroup>
      */
-    public function userGroupList(SteamId $steamId): array
+    public function groups(SteamId $steamId): array
     {
         $request = new GetUserGroupListRequest($steamId);
 
@@ -206,7 +206,7 @@ final readonly class SteamManager
     /**
      * Fetch a player's stats for a single game.
      */
-    public function userStatsForGame(SteamId $steamId, int $appId, ?string $language = null): UserStats
+    public function userStats(SteamId $steamId, int $appId, ?string $language = null): UserStats
     {
         $request = new GetUserStatsForGameRequest($steamId, $appId, $language);
 
@@ -216,7 +216,7 @@ final readonly class SteamManager
     /**
      * Fetch a player's achievements for a single game.
      */
-    public function playerAchievements(SteamId $steamId, int $appId, ?string $language = null): PlayerAchievements
+    public function achievements(SteamId $steamId, int $appId, ?string $language = null): PlayerAchievements
     {
         $request = new GetPlayerAchievementsRequest($steamId, $appId, $language);
 

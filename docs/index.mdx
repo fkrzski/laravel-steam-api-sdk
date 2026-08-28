@@ -20,8 +20,8 @@ JSON. It powers the [player stats](https://deadbystats.eu) on
   register themselves, scoped per request and safe under Octane.
 - **Shared rate-limit budget** — the daily quota lives in your Laravel cache store,
   so every process draws on one counter.
-- **First-class request helpers** — `playerSummaries()`, `ownedGames()`,
-  `userStatsForGame()` and friends return typed DTOs.
+- **First-class request helpers** — `summaries()`, `ownedGames()`,
+  `userStats()` and the rest return typed DTOs.
 - **Eloquent cast** — [`AsSteamId`](/laravel-steam-api-sdk/eloquent-cast) stores a
   Steam ID on a model and reads it back as a `SteamId` value object.
 - **Route binding** — opt in and a `{steamId}` route parameter arrives as a
@@ -76,7 +76,7 @@ use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 
 $id = SteamId::fromSteamId64('76561198000000000');
 
-$summaries = Steam::playerSummaries([$id]);
+$summaries = Steam::summaries([$id]);
 
 echo $summaries[0]->personaName;
 ```
