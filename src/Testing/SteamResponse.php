@@ -198,6 +198,19 @@ final class SteamResponse
     }
 
     /**
+     * The same rejected key on 401 instead of 403. Which status a key error
+     * lands on is the endpoint's choice — `GetCommunityBadgeProgress` picks
+     * this one, and without the `key=` marker it would read as a hidden profile.
+     */
+    public static function apiKeyUnauthorized(): MockResponse
+    {
+        return MockResponse::make(
+            '<html><head><title>Unauthorized</title></head><body><h1>Unauthorized</h1>Access is denied. Retrying will not help. Please verify your <pre>key=</pre> parameter.</body></html>',
+            401,
+        );
+    }
+
+    /**
      * A request that reached Steam without a key at all. Steam answers in HTML
      * rather than JSON, which is how the connector tells it apart from a real
      * API error on the same status.

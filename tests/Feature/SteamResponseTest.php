@@ -170,6 +170,11 @@ it('answers a rejected key with a 403 echoing the key parameter', function (): v
         ->and(bodyOf(SteamResponse::invalidApiKey()))->toContain('key=');
 });
 
+it('answers a rejected key with a 401 echoing the key parameter', function (): void {
+    expect(SteamResponse::apiKeyUnauthorized()->status())->toBe(401)
+        ->and(bodyOf(SteamResponse::apiKeyUnauthorized()))->toContain('key=');
+});
+
 it('answers a missing key with a 400 in html', function (): void {
     expect(SteamResponse::apiKeyMissing()->status())->toBe(400)
         ->and(bodyOf(SteamResponse::apiKeyMissing()))->toContain("Parameter 'key' is missing");
