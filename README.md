@@ -9,6 +9,9 @@
 
 Laravel bridge for [`fkrzski/php-steam-api-sdk`](https://github.com/fkrzski/php-steam-api-sdk). Ships a service provider, a `Steam` facade and a `Steam::fake()` test helper so you can talk to the [Steam Web API](https://steamcommunity.com/dev) the Laravel way.
 
+It powers the [player stats](https://deadbystats.eu) on
+[Dead by Stats](https://deadbystats.eu).
+
 - Auto-discovered `SteamConnector` binding, scoped per request and safe under Octane.
 - Rate-limit budget shared across processes through the Laravel cache store.
 - Fluent `Steam` facade with first-class request helpers.
