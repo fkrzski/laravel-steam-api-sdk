@@ -72,7 +72,7 @@ it('maps the default player summary payload onto the dto', function (): void {
         ->and($summary->personaState)->toBe(PersonaState::Offline)
         ->and($summary->hasCommunityProfile)->toBeTrue()
         ->and($summary->realName)->toBe('Gabe Newell')
-        ->and($summary->timeCreated->getTimestamp())->toBe(1063407589)
+        ->and($summary->timeCreated?->getTimestamp())->toBe(1063407589)
         ->and($summary->lastLogOff?->getTimestamp())->toBe(1600000000)
         ->and($summary->cityId)->toBe(3961)
         ->and($summary->gameId)->toBeNull();
