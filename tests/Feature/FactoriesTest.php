@@ -81,9 +81,8 @@ it('maps the default player summary payload onto the dto', function (): void {
 it('drops the details steam withholds on a hidden profile', function (): void {
     $payload = PlayerSummaryFactory::new()->private()->toArray();
 
-    expect($payload)->not->toHaveKeys(['realname', 'primaryclanid', 'loccountrycode', 'locstatecode', 'loccityid'])
-        ->and($payload['communityvisibilitystate'])->toBe(1)
-        ->and($payload)->toHaveKey('timecreated');
+    expect($payload)->not->toHaveKeys(['realname', 'primaryclanid', 'timecreated', 'loccountrycode', 'locstatecode', 'loccityid'])
+        ->and($payload['communityvisibilitystate'])->toBe(1);
 });
 
 it('maps a hidden profile onto the dto', function (): void {
@@ -92,6 +91,7 @@ it('maps a hidden profile onto the dto', function (): void {
     expect($summary->communityVisibility)->toBe(CommunityVisibility::Hidden)
         ->and($summary->realName)->toBeNull()
         ->and($summary->primaryClanId)->toBeNull()
+        ->and($summary->timeCreated)->toBeNull()
         ->and($summary->countryCode)->toBeNull()
         ->and($summary->stateCode)->toBeNull()
         ->and($summary->cityId)->toBeNull();

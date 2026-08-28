@@ -63,11 +63,6 @@ final readonly class PlayerSummaryFactory
         return $this->state(['personaname' => $personaName]);
     }
 
-    /**
-     * Steam withholds the profile details below on a hidden profile. `timecreated`
-     * stays: it is withheld too, but PlayerSummary::fromArray() reads it
-     * unconditionally, so a payload without it fatals before the DTO exists.
-     */
     public function private(): self
     {
         $attributes = $this->attributes;
@@ -75,6 +70,7 @@ final readonly class PlayerSummaryFactory
         unset(
             $attributes['realname'],
             $attributes['primaryclanid'],
+            $attributes['timecreated'],
             $attributes['loccountrycode'],
             $attributes['locstatecode'],
             $attributes['loccityid'],
@@ -123,7 +119,7 @@ final readonly class PlayerSummaryFactory
          *     personastate?: int,
          *     realname?: string,
          *     primaryclanid?: string,
-         *     timecreated: int,
+         *     timecreated?: int,
          *     lastlogoff?: int,
          *     gameid?: string,
          *     gameextrainfo?: string,
