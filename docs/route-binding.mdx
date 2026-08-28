@@ -40,7 +40,7 @@ are yours.
    use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 
    Route::get('/players/{steamId}', function (SteamId $steamId) {
-       return Steam::playerSummaries([$steamId]);
+       return Steam::summaries([$steamId]);
    });
    ```
 

@@ -22,7 +22,7 @@ it('records every response in the order they came back', function (): void {
     fakeSteamEndpoints();
 
     Steam::resolveVanityUrl('gabelogannewell');
-    Steam::playerSummaries([steamId()]);
+    Steam::summaries([steamId()]);
 
     $recorded = Steam::recorded();
 
@@ -34,7 +34,7 @@ it('records every response in the order they came back', function (): void {
 it('exposes the last request and the response it came back with', function (): void {
     fakeSteamEndpoints();
 
-    Steam::playerSummaries([steamId()]);
+    Steam::summaries([steamId()]);
     Steam::resolveVanityUrl('gabelogannewell');
 
     expect(Steam::lastRequest())->toBeInstanceOf(ResolveVanityUrlRequest::class)

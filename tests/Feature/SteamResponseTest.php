@@ -221,7 +221,7 @@ it('feeds player summaries back through the facade', function (): void {
         ),
     ]);
 
-    $summaries = Steam::playerSummaries([fakedId()]);
+    $summaries = Steam::summaries([fakedId()]);
 
     expect($summaries)->toHaveCount(1)
         ->and($summaries[0]->personaName)->toBe('Gabe');
@@ -232,7 +232,7 @@ it('feeds ban records back through the facade', function (): void {
         GetPlayerBansRequest::class => SteamResponse::playerBans(PlayerBanFactory::new()->vacBanned(2)),
     ]);
 
-    expect(Steam::playerBans([fakedId()])[0]->numberOfVacBans)->toBe(2);
+    expect(Steam::bans([fakedId()])[0]->numberOfVacBans)->toBe(2);
 });
 
 it('feeds a friend list back through the facade', function (): void {
@@ -240,7 +240,7 @@ it('feeds a friend list back through the facade', function (): void {
         GetFriendListRequest::class => SteamResponse::friendList(FriendFactory::new(), FriendFactory::new()),
     ]);
 
-    expect(Steam::friendList(fakedId()))->toHaveCount(2);
+    expect(Steam::friends(fakedId()))->toHaveCount(2);
 });
 
 it('feeds a group list back through the facade', function (): void {
@@ -248,7 +248,7 @@ it('feeds a group list back through the facade', function (): void {
         GetUserGroupListRequest::class => SteamResponse::userGroupList(UserGroupFactory::new()->gid('103582791429521413')),
     ]);
 
-    expect(Steam::userGroupList(fakedId())[0]->gid)->toBe('103582791429521413');
+    expect(Steam::groups(fakedId())[0]->gid)->toBe('103582791429521413');
 });
 
 it('feeds owned games back through the facade', function (): void {
@@ -310,7 +310,7 @@ it('feeds user stats back through the facade', function (): void {
         GetUserStatsForGameRequest::class => SteamResponse::userStats(UserStatsFactory::new()),
     ]);
 
-    expect(Steam::userStatsForGame(fakedId(), appId: 381210)->stats)->toHaveCount(1);
+    expect(Steam::userStats(fakedId(), appId: 381210)->stats)->toHaveCount(1);
 });
 
 it('feeds player achievements back through the facade', function (): void {
@@ -323,7 +323,7 @@ it('feeds player achievements back through the facade', function (): void {
         ),
     ]);
 
-    expect(Steam::playerAchievements(fakedId(), appId: 381210)->achievements)->toHaveCount(2);
+    expect(Steam::achievements(fakedId(), appId: 381210)->achievements)->toHaveCount(2);
 });
 
 it('feeds a resolved vanity url back through the facade', function (): void {
@@ -339,14 +339,14 @@ it('feeds a resolved vanity url back through the facade', function (): void {
 it('raises a not public profile from a refused friend list', function (): void {
     Steam::fake([GetFriendListRequest::class => SteamResponse::profileNotPublic()]);
 
-    expect(fn (): array => Steam::friendList(fakedId()))
+    expect(fn (): array => Steam::friends(fakedId()))
         ->toThrow(ProfileNotPublicException::class);
 });
 
 it('raises a not public profile from a refused group list', function (): void {
     Steam::fake([GetUserGroupListRequest::class => SteamResponse::profileNotPublic()]);
 
-    expect(fn (): array => Steam::userGroupList(fakedId()))
+    expect(fn (): array => Steam::groups(fakedId()))
         ->toThrow(ProfileNotPublicException::class);
 });
 
@@ -388,14 +388,14 @@ it('raises a not public profile from community badge progress without quests', f
 it('raises a not public profile from refused user stats', function (): void {
     Steam::fake([GetUserStatsForGameRequest::class => SteamResponse::statsRefused()]);
 
-    expect(fn () => Steam::userStatsForGame(fakedId(), appId: 381210))
+    expect(fn () => Steam::userStats(fakedId(), appId: 381210))
         ->toThrow(ProfileNotPublicException::class);
 });
 
 it('raises unavailable stats from refused player achievements', function (): void {
     Steam::fake([GetPlayerAchievementsRequest::class => SteamResponse::statsRefused()]);
 
-    expect(fn () => Steam::playerAchievements(fakedId(), appId: 381210))
+    expect(fn () => Steam::achievements(fakedId(), appId: 381210))
         ->toThrow(StatsUnavailableException::class);
 });
 
@@ -409,7 +409,7 @@ it('raises a missing user from an unclaimed vanity url', function (): void {
 it('raises an invalid api key from a rejected key', function (): void {
     Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::invalidApiKey()]);
 
-    expect(fn (): array => Steam::playerSummaries([fakedId()]))
+    expect(fn (): array => Steam::summaries([fakedId()]))
         ->toThrow(InvalidApiKeyException::class);
 });
 
@@ -423,6 +423,6 @@ it('raises an invalid api key from a key rejected with a 401', function (): void
 it('raises an invalid api key from a request sent without one', function (): void {
     Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::apiKeyMissing()]);
 
-    expect(fn (): array => Steam::playerSummaries([fakedId()]))
+    expect(fn (): array => Steam::summaries([fakedId()]))
         ->toThrow(InvalidApiKeyException::class);
 });

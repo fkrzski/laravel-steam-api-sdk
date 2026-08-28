@@ -31,7 +31,7 @@ Steam::fake([
     ),
 ]);
 
-$summaries = Steam::playerSummaries([$steamId]);
+$summaries = Steam::summaries([$steamId]);
 ```
 
 Every builder takes as many factories as you want — an empty call fakes an empty
@@ -138,7 +138,7 @@ Which refusal you need depends on the endpoint under test:
             GetFriendListRequest::class => SteamResponse::profileNotPublic(),
         ]);
 
-        Steam::friendList($steamId);
+        Steam::friends($steamId);
     })->throws(ProfileNotPublicException::class);
     ```
   </TabItem>
@@ -152,7 +152,7 @@ Which refusal you need depends on the endpoint under test:
 
     $this->expectException(ProfileNotPublicException::class);
 
-    Steam::friendList($steamId);
+    Steam::friends($steamId);
     ```
   </TabItem>
 </Tabs>
@@ -229,7 +229,7 @@ too — the recorded responses, and the last exchange:
     ```php
     Steam::fake([/* … */]);
 
-    Steam::playerSummaries([$steamId]);
+    Steam::summaries([$steamId]);
 
     expect(Steam::recorded())->toHaveCount(1)
         ->and(Steam::lastRequest())->toBeInstanceOf(GetPlayerSummariesRequest::class)
@@ -240,7 +240,7 @@ too — the recorded responses, and the last exchange:
     ```php
     Steam::fake([/* … */]);
 
-    Steam::playerSummaries([$steamId]);
+    Steam::summaries([$steamId]);
 
     $this->assertCount(1, Steam::recorded());
     $this->assertInstanceOf(GetPlayerSummariesRequest::class, Steam::lastRequest());
@@ -275,7 +275,7 @@ assertions. There is no history to read, and an empty one would say the opposite
             ),
         ]);
 
-        $summaries = Steam::playerSummaries([SteamId::fromSteamId64('76561198000000000')]);
+        $summaries = Steam::summaries([SteamId::fromSteamId64('76561198000000000')]);
 
         expect($summaries[0]->personaName)->toBe('Gabe');
 
@@ -301,7 +301,7 @@ assertions. There is no history to read, and an empty one would say the opposite
                 ),
             ]);
 
-            $summaries = Steam::playerSummaries([SteamId::fromSteamId64('76561198000000000')]);
+            $summaries = Steam::summaries([SteamId::fromSteamId64('76561198000000000')]);
 
             $this->assertSame('Gabe', $summaries[0]->personaName);
 

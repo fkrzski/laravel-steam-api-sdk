@@ -20,10 +20,53 @@ extends `SteamApiException`.
 
 ## Request helpers
 
-### `friendList()`
+### `achievements()`
 
 ```text frame="none"
-Steam::friendList(SteamId $steamId, ?FriendRelationship $relationship = null): list<Friend>
+Steam::achievements(SteamId $steamId, int $appId, ?string $language = null): PlayerAchievements
+```
+
+<Badge text="throws StatsUnavailableException" variant="danger" size="small" />
+<Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
+
+Returns a player's achievements for one game, each with its unlock state and time.
+`language` localises the achievement name and description. Steam answers a private
+profile and an app without achievements identically, so a `400` becomes
+`StatsUnavailableException` either way; a `401` is the hidden-profile case.
+
+```php
+$result = Steam::achievements($steamId, appId: 381210, language: 'english');
+
+foreach ($result->achievements as $achievement) {
+    echo $achievement->apiName, ' — ', $achievement->achieved ? 'unlocked' : 'locked', PHP_EOL;
+}
+```
+
+### `bans()`
+
+```text frame="none"
+Steam::bans(list<SteamId> $steamIds): list<PlayerBan>
+```
+
+<Badge text="throws TooManySteamIdsException" variant="danger" size="small" />
+<Badge text="throws InvalidArgumentException" variant="danger" size="small" />
+
+Fetches community, VAC, game and economy bans for **1 to 100** players. Ban records
+are public, so a hidden profile still returns a row. An empty list of IDs raises
+`InvalidArgumentException`, more than 100 raises `TooManySteamIdsException`.
+
+```php
+$bans = Steam::bans([$steamId]);
+
+foreach ($bans as $ban) {
+    echo $ban->steamId->value, ' — ', $ban->isVacBanned ? 'VAC banned' : 'clean', PHP_EOL;
+}
+```
+
+### `friends()`
+
+```text frame="none"
+Steam::friends(SteamId $steamId, ?FriendRelationship $relationship = null): list<Friend>
 ```
 
 <Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
@@ -34,7 +77,7 @@ Lists a player's friends, each with the relationship and the date it started.
 ```php
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 
-$friends = Steam::friendList($steamId, FriendRelationship::Friend);
+$friends = Steam::friends($steamId, FriendRelationship::Friend);
 
 foreach ($friends as $friend) {
     echo $friend->steamId->value, ' — since ', $friend->friendSince->format('Y-m-d'), PHP_EOL;
@@ -45,6 +88,26 @@ foreach ($friends as $friend) {
 Unlike `ownedGames()`, this endpoint refuses the request rather than returning an
 empty payload — a hidden list never reaches you as an empty result.
 </Aside>
+
+### `groups()`
+
+```text frame="none"
+Steam::groups(SteamId $steamId): list<UserGroup>
+```
+
+<Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
+
+Lists the community groups a player belongs to, each as a `UserGroup` carrying its
+`gid`; empty when the player is in no group. Steam returns group IDs only — resolve
+names through the community API yourself.
+
+```php
+$groups = Steam::groups($steamId);
+
+foreach ($groups as $group) {
+    echo $group->gid, PHP_EOL;
+}
+```
 
 ### `ownedGames()`
 
@@ -71,70 +134,6 @@ $library = Steam::ownedGames(
 );
 ```
 
-### `playerAchievements()`
-
-```text frame="none"
-Steam::playerAchievements(SteamId $steamId, int $appId, ?string $language = null): PlayerAchievements
-```
-
-<Badge text="throws StatsUnavailableException" variant="danger" size="small" />
-<Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
-
-Returns a player's achievements for one game, each with its unlock state and time.
-`language` localises the achievement name and description. Steam answers a private
-profile and an app without achievements identically, so a `400` becomes
-`StatsUnavailableException` either way; a `401` is the hidden-profile case.
-
-```php
-$result = Steam::playerAchievements($steamId, appId: 381210, language: 'english');
-
-foreach ($result->achievements as $achievement) {
-    echo $achievement->apiName, ' — ', $achievement->achieved ? 'unlocked' : 'locked', PHP_EOL;
-}
-```
-
-### `playerBans()`
-
-```text frame="none"
-Steam::playerBans(list<SteamId> $steamIds): list<PlayerBan>
-```
-
-<Badge text="throws TooManySteamIdsException" variant="danger" size="small" />
-<Badge text="throws InvalidArgumentException" variant="danger" size="small" />
-
-Fetches community, VAC, game and economy bans for **1 to 100** players. Ban records
-are public, so a hidden profile still returns a row. An empty list of IDs raises
-`InvalidArgumentException`, more than 100 raises `TooManySteamIdsException`.
-
-```php
-$bans = Steam::playerBans([$steamId]);
-
-foreach ($bans as $ban) {
-    echo $ban->steamId->value, ' — ', $ban->isVacBanned ? 'VAC banned' : 'clean', PHP_EOL;
-}
-```
-
-### `playerSummaries()`
-
-```text frame="none"
-Steam::playerSummaries(list<SteamId> $steamIds): list<PlayerSummary>
-```
-
-<Badge text="throws TooManySteamIdsException" variant="danger" size="small" />
-<Badge text="throws InvalidArgumentException" variant="danger" size="small" />
-
-Fetches public profile summaries for **1 to 100** players. Same bounds as
-`playerBans()`: an empty list and more than 100 IDs each raise before a request is
-sent.
-
-```php
-$summaries = Steam::playerSummaries([$steamId]);
-
-foreach ($summaries as $summary) {
-    echo $summary->personaName, ' — ', $summary->profileUrl, PHP_EOL;
-}
-```
-
 ### `resolveVanityUrl()`
 
 ```text frame="none"
@@ -150,30 +149,31 @@ Resolves a vanity slug — the `<name>` in `steamcommunity.com/id/<name>` — to
 $steamId = Steam::resolveVanityUrl('gabelogannewell');
 ```
 
-### `userGroupList()`
+### `summaries()`
 
 ```text frame="none"
-Steam::userGroupList(SteamId $steamId): list<UserGroup>
+Steam::summaries(list<SteamId> $steamIds): list<PlayerSummary>
 ```
 
-<Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
+<Badge text="throws TooManySteamIdsException" variant="danger" size="small" />
+<Badge text="throws InvalidArgumentException" variant="danger" size="small" />
 
-Lists the community groups a player belongs to, each as a `UserGroup` carrying its
-`gid`; empty when the player is in no group. Steam returns group IDs only — resolve
-names through the community API yourself.
+Fetches public profile summaries for **1 to 100** players. Same bounds as
+`bans()`: an empty list and more than 100 IDs each raise before a request is
+sent.
 
 ```php
-$groups = Steam::userGroupList($steamId);
+$summaries = Steam::summaries([$steamId]);
 
-foreach ($groups as $group) {
-    echo $group->gid, PHP_EOL;
+foreach ($summaries as $summary) {
+    echo $summary->personaName, ' — ', $summary->profileUrl, PHP_EOL;
 }
 ```
 
-### `userStatsForGame()`
+### `userStats()`
 
 ```text frame="none"
-Steam::userStatsForGame(SteamId $steamId, int $appId, ?string $language = null): UserStats
+Steam::userStats(SteamId $steamId, int $appId, ?string $language = null): UserStats
 ```
 
 <Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
@@ -182,7 +182,7 @@ Returns a player's stats and achievement flags for one game. `language` localise
 achievement metadata (e.g. `'english'`).
 
 ```php
-$stats = Steam::userStatsForGame($steamId, appId: 381210);
+$stats = Steam::userStats($steamId, appId: 381210);
 
 foreach ($stats->stats as $stat) {
     echo $stat->name, ' = ', $stat->value, PHP_EOL;
