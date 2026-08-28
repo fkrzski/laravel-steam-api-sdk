@@ -8,6 +8,8 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGameFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatFactory;
@@ -26,6 +28,8 @@ mutates(
     PlayerAchievementsFactory::class,
     PlayerBanFactory::class,
     PlayerSummaryFactory::class,
+    RecentlyPlayedGameFactory::class,
+    RecentlyPlayedGamesFactory::class,
     UserGroupFactory::class,
     UserStatAchievementFactory::class,
     UserStatFactory::class,
@@ -307,6 +311,95 @@ it('sets recent playtime on an owned game', function (): void {
 
 it('overrides the owned game app id', function (): void {
     expect(OwnedGameFactory::new()->appId(730)->make()->appId)->toBe(730);
+});
+
+// RecentlyPlayedGameFactory
+
+it('builds a recently played game payload', function (): void {
+    expect(RecentlyPlayedGameFactory::new()->toArray())->toBe([
+        'appid' => 381210,
+        'name' => 'Dead by Daylight',
+        'playtime_2weeks' => 60,
+        'playtime_forever' => 1200,
+        'img_icon_url' => 'ee6b1c0d1e3f2a4b5c6d7e8f9a0b1c2d3e4f5a6b',
+        'playtime_windows_forever' => 900,
+        'playtime_mac_forever' => 0,
+        'playtime_linux_forever' => 100,
+        'playtime_deck_forever' => 200,
+    ]);
+});
+
+it('maps a recently played game payload onto the dto', function (): void {
+    $game = RecentlyPlayedGameFactory::new()->make();
+
+    expect($game->appId)->toBe(381210)
+        ->and($game->name)->toBe('Dead by Daylight')
+        ->and($game->playtimeTwoWeeks)->toBe(60)
+        ->and($game->playtimeForever)->toBe(1200)
+        ->and($game->imgIconUrl)->toBe('ee6b1c0d1e3f2a4b5c6d7e8f9a0b1c2d3e4f5a6b')
+        ->and($game->playtimeWindowsForever)->toBe(900)
+        ->and($game->playtimeMacForever)->toBe(0)
+        ->and($game->playtimeLinuxForever)->toBe(100)
+        ->and($game->playtimeDeckForever)->toBe(200);
+});
+
+it('overrides the recently played game app id and name', function (): void {
+    $game = RecentlyPlayedGameFactory::new()->appId(730)->name('Counter-Strike 2')->make();
+
+    expect($game->appId)->toBe(730)
+        ->and($game->name)->toBe('Counter-Strike 2');
+});
+
+it('sets recent playtime on a recently played game', function (): void {
+    expect(RecentlyPlayedGameFactory::new()->playedRecently(240)->make()->playtimeTwoWeeks)
+        ->toBe(240);
+});
+
+// RecentlyPlayedGamesFactory
+
+it('builds a recently played games payload around a single game', function (): void {
+    expect(RecentlyPlayedGamesFactory::new()->toArray())->toBe([
+        'total_count' => 1,
+        'games' => [RecentlyPlayedGameFactory::new()->toArray()],
+    ]);
+});
+
+it('maps a recently played games payload onto the dto', function (): void {
+    $recent = RecentlyPlayedGamesFactory::new()->make();
+
+    expect($recent->totalCount)->toBe(1)
+        ->and($recent->games)->toHaveCount(1)
+        ->and($recent->games[0]->appId)->toBe(381210);
+});
+
+it('counts the recently played games it replaces', function (): void {
+    $recent = RecentlyPlayedGamesFactory::new()
+        ->games(
+            RecentlyPlayedGameFactory::new()->appId(381210),
+            RecentlyPlayedGameFactory::new()->appId(730),
+        )
+        ->make();
+
+    expect($recent->totalCount)->toBe(2)
+        ->and($recent->games)->toHaveCount(2)
+        ->and($recent->games[1]->appId)->toBe(730);
+});
+
+it('keeps the recently played total apart from the games listed', function (): void {
+    $recent = RecentlyPlayedGamesFactory::new()
+        ->games(RecentlyPlayedGameFactory::new())
+        ->totalCount(40)
+        ->make();
+
+    expect($recent->totalCount)->toBe(40)
+        ->and($recent->games)->toHaveCount(1);
+});
+
+it('drops the games key for a player who played nothing', function (): void {
+    $payload = RecentlyPlayedGamesFactory::new()->nothingPlayed();
+
+    expect($payload->toArray())->toBe(['total_count' => 0])
+        ->and($payload->make()->games)->toBeEmpty();
 });
 
 // UserStatFactory
