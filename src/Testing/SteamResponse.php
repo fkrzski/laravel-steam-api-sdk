@@ -9,6 +9,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
@@ -77,7 +78,7 @@ final class SteamResponse
 
     /**
      * `game_count` is what tells the SDK the profile is public — see
-     * {@see self::ownedGamesNotPublic()} for the response that omits it.
+     * {@see self::playerServiceNotPublic()} for the response that omits it.
      */
     public static function ownedGames(OwnedGameFactory ...$games): MockResponse
     {
@@ -89,6 +90,24 @@ final class SteamResponse
                     $games,
                 ),
             ],
+        ]);
+    }
+
+    /**
+     * `total_count` is Steam's own total for the window, so it is independent of how
+     * many games the payload lists — see {@see RecentlyPlayedGamesFactory::totalCount()}.
+     */
+    public static function recentlyPlayedGames(RecentlyPlayedGamesFactory $games): MockResponse
+    {
+        return MockResponse::make([
+            'response' => $games->toArray(),
+        ]);
+    }
+
+    public static function steamLevel(int $level): MockResponse
+    {
+        return MockResponse::make([
+            'response' => ['player_level' => $level],
         ]);
     }
 
@@ -126,11 +145,12 @@ final class SteamResponse
     }
 
     /**
-     * `GetOwnedGames` answers a hidden profile with 200 and an empty `response`
-     * object. Only the missing `game_count` separates it from a player who owns
-     * no games, so this cannot be expressed as a status code.
+     * Every IPlayerService endpoint answers a hidden profile with 200 and an empty
+     * `response` object, dropping only the key it reads — `game_count`, `total_count`,
+     * `player_level`. Nothing but that absence separates it from a player who owns or
+     * played nothing, so this cannot be expressed as a status code.
      */
-    public static function ownedGamesNotPublic(): MockResponse
+    public static function playerServiceNotPublic(): MockResponse
     {
         return MockResponse::make(['response' => []]);
     }

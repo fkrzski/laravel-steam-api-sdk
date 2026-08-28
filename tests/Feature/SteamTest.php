@@ -11,12 +11,16 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGameFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Enums\EconomyBan;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetRecentlyPlayedGamesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetSteamLevelRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerBansRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
@@ -258,6 +262,36 @@ it('fetches owned games', function (): void {
         ->and($games[0]->appId)->toBe(381210);
 
     $mock->assertSent(GetOwnedGamesRequest::class);
+});
+
+it('fetches recently played games', function (): void {
+    $mock = Steam::fake([
+        GetRecentlyPlayedGamesRequest::class => SteamResponse::recentlyPlayedGames(
+            RecentlyPlayedGamesFactory::new()
+                ->games(RecentlyPlayedGameFactory::new()->appId(381210))
+                ->totalCount(40),
+        ),
+    ]);
+
+    $recent = Steam::recentlyPlayedGames(steamId(), count: 1);
+
+    expect($recent->totalCount)->toBe(40)
+        ->and($recent->games)->toHaveCount(1)
+        ->and($recent->games[0]->appId)->toBe(381210);
+
+    $mock->assertSent(
+        fn (GetRecentlyPlayedGamesRequest $request): bool => $request->count === 1,
+    );
+});
+
+it('fetches the steam level', function (): void {
+    $mock = Steam::fake([
+        GetSteamLevelRequest::class => SteamResponse::steamLevel(42),
+    ]);
+
+    expect(Steam::steamLevel(steamId()))->toBe(42);
+
+    $mock->assertSent(GetSteamLevelRequest::class);
 });
 
 it('fetches user stats for a game', function (): void {

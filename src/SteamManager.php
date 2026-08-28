@@ -12,10 +12,13 @@ use Fkrzski\SteamApiSdk\Dto\OwnedGame;
 use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
 use Fkrzski\SteamApiSdk\Dto\PlayerBan;
 use Fkrzski\SteamApiSdk\Dto\PlayerSummary;
+use Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames;
 use Fkrzski\SteamApiSdk\Dto\UserGroup;
 use Fkrzski\SteamApiSdk\Dto\UserStats;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetRecentlyPlayedGamesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetSteamLevelRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerBansRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
@@ -148,6 +151,28 @@ final readonly class SteamManager
             $includeAppInfo,
             $includePlayedFreeGames,
         );
+
+        return $request->createDtoFromResponse($this->send($request));
+    }
+
+    /**
+     * Fetch the games a player played in the last two weeks.
+     *
+     * `count` caps how many games come back, not what Steam counted.
+     */
+    public function recentlyPlayedGames(SteamId $steamId, ?int $count = null): RecentlyPlayedGames
+    {
+        $request = new GetRecentlyPlayedGamesRequest($steamId, $count);
+
+        return $request->createDtoFromResponse($this->send($request));
+    }
+
+    /**
+     * Fetch a player's Steam community level.
+     */
+    public function steamLevel(SteamId $steamId): int
+    {
+        $request = new GetSteamLevelRequest($steamId);
 
         return $request->createDtoFromResponse($this->send($request));
     }
