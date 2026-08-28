@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBadgesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
@@ -94,6 +96,26 @@ it('counts the games it wraps', function (): void {
 it('reports a game count of zero for a player who owns nothing', function (): void {
     expect(bodyOf(SteamResponse::ownedGames()))->toBe([
         'response' => ['game_count' => 0, 'games' => []],
+    ]);
+});
+
+it('nests badges under the response key', function (): void {
+    expect(bodyOf(SteamResponse::badges(PlayerBadgesFactory::new())))->toBe([
+        'response' => PlayerBadgesFactory::new()->toArray(),
+    ]);
+});
+
+it('nests community badge quests under the response key', function (): void {
+    expect(bodyOf(SteamResponse::communityBadgeProgress(
+        CommunityBadgeQuestFactory::new(),
+        CommunityBadgeQuestFactory::new()->questId(202)->incomplete(),
+    )))->toBe([
+        'response' => [
+            'quests' => [
+                CommunityBadgeQuestFactory::new()->toArray(),
+                CommunityBadgeQuestFactory::new()->questId(202)->incomplete()->toArray(),
+            ],
+        ],
     ]);
 });
 

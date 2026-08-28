@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Fkrzski\LaravelSteamApiSdk\Testing;
 
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBadgesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
@@ -87,6 +89,30 @@ final class SteamResponse
                 'games' => array_map(
                     static fn (OwnedGameFactory $game): array => $game->toArray(),
                     $games,
+                ),
+            ],
+        ]);
+    }
+
+    /**
+     * `player_level` is what tells the SDK the profile is public — a hidden one
+     * answers with the empty `response` object {@see self::ownedGamesNotPublic()}
+     * returns.
+     */
+    public static function badges(PlayerBadgesFactory $badges): MockResponse
+    {
+        return MockResponse::make([
+            'response' => $badges->toArray(),
+        ]);
+    }
+
+    public static function communityBadgeProgress(CommunityBadgeQuestFactory ...$quests): MockResponse
+    {
+        return MockResponse::make([
+            'response' => [
+                'quests' => array_map(
+                    static fn (CommunityBadgeQuestFactory $quest): array => $quest->toArray(),
+                    $quests,
                 ),
             ],
         ]);
