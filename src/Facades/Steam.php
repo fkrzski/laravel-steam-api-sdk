@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Facade;
  * @method static list<\Fkrzski\SteamApiSdk\Dto\Friend> friendList(\Fkrzski\SteamApiSdk\ValueObjects\SteamId $steamId, ?\Fkrzski\SteamApiSdk\Enums\FriendRelationship $relationship = null)
  * @method static list<\Fkrzski\SteamApiSdk\Dto\UserGroup> userGroupList(\Fkrzski\SteamApiSdk\ValueObjects\SteamId $steamId)
  * @method static list<\Fkrzski\SteamApiSdk\Dto\OwnedGame> ownedGames(\Fkrzski\SteamApiSdk\ValueObjects\SteamId $steamId, list<int> $appIdsFilter = [], bool $includeAppInfo = false, bool $includePlayedFreeGames = false)
+ * @method static \Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames recentlyPlayedGames(\Fkrzski\SteamApiSdk\ValueObjects\SteamId $steamId, ?int $count = null)
+ * @method static int steamLevel(\Fkrzski\SteamApiSdk\ValueObjects\SteamId $steamId)
  * @method static \Fkrzski\SteamApiSdk\Dto\PlayerBadges badges(\Fkrzski\SteamApiSdk\ValueObjects\SteamId $steamId)
  * @method static list<\Fkrzski\SteamApiSdk\Dto\CommunityBadgeQuest> communityBadgeProgress(\Fkrzski\SteamApiSdk\ValueObjects\SteamId $steamId)
  * @method static \Fkrzski\SteamApiSdk\Dto\UserStats userStatsForGame(\Fkrzski\SteamApiSdk\ValueObjects\SteamId $steamId, int $appId, ?string $language = null)

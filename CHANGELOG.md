@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Steam::recentlyPlayedGames()` — wraps `GetRecentlyPlayedGamesRequest` and returns `RecentlyPlayedGames`. Its `$totalCount` is Steam's own total for the two-week window, so it can outrun the games the payload lists ([#56](https://github.com/fkrzski/laravel-steam-api-sdk/issues/56)).
+- `Steam::steamLevel()` — wraps `GetSteamLevelRequest` and returns the community level as a plain `int` rather than a DTO ([#56](https://github.com/fkrzski/laravel-steam-api-sdk/issues/56)).
+- `RecentlyPlayedGamesFactory` and `RecentlyPlayedGameFactory`, with `SteamResponse::recentlyPlayedGames()` and `SteamResponse::steamLevel()` for their envelopes. `->totalCount()` sets the total apart from the games listed, `->nothingPlayed()` builds the window a player played nothing in ([#56](https://github.com/fkrzski/laravel-steam-api-sdk/issues/56)).
 - `Steam::badges()` — wraps `GetBadgesRequest` and returns `PlayerBadges`, the badges a player has earned alongside the level and XP they add up to. A hidden profile raises `ProfileNotPublicException` rather than returning an empty list ([#57](https://github.com/fkrzski/laravel-steam-api-sdk/issues/57)).
 - `Steam::communityBadgeProgress()` — wraps `GetCommunityBadgeProgressRequest` and returns `list<CommunityBadgeQuest>`, one entry per quest with the flag saying whether it is done ([#57](https://github.com/fkrzski/laravel-steam-api-sdk/issues/57)).
 - `BadgeFactory`, `PlayerBadgesFactory` and `CommunityBadgeQuestFactory`, with `SteamResponse::badges()` and `SteamResponse::communityBadgeProgress()` for the envelopes. Two named states cover what the badge payload does that no other does: `->communityItem()` for the id Steam sends as a string, `->withoutApp()` for a badge tied to no game ([#57](https://github.com/fkrzski/laravel-steam-api-sdk/issues/57)).
@@ -17,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BC break.** `fkrzski/php-steam-api-sdk` `^0.5` is required, and `PlayerSummary::$timeCreated` is nullable there because Steam omits the creation date on a hidden profile. Code reading the date off `Steam::playerSummaries()` needs a null check ([#55](https://github.com/fkrzski/laravel-steam-api-sdk/issues/55)).
+- **BC break.** `SteamResponse::ownedGamesNotPublic()` is now `SteamResponse::playerServiceNotPublic()`, because every IPlayerService endpoint refuses a hidden profile with the same empty `response` object. Tests calling the old name have to rename ([#56](https://github.com/fkrzski/laravel-steam-api-sdk/issues/56)).
 
 ### Fixed
 

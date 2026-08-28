@@ -12,10 +12,13 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBadgesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGameFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
+use Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames;
 use Fkrzski\SteamApiSdk\Exceptions\InvalidApiKeyException;
 use Fkrzski\SteamApiSdk\Exceptions\ProfileNotPublicException;
 use Fkrzski\SteamApiSdk\Exceptions\StatsUnavailableException;
@@ -23,6 +26,8 @@ use Fkrzski\SteamApiSdk\Exceptions\SteamUserNotFoundException;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetBadgesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetCommunityBadgeProgressRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetRecentlyPlayedGamesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetSteamLevelRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerBansRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
@@ -103,6 +108,29 @@ it('reports a game count of zero for a player who owns nothing', function (): vo
     ]);
 });
 
+it('nests recently played games under the response key', function (): void {
+    expect(bodyOf(SteamResponse::recentlyPlayedGames(
+        RecentlyPlayedGamesFactory::new()->games(
+            RecentlyPlayedGameFactory::new()->appId(381210),
+            RecentlyPlayedGameFactory::new()->appId(730),
+        ),
+    )))->toBe([
+        'response' => [
+            'total_count' => 2,
+            'games' => [
+                RecentlyPlayedGameFactory::new()->appId(381210)->toArray(),
+                RecentlyPlayedGameFactory::new()->appId(730)->toArray(),
+            ],
+        ],
+    ]);
+});
+
+it('nests the steam level under the response key', function (): void {
+    expect(bodyOf(SteamResponse::steamLevel(42)))->toBe([
+        'response' => ['player_level' => 42],
+    ]);
+});
+
 it('nests badges under the response key', function (): void {
     expect(bodyOf(SteamResponse::badges(PlayerBadgesFactory::new())))->toBe([
         'response' => PlayerBadgesFactory::new()->toArray(),
@@ -149,9 +177,9 @@ it('refuses a request outright with a 401', function (): void {
         ->and(bodyOf(SteamResponse::profileNotPublic()))->toBe(['message' => 'Access is denied.']);
 });
 
-it('hides owned games behind a 200 with no game count', function (): void {
-    expect(SteamResponse::ownedGamesNotPublic()->status())->toBe(200)
-        ->and(bodyOf(SteamResponse::ownedGamesNotPublic()))->toBe(['response' => []]);
+it('hides a player service result behind a 200 with an empty response', function (): void {
+    expect(SteamResponse::playerServiceNotPublic()->status())->toBe(200)
+        ->and(bodyOf(SteamResponse::playerServiceNotPublic()))->toBe(['response' => []]);
 });
 
 it('refuses stats with a 400 carrying an empty json object', function (): void {
@@ -231,6 +259,24 @@ it('feeds owned games back through the facade', function (): void {
     expect(Steam::ownedGames(fakedId())[0]->name)->toBe('Dead by Daylight');
 });
 
+it('feeds recently played games back through the facade', function (): void {
+    Steam::fake([
+        GetRecentlyPlayedGamesRequest::class => SteamResponse::recentlyPlayedGames(
+            RecentlyPlayedGamesFactory::new()->games(
+                RecentlyPlayedGameFactory::new()->name('Counter-Strike 2'),
+            ),
+        ),
+    ]);
+
+    expect(Steam::recentlyPlayedGames(fakedId())->games[0]->name)->toBe('Counter-Strike 2');
+});
+
+it('feeds the steam level back through the facade', function (): void {
+    Steam::fake([GetSteamLevelRequest::class => SteamResponse::steamLevel(42)]);
+
+    expect(Steam::steamLevel(fakedId()))->toBe(42);
+});
+
 it('feeds badges back through the facade', function (): void {
     Steam::fake([
         GetBadgesRequest::class => SteamResponse::badges(
@@ -305,23 +351,35 @@ it('raises a not public profile from a refused group list', function (): void {
 });
 
 it('raises a not public profile from owned games without a game count', function (): void {
-    Steam::fake([GetOwnedGamesRequest::class => SteamResponse::ownedGamesNotPublic()]);
+    Steam::fake([GetOwnedGamesRequest::class => SteamResponse::playerServiceNotPublic()]);
 
     expect(fn (): array => Steam::ownedGames(fakedId()))
         ->toThrow(ProfileNotPublicException::class);
 });
 
-// The empty `response` object is the same body GetOwnedGames answers a hidden
-// profile with; only the discriminating key differs — `player_level` here.
+it('raises a not public profile from recently played games without a total count', function (): void {
+    Steam::fake([GetRecentlyPlayedGamesRequest::class => SteamResponse::playerServiceNotPublic()]);
+
+    expect(fn (): RecentlyPlayedGames => Steam::recentlyPlayedGames(fakedId()))
+        ->toThrow(ProfileNotPublicException::class);
+});
+
+it('raises a not public profile from a steam level without a player level', function (): void {
+    Steam::fake([GetSteamLevelRequest::class => SteamResponse::playerServiceNotPublic()]);
+
+    expect(fn (): int => Steam::steamLevel(fakedId()))
+        ->toThrow(ProfileNotPublicException::class);
+});
+
 it('raises a not public profile from badges without a player level', function (): void {
-    Steam::fake([GetBadgesRequest::class => SteamResponse::ownedGamesNotPublic()]);
+    Steam::fake([GetBadgesRequest::class => SteamResponse::playerServiceNotPublic()]);
 
     expect(fn (): PlayerBadges => Steam::badges(fakedId()))
         ->toThrow(ProfileNotPublicException::class);
 });
 
 it('raises a not public profile from community badge progress without quests', function (): void {
-    Steam::fake([GetCommunityBadgeProgressRequest::class => SteamResponse::ownedGamesNotPublic()]);
+    Steam::fake([GetCommunityBadgeProgressRequest::class => SteamResponse::playerServiceNotPublic()]);
 
     expect(fn (): array => Steam::communityBadgeProgress(fakedId()))
         ->toThrow(ProfileNotPublicException::class);
