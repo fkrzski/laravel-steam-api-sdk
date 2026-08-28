@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Fkrzski\LaravelSteamApiSdk\Testing;
 
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBadgesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
@@ -111,6 +113,30 @@ final class SteamResponse
         ]);
     }
 
+    /**
+     * `player_level` is what tells the SDK the profile is public — a hidden one
+     * answers with the empty `response` object {@see self::playerServiceNotPublic()}
+     * returns.
+     */
+    public static function badges(PlayerBadgesFactory $badges): MockResponse
+    {
+        return MockResponse::make([
+            'response' => $badges->toArray(),
+        ]);
+    }
+
+    public static function communityBadgeProgress(CommunityBadgeQuestFactory ...$quests): MockResponse
+    {
+        return MockResponse::make([
+            'response' => [
+                'quests' => array_map(
+                    static fn (CommunityBadgeQuestFactory $quest): array => $quest->toArray(),
+                    $quests,
+                ),
+            ],
+        ]);
+    }
+
     public static function userStats(UserStatsFactory $stats): MockResponse
     {
         return MockResponse::make([
@@ -188,6 +214,19 @@ final class SteamResponse
         return MockResponse::make(
             '<html><head><title>Forbidden</title></head><body><h1>Forbidden</h1>Access is denied. Retrying will not help. Please verify your <pre>key=</pre> parameter.</body></html>',
             403,
+        );
+    }
+
+    /**
+     * The same rejected key on 401 instead of 403. Which status a key error
+     * lands on is the endpoint's choice — `GetCommunityBadgeProgress` picks
+     * this one, and without the `key=` marker it would read as a hidden profile.
+     */
+    public static function apiKeyUnauthorized(): MockResponse
+    {
+        return MockResponse::make(
+            '<html><head><title>Unauthorized</title></head><body><h1>Unauthorized</h1>Access is denied. Retrying will not help. Please verify your <pre>key=</pre> parameter.</body></html>',
+            401,
         );
     }
 

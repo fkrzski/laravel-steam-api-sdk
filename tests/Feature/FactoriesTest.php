@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBadgesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGameFactory;
@@ -22,10 +25,13 @@ use Fkrzski\SteamApiSdk\Enums\PersonaState;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 
 mutates(
+    BadgeFactory::class,
+    CommunityBadgeQuestFactory::class,
     FriendFactory::class,
     OwnedGameFactory::class,
     PlayerAchievementFactory::class,
     PlayerAchievementsFactory::class,
+    PlayerBadgesFactory::class,
     PlayerBanFactory::class,
     PlayerSummaryFactory::class,
     RecentlyPlayedGameFactory::class,
@@ -627,4 +633,153 @@ it('overrides the player achievements steam id and game name', function (): void
 
     expect($achievements->steamId->value)->toBe('76561198000000009')
         ->and($achievements->gameName)->toBe('Counter-Strike 2');
+});
+
+// BadgeFactory
+
+it('builds a game badge payload', function (): void {
+    expect(BadgeFactory::new()->toArray())->toBe([
+        'badgeid' => 13,
+        'appid' => 381210,
+        'level' => 5,
+        'completion_time' => 1600000000,
+        'xp' => 500,
+        'border_color' => 0,
+        'scarcity' => 12345,
+    ]);
+});
+
+it('maps a badge payload onto the dto', function (): void {
+    $badge = BadgeFactory::new()->make();
+
+    expect($badge->badgeId)->toBe(13)
+        ->and($badge->appId)->toBe(381210)
+        ->and($badge->level)->toBe(5)
+        ->and($badge->completedAt->getTimestamp())->toBe(1600000000)
+        ->and($badge->xp)->toBe(500)
+        ->and($badge->borderColor)->toBe(0)
+        ->and($badge->scarcity)->toBe(12345)
+        ->and($badge->communityItemId)->toBeNull();
+});
+
+it('keeps the community item id a string', function (): void {
+    $badge = BadgeFactory::new()->communityItem()->make();
+
+    expect($badge->communityItemId)->toBe('2101234567890123456');
+});
+
+it('sets a custom community item id on a badge', function (): void {
+    expect(BadgeFactory::new()->communityItem('2109876543210987654')->make()->communityItemId)
+        ->toBe('2109876543210987654');
+});
+
+it('drops the app id and border colour from a badge belonging to no app', function (): void {
+    expect(BadgeFactory::new()->withoutApp()->toArray())->toBe([
+        'badgeid' => 13,
+        'level' => 5,
+        'completion_time' => 1600000000,
+        'xp' => 500,
+        'scarcity' => 12345,
+    ]);
+
+    $badge = BadgeFactory::new()->withoutApp()->make();
+
+    expect($badge->appId)->toBeNull()
+        ->and($badge->borderColor)->toBeNull();
+});
+
+it('sets the date a badge was completed', function (): void {
+    $badge = BadgeFactory::new()->completedAt(new DateTimeImmutable('@1700000000'))->make();
+
+    expect($badge->completedAt->getTimestamp())->toBe(1700000000);
+});
+
+it('overrides the badge id, app id and level', function (): void {
+    $badge = BadgeFactory::new()->badgeId(2)->appId(730)->level(3)->make();
+
+    expect($badge->badgeId)->toBe(2)
+        ->and($badge->appId)->toBe(730)
+        ->and($badge->level)->toBe(3);
+});
+
+it('overrides arbitrary badge keys through state', function (): void {
+    expect(BadgeFactory::new()->state(['xp' => 750])->make()->xp)->toBe(750);
+});
+
+// PlayerBadgesFactory
+
+it('builds a player badges payload', function (): void {
+    expect(PlayerBadgesFactory::new()->toArray())->toBe([
+        'badges' => [BadgeFactory::new()->toArray()],
+        'player_xp' => 1500,
+        'player_level' => 12,
+        'player_xp_needed_to_level_up' => 100,
+        'player_xp_needed_current_level' => 1400,
+    ]);
+});
+
+it('maps a player badges payload onto the dto', function (): void {
+    $badges = PlayerBadgesFactory::new()->make();
+
+    expect($badges->badges)->toHaveCount(1)
+        ->and($badges->badges[0]->badgeId)->toBe(13)
+        ->and($badges->playerXp)->toBe(1500)
+        ->and($badges->playerLevel)->toBe(12)
+        ->and($badges->xpNeededToLevelUp)->toBe(100)
+        ->and($badges->xpNeededForCurrentLevel)->toBe(1400);
+});
+
+it('replaces the badges on a player badges payload', function (): void {
+    $badges = PlayerBadgesFactory::new()
+        ->badges(
+            BadgeFactory::new()->badgeId(1)->withoutApp(),
+            BadgeFactory::new()->badgeId(2)->communityItem(),
+        )
+        ->make();
+
+    expect($badges->badges)->toHaveCount(2)
+        ->and($badges->badges[0]->appId)->toBeNull()
+        ->and($badges->badges[1]->communityItemId)->toBe('2101234567890123456');
+});
+
+it('drops the badges key from an account that has earned none', function (): void {
+    expect(PlayerBadgesFactory::new()->withoutBadges()->toArray())->toBe([
+        'player_xp' => 1500,
+        'player_level' => 12,
+        'player_xp_needed_to_level_up' => 100,
+        'player_xp_needed_current_level' => 1400,
+    ])
+        ->and(PlayerBadgesFactory::new()->withoutBadges()->make()->badges)->toBeEmpty();
+});
+
+it('overrides the player level', function (): void {
+    expect(PlayerBadgesFactory::new()->level(42)->make()->playerLevel)->toBe(42);
+});
+
+it('overrides arbitrary player badges keys through state', function (): void {
+    expect(PlayerBadgesFactory::new()->state(['player_xp' => 9000])->make()->playerXp)->toBe(9000);
+});
+
+// CommunityBadgeQuestFactory
+
+it('builds a completed community badge quest payload', function (): void {
+    expect(CommunityBadgeQuestFactory::new()->toArray())->toBe([
+        'questid' => 115,
+        'completed' => true,
+    ]);
+});
+
+it('maps a community badge quest payload onto the dto', function (): void {
+    $quest = CommunityBadgeQuestFactory::new()->make();
+
+    expect($quest->questId)->toBe(115)
+        ->and($quest->completed)->toBeTrue();
+});
+
+it('marks a community badge quest as incomplete', function (): void {
+    expect(CommunityBadgeQuestFactory::new()->incomplete()->make()->completed)->toBeFalse();
+});
+
+it('overrides the quest id', function (): void {
+    expect(CommunityBadgeQuestFactory::new()->questId(202)->make()->questId)->toBe(202);
 });

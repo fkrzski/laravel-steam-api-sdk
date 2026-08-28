@@ -6,9 +6,12 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBadgesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGameFactory;
@@ -18,6 +21,8 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Enums\EconomyBan;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
+use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetBadgesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetCommunityBadgeProgressRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetRecentlyPlayedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetSteamLevelRequest;
@@ -292,6 +297,48 @@ it('fetches the steam level', function (): void {
     expect(Steam::steamLevel(steamId()))->toBe(42);
 
     $mock->assertSent(GetSteamLevelRequest::class);
+});
+
+it('fetches badges', function (): void {
+    $mock = Steam::fake([
+        GetBadgesRequest::class => SteamResponse::badges(
+            PlayerBadgesFactory::new()->level(42)->badges(
+                BadgeFactory::new()->badgeId(13),
+                BadgeFactory::new()->badgeId(2)->withoutApp(),
+            ),
+        ),
+    ]);
+
+    $badges = Steam::badges(steamId());
+
+    expect($badges->playerLevel)->toBe(42)
+        ->and($badges->badges)->toHaveCount(2)
+        ->and($badges->badges[1]->appId)->toBeNull();
+
+    $mock->assertSent(
+        fn (GetBadgesRequest $request): bool => $request->steamId->value === steamId()->value,
+    );
+});
+
+it('fetches community badge progress', function (): void {
+    $mock = Steam::fake([
+        GetCommunityBadgeProgressRequest::class => SteamResponse::communityBadgeProgress(
+            CommunityBadgeQuestFactory::new()->questId(115),
+            CommunityBadgeQuestFactory::new()->questId(202)->incomplete(),
+        ),
+    ]);
+
+    $quests = Steam::communityBadgeProgress(steamId());
+
+    expect($quests)->toHaveCount(2)
+        ->and($quests[0]->questId)->toBe(115)
+        ->and($quests[0]->completed)->toBeTrue()
+        ->and($quests[1]->completed)->toBeFalse();
+
+    $mock->assertSent(
+        fn (GetCommunityBadgeProgressRequest $request): bool => $request->steamId->value === steamId()->value,
+    );
+
 });
 
 it('fetches user stats for a game', function (): void {
