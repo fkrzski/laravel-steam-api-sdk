@@ -7,14 +7,18 @@ namespace Fkrzski\LaravelSteamApiSdk;
 use Closure;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeNotInstalledException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
+use Fkrzski\SteamApiSdk\Dto\CommunityBadgeQuest;
 use Fkrzski\SteamApiSdk\Dto\Friend;
 use Fkrzski\SteamApiSdk\Dto\OwnedGame;
 use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
+use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
 use Fkrzski\SteamApiSdk\Dto\PlayerBan;
 use Fkrzski\SteamApiSdk\Dto\PlayerSummary;
 use Fkrzski\SteamApiSdk\Dto\UserGroup;
 use Fkrzski\SteamApiSdk\Dto\UserStats;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
+use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetBadgesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetCommunityBadgeProgressRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerBansRequest;
@@ -148,6 +152,28 @@ final readonly class SteamManager
             $includeAppInfo,
             $includePlayedFreeGames,
         );
+
+        return $request->createDtoFromResponse($this->send($request));
+    }
+
+    /**
+     * Fetch a player's badges, along with the level and XP they add up to.
+     */
+    public function badges(SteamId $steamId): PlayerBadges
+    {
+        $request = new GetBadgesRequest($steamId);
+
+        return $request->createDtoFromResponse($this->send($request));
+    }
+
+    /**
+     * Fetch a player's progress through the community badge quests.
+     *
+     * @return list<CommunityBadgeQuest>
+     */
+    public function communityBadgeProgress(SteamId $steamId): array
+    {
+        $request = new GetCommunityBadgeProgressRequest($steamId);
 
         return $request->createDtoFromResponse($this->send($request));
     }

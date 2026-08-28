@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
@@ -14,10 +15,13 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
+use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
 use Fkrzski\SteamApiSdk\Exceptions\InvalidApiKeyException;
 use Fkrzski\SteamApiSdk\Exceptions\ProfileNotPublicException;
 use Fkrzski\SteamApiSdk\Exceptions\StatsUnavailableException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamUserNotFoundException;
+use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetBadgesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetCommunityBadgeProgressRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerBansRequest;
@@ -227,6 +231,34 @@ it('feeds owned games back through the facade', function (): void {
     expect(Steam::ownedGames(fakedId())[0]->name)->toBe('Dead by Daylight');
 });
 
+it('feeds badges back through the facade', function (): void {
+    Steam::fake([
+        GetBadgesRequest::class => SteamResponse::badges(
+            PlayerBadgesFactory::new()->badges(BadgeFactory::new()->communityItem()),
+        ),
+    ]);
+
+    $badges = Steam::badges(fakedId());
+
+    expect($badges->playerLevel)->toBe(12)
+        ->and($badges->badges[0]->communityItemId)->toBe('2101234567890123456');
+});
+
+it('feeds community badge progress back through the facade', function (): void {
+    Steam::fake([
+        GetCommunityBadgeProgressRequest::class => SteamResponse::communityBadgeProgress(
+            CommunityBadgeQuestFactory::new(),
+            CommunityBadgeQuestFactory::new()->questId(202)->incomplete(),
+        ),
+    ]);
+
+    $quests = Steam::communityBadgeProgress(fakedId());
+
+    expect($quests)->toHaveCount(2)
+        ->and($quests[1]->questId)->toBe(202)
+        ->and($quests[1]->completed)->toBeFalse();
+});
+
 it('feeds user stats back through the facade', function (): void {
     Steam::fake([
         GetUserStatsForGameRequest::class => SteamResponse::userStats(UserStatsFactory::new()),
@@ -279,6 +311,22 @@ it('raises a not public profile from owned games without a game count', function
         ->toThrow(ProfileNotPublicException::class);
 });
 
+// The empty `response` object is the same body GetOwnedGames answers a hidden
+// profile with; only the discriminating key differs — `player_level` here.
+it('raises a not public profile from badges without a player level', function (): void {
+    Steam::fake([GetBadgesRequest::class => SteamResponse::ownedGamesNotPublic()]);
+
+    expect(fn (): PlayerBadges => Steam::badges(fakedId()))
+        ->toThrow(ProfileNotPublicException::class);
+});
+
+it('raises a not public profile from community badge progress without quests', function (): void {
+    Steam::fake([GetCommunityBadgeProgressRequest::class => SteamResponse::ownedGamesNotPublic()]);
+
+    expect(fn (): array => Steam::communityBadgeProgress(fakedId()))
+        ->toThrow(ProfileNotPublicException::class);
+});
+
 it('raises a not public profile from refused user stats', function (): void {
     Steam::fake([GetUserStatsForGameRequest::class => SteamResponse::statsRefused()]);
 
@@ -304,6 +352,13 @@ it('raises an invalid api key from a rejected key', function (): void {
     Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::invalidApiKey()]);
 
     expect(fn (): array => Steam::playerSummaries([fakedId()]))
+        ->toThrow(InvalidApiKeyException::class);
+});
+
+it('raises an invalid api key from a key rejected with a 401', function (): void {
+    Steam::fake([GetCommunityBadgeProgressRequest::class => SteamResponse::apiKeyUnauthorized()]);
+
+    expect(fn (): array => Steam::communityBadgeProgress(fakedId()))
         ->toThrow(InvalidApiKeyException::class);
 });
 
