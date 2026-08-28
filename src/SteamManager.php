@@ -18,18 +18,9 @@ use Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames;
 use Fkrzski\SteamApiSdk\Dto\UserGroup;
 use Fkrzski\SteamApiSdk\Dto\UserStats;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
-use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetBadgesRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetCommunityBadgeProgressRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetRecentlyPlayedGamesRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetSteamLevelRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerBansRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetUserGroupListRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
+use Fkrzski\SteamApiSdk\Http\Resources\PlayersResource;
+use Fkrzski\SteamApiSdk\Http\Resources\StatsResource;
+use Fkrzski\SteamApiSdk\Http\Resources\UsersResource;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Illuminate\Contracts\Foundation\Application;
@@ -88,6 +79,33 @@ final readonly class SteamManager
     }
 
     /**
+     * The IPlayerService endpoints, reached fluently.
+     *
+     * Built by the connector rather than held here, so the resource always sends
+     * through the connector this manager resolves right now — the one a fake sits on.
+     */
+    public function players(): PlayersResource
+    {
+        return $this->connector()->players();
+    }
+
+    /**
+     * The ISteamUser endpoints, reached fluently.
+     */
+    public function users(): UsersResource
+    {
+        return $this->connector()->users();
+    }
+
+    /**
+     * The ISteamUserStats endpoints, reached fluently.
+     */
+    public function stats(): StatsResource
+    {
+        return $this->connector()->stats();
+    }
+
+    /**
      * Fetch player summaries for up to 100 Steam IDs.
      *
      * @param  list<SteamId>  $steamIds
@@ -95,9 +113,7 @@ final readonly class SteamManager
      */
     public function summaries(array $steamIds): array
     {
-        $request = new GetPlayerSummariesRequest($steamIds);
-
-        return $request->createDtoFromResponse($this->send($request));
+        return $this->users()->summaries($steamIds);
     }
 
     /**
@@ -108,9 +124,7 @@ final readonly class SteamManager
      */
     public function bans(array $steamIds): array
     {
-        $request = new GetPlayerBansRequest($steamIds);
-
-        return $request->createDtoFromResponse($this->send($request));
+        return $this->users()->bans($steamIds);
     }
 
     /**
@@ -120,9 +134,7 @@ final readonly class SteamManager
      */
     public function friends(SteamId $steamId, ?FriendRelationship $relationship = null): array
     {
-        $request = new GetFriendListRequest($steamId, $relationship);
-
-        return $request->createDtoFromResponse($this->send($request));
+        return $this->users()->friends($steamId, $relationship);
     }
 
     /**
@@ -132,9 +144,7 @@ final readonly class SteamManager
      */
     public function groups(SteamId $steamId): array
     {
-        $request = new GetUserGroupListRequest($steamId);
-
-        return $request->createDtoFromResponse($this->send($request));
+        return $this->users()->groups($steamId);
     }
 
     /**
@@ -149,14 +159,12 @@ final readonly class SteamManager
         bool $includeAppInfo = false,
         bool $includePlayedFreeGames = false,
     ): array {
-        $request = new GetOwnedGamesRequest(
+        return $this->players()->ownedGames(
             $steamId,
             $appIdsFilter,
             $includeAppInfo,
             $includePlayedFreeGames,
         );
-
-        return $request->createDtoFromResponse($this->send($request));
     }
 
     /**
@@ -166,9 +174,7 @@ final readonly class SteamManager
      */
     public function recentlyPlayedGames(SteamId $steamId, ?int $count = null): RecentlyPlayedGames
     {
-        $request = new GetRecentlyPlayedGamesRequest($steamId, $count);
-
-        return $request->createDtoFromResponse($this->send($request));
+        return $this->players()->recentlyPlayedGames($steamId, $count);
     }
 
     /**
@@ -176,9 +182,7 @@ final readonly class SteamManager
      */
     public function steamLevel(SteamId $steamId): int
     {
-        $request = new GetSteamLevelRequest($steamId);
-
-        return $request->createDtoFromResponse($this->send($request));
+        return $this->players()->steamLevel($steamId);
     }
 
     /**
@@ -186,9 +190,7 @@ final readonly class SteamManager
      */
     public function badges(SteamId $steamId): PlayerBadges
     {
-        $request = new GetBadgesRequest($steamId);
-
-        return $request->createDtoFromResponse($this->send($request));
+        return $this->players()->badges($steamId);
     }
 
     /**
@@ -198,9 +200,7 @@ final readonly class SteamManager
      */
     public function communityBadgeProgress(SteamId $steamId): array
     {
-        $request = new GetCommunityBadgeProgressRequest($steamId);
-
-        return $request->createDtoFromResponse($this->send($request));
+        return $this->players()->communityBadgeProgress($steamId);
     }
 
     /**
@@ -208,9 +208,7 @@ final readonly class SteamManager
      */
     public function userStats(SteamId $steamId, int $appId, ?string $language = null): UserStats
     {
-        $request = new GetUserStatsForGameRequest($steamId, $appId, $language);
-
-        return $request->createDtoFromResponse($this->send($request));
+        return $this->stats()->userStats($steamId, $appId, $language);
     }
 
     /**
@@ -218,9 +216,7 @@ final readonly class SteamManager
      */
     public function achievements(SteamId $steamId, int $appId, ?string $language = null): PlayerAchievements
     {
-        $request = new GetPlayerAchievementsRequest($steamId, $appId, $language);
-
-        return $request->createDtoFromResponse($this->send($request));
+        return $this->stats()->achievements($steamId, $appId, $language);
     }
 
     /**
@@ -228,9 +224,7 @@ final readonly class SteamManager
      */
     public function resolveVanityUrl(string $vanityName): SteamId
     {
-        $request = new ResolveVanityUrlRequest($vanityName);
-
-        return $request->createDtoFromResponse($this->send($request));
+        return $this->users()->resolveVanityUrl($vanityName);
     }
 
     /**
