@@ -115,6 +115,26 @@ It resolves lazily, so an application without a key still boots. Reach it throug
 [`Steam::connector()`](/laravel-steam-api-sdk/api-reference#connector) — for the
 current request only.
 
+## Contracts
+
+`Contracts\SteamManager` is what the `Steam` facade resolves — type-hint it to inject the
+manager instead of reaching through the facade:
+
+```php title="app/Http/Controllers/PlayerController.php"
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager;
+
+final class PlayerController
+{
+    public function __construct(private readonly SteamManager $steam) {}
+}
+```
+
+The contract and the concrete `SteamManager` resolve to one scoped instance, so binding
+either swaps what the facade hands back — a decorator wrapping the shipped manager, say.
+`Contracts\SteamIdBinder` is the same seam for the
+[route binding](/laravel-steam-api-sdk/route-binding#swapping-the-resolver). Every class
+the package ships is `final`; the container is the extension point.
+
 ## Rate limiting
 
 The Steam Web API allows **100 000 requests per API key per day**. The connector
