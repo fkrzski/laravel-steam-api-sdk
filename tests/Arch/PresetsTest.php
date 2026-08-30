@@ -29,3 +29,7 @@ arch('strict preset, facade aside from its accessor')
 arch('package exceptions extend the base sdk exception')
     ->expect('Fkrzski\\LaravelSteamApiSdk\\Exceptions')
     ->toExtend(SteamApiException::class);
+
+arch('contracts are interfaces')
+    ->expect('Fkrzski\\LaravelSteamApiSdk\\Contracts')
+    ->toBeInterfaces();

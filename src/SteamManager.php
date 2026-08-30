@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk;
 
 use Closure;
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeNotInstalledException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\SteamApiSdk\Dto\CommunityBadgeQuest;
@@ -37,7 +38,7 @@ use Saloon\Http\Response;
  * Resolves the connector through the container that built this manager, so a
  * long-lived worker never hands one request's connector to the next.
  */
-final readonly class SteamManager
+final readonly class SteamManager implements SteamManagerContract
 {
     /**
      * @param  Closure(): SteamConnector  $connectorResolver

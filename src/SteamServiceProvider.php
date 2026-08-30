@@ -6,6 +6,7 @@ namespace Fkrzski\LaravelSteamApiSdk;
 
 use Fkrzski\LaravelSteamApiSdk\Console\AboutSection;
 use Fkrzski\LaravelSteamApiSdk\Console\InstallCommand;
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
@@ -40,6 +41,12 @@ final class SteamServiceProvider extends ServiceProvider
                 fn (): SteamConnector => $app->make(SteamConnector::class),
                 $app,
             ),
+        );
+
+        // Resolves through the concrete key, so both names hand back one instance.
+        $this->app->scoped(
+            SteamManagerContract::class,
+            fn (Application $app): SteamManagerContract => $app->make(SteamManager::class),
         );
     }
 
