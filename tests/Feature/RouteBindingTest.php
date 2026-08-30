@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamIdBinder;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
@@ -75,6 +76,37 @@ it('returns a 404 when the route parameter is not a steam id', function (): void
         ->get('players/{steamId}', fn (SteamId $steamId): string => $steamId->value);
 
     $this->get('players/not-a-steam-id')->assertNotFound();
+});
+
+it('resolves the binder contract to the shipped binding', function (): void {
+    expect(app(SteamIdBinder::class))->toBeInstanceOf(SteamIdRouteBinding::class);
+});
+
+it('keeps honouring a rebinding of the shipped class', function (): void {
+    $replacement = new SteamIdRouteBinding;
+
+    app()->instance(SteamIdRouteBinding::class, $replacement);
+
+    expect(app(SteamIdBinder::class))->toBe($replacement);
+});
+
+it('resolves a route parameter through a rebound contract', function (): void {
+    enableRouteBinding();
+
+    app()->bind(SteamIdBinder::class, fn (): SteamIdBinder => new class implements SteamIdBinder
+    {
+        public function __invoke(string $value): SteamId
+        {
+            return SteamId::fromSteamId64(ROUTE_STEAM_ID_64);
+        }
+    });
+
+    Route::middleware(SubstituteBindings::class)
+        ->get('players/{steamId}', fn (SteamId $steamId): array => ['value' => $steamId->value]);
+
+    $this->get('players/gaben')
+        ->assertOk()
+        ->assertExactJson(['value' => ROUTE_STEAM_ID_64]);
 });
 
 it('leaves the parameter alone until the application opts in', function (): void {
