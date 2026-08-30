@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-30
+
 ### Added
 
 - `Steam::recentlyPlayedGames()` — wraps `GetRecentlyPlayedGamesRequest` and returns `RecentlyPlayedGames`. Its `$totalCount` is Steam's own total for the two-week window, so it can outrun the games the payload lists ([#56](https://github.com/fkrzski/laravel-steam-api-sdk/issues/56)).
@@ -90,7 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Steam` facade for static access to the manager.
 - `Steam::fake()` — attaches a Saloon `MockClient` to the singleton connector and returns it for assertions, removing per-test connector wiring.
 
-[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.4.0...HEAD
+[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.5.0...HEAD
+[0.5.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.4.0...0.5.0
 [0.4.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.3.0...0.4.0
 [0.3.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.1.0...0.2.0
