@@ -34,12 +34,15 @@ Steam::fake([
 $summaries = Steam::summaries([$steamId]);
 ```
 
-Every builder takes as many factories as you want — an empty call fakes an empty
-result:
+A builder wrapping a collection takes as many factories as you want — an empty call fakes
+an empty result. The rest take exactly what their envelope carries: one container factory,
+the level itself, or a `SteamId`:
 
 ```php
 SteamResponse::playerSummaries();                       // no players matched
 SteamResponse::friendList($first, $second, $third);     // three friends
+SteamResponse::badges(PlayerBadgesFactory::new());      // the badges envelope
+SteamResponse::steamLevel(42);                          // a level, no factory
 ```
 
 It sits on the connector, so it covers every call through the facade — helpers,
@@ -59,6 +62,10 @@ is public at all. Hand-written envelopes get this wrong quietly.
 | `SteamResponse::friendList()` | `GetFriendListRequest` |
 | `SteamResponse::userGroupList()` | `GetUserGroupListRequest` |
 | `SteamResponse::ownedGames()` | `GetOwnedGamesRequest` |
+| `SteamResponse::recentlyPlayedGames()` | `GetRecentlyPlayedGamesRequest` |
+| `SteamResponse::steamLevel()` | `GetSteamLevelRequest` |
+| `SteamResponse::badges()` | `GetBadgesRequest` |
+| `SteamResponse::communityBadgeProgress()` | `GetCommunityBadgeProgressRequest` |
 | `SteamResponse::userStats()` | `GetUserStatsForGameRequest` |
 | `SteamResponse::playerAchievements()` | `GetPlayerAchievementsRequest` |
 | `SteamResponse::vanityUrl()` | `ResolveVanityUrlRequest` |
@@ -85,9 +92,15 @@ PlayerSummaryFactory::new()->private();                      // hidden profile
 PlayerSummaryFactory::new()->online()->inGame('730', 'CS2'); // online, in a game
 PlayerBanFactory::new()->vacBanned(2)->communityBanned();
 OwnedGameFactory::new()->withAppInfo()->neverPlayed();
+RecentlyPlayedGamesFactory::new()->nothingPlayed();
+BadgeFactory::new()->communityItem()->withoutApp();
+CommunityBadgeQuestFactory::new()->incomplete();
 PlayerAchievementFactory::new()->locked();
 UserStatsFactory::new()->empty();
 ```
+
+`private()` withholds everything Steam does on a hidden profile, the creation date
+included — the summary it builds carries a null `timeCreated`.
 
 `state()` covers the rest — raw payload keys merged over the defaults:
 
@@ -108,10 +121,21 @@ PlayerAchievementsFactory::new()->achievements(
 );
 ```
 
+`RecentlyPlayedGamesFactory` carries a figure of its own: `games()` syncs `total_count` to
+what it lists, so `totalCount()` comes after it to fake the window Steam counted more games
+in than it returned:
+
+```php
+RecentlyPlayedGamesFactory::new()->games(
+    RecentlyPlayedGameFactory::new()->name('Dead by Daylight')->playedRecently(240),
+)->totalCount(12);
+```
+
 Available factories: `PlayerSummaryFactory`, `PlayerBanFactory`, `FriendFactory`,
-`UserGroupFactory`, `OwnedGameFactory`, `UserStatFactory`,
-`UserStatAchievementFactory`, `UserStatsFactory`, `PlayerAchievementFactory` and
-`PlayerAchievementsFactory`, all under
+`UserGroupFactory`, `OwnedGameFactory`, `RecentlyPlayedGameFactory`,
+`RecentlyPlayedGamesFactory`, `BadgeFactory`, `PlayerBadgesFactory`,
+`CommunityBadgeQuestFactory`, `UserStatFactory`, `UserStatAchievementFactory`,
+`UserStatsFactory`, `PlayerAchievementFactory` and `PlayerAchievementsFactory`, all under
 `Fkrzski\LaravelSteamApiSdk\Testing\Factories`.
 
 ## Faking failures
@@ -121,11 +145,12 @@ Which refusal you need depends on the endpoint under test:
 | Builder | Raises | On |
 | --- | --- | --- |
 | `SteamResponse::profileNotPublic()` | `ProfileNotPublicException` | `GetFriendListRequest`, `GetUserGroupListRequest` |
-| `SteamResponse::playerServiceNotPublic()` | `ProfileNotPublicException` | `GetOwnedGamesRequest` |
+| `SteamResponse::playerServiceNotPublic()` | `ProfileNotPublicException` | every IPlayerService request |
 | `SteamResponse::statsRefused()` | `ProfileNotPublicException` | `GetUserStatsForGameRequest` |
 | `SteamResponse::statsRefused()` | `StatsUnavailableException` | `GetPlayerAchievementsRequest` |
 | `SteamResponse::vanityNotFound()` | `SteamUserNotFoundException` | `ResolveVanityUrlRequest` |
 | `SteamResponse::invalidApiKey()` | `InvalidApiKeyException` | any request |
+| `SteamResponse::apiKeyUnauthorized()` | `InvalidApiKeyException` | any request |
 | `SteamResponse::apiKeyMissing()` | `InvalidApiKeyException` | any request |
 
 <Tabs syncKey="php-test-runner">
@@ -159,9 +184,14 @@ Which refusal you need depends on the endpoint under test:
 
 Three shapes because Steam genuinely answers three ways: `profileNotPublic()` is a
 `401`, `playerServiceNotPublic()` a **`200`** whose only tell is the missing key the
-endpoint reads — `game_count` for `ownedGames()` — and `statsRefused()` a `400` with
-an empty JSON object, which the two ISteamUserStats endpoints read as different
-exceptions, because the cause is ambiguous and the SDK does not guess.
+endpoint reads — `game_count` for `ownedGames()`, `player_level` for `steamLevel()` and
+`badges()` — and `statsRefused()` a `400` with an empty JSON object, which the two
+ISteamUserStats endpoints read as different exceptions, because the cause is ambiguous
+and the SDK does not guess.
+
+A rejected key lands on `403` or `401`, whichever the endpoint picks — `invalidApiKey()`
+fakes the first, `apiKeyUnauthorized()` the second, which is what
+`GetCommunityBadgeProgressRequest` answers with.
 
 <Aside type="caution" title="Two failures cannot be faked with a response">
 Neither comes from one: `SteamRateLimitException` is raised by the rate-limit

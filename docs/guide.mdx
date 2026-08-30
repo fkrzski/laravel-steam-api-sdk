@@ -56,6 +56,10 @@ $bans         = Steam::bans([$id]);
 $friends      = Steam::friends($id);
 $groups       = Steam::groups($id);
 $library      = Steam::ownedGames($id, appIdsFilter: [381210]);
+$recentGames  = Steam::recentlyPlayedGames($id);
+$level        = Steam::steamLevel($id);
+$badges       = Steam::badges($id);
+$quests       = Steam::communityBadgeProgress($id);
 $stats        = Steam::userStats($id, appId: 381210);
 $achievements = Steam::achievements($id, appId: 381210);
 $resolvedId   = Steam::resolveVanityUrl('gabelogannewell');
@@ -63,7 +67,15 @@ $resolvedId   = Steam::resolveVanityUrl('gabelogannewell');
 
 The [API reference](/laravel-steam-api-sdk/api-reference) lists which helper returns
 what; the DTO properties and enums live in
-[Data objects](/php-steam-api-sdk/dto-reference).
+[Data objects](/php-steam-api-sdk/dto-reference). Each helper is a shortcut for the
+[resource](/laravel-steam-api-sdk/api-reference#resources) method of the same name, so
+`Steam::users()->summaries([$id])` sends the same request.
+
+<Aside type="caution" title="A hidden profile has no creation date">
+Steam withholds `timecreated` along with the rest of the details, so
+`PlayerSummary::$timeCreated` is null for a private profile. Check it before formatting
+the date.
+</Aside>
 
 ## Concurrent requests
 

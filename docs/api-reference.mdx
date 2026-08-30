@@ -42,6 +42,28 @@ foreach ($result->achievements as $achievement) {
 }
 ```
 
+### `badges()`
+
+```text frame="none"
+Steam::badges(SteamId $steamId): PlayerBadges
+```
+
+<Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
+
+Returns every badge a player has earned, with the XP and level they add up to.
+Trading-card badges name the app they came from; event and milestone badges leave
+`appId` null. An account with no badges answers with level `0` rather than raising.
+
+```php
+$badges = Steam::badges($steamId);
+
+echo $badges->playerLevel, ' — ', $badges->xpNeededToLevelUp, ' XP to go', PHP_EOL;
+
+foreach ($badges->badges as $badge) {
+    echo $badge->badgeId, ' level ', $badge->level, PHP_EOL;
+}
+```
+
 ### `bans()`
 
 ```text frame="none"
@@ -60,6 +82,23 @@ $bans = Steam::bans([$steamId]);
 
 foreach ($bans as $ban) {
     echo $ban->steamId->value, ' — ', $ban->isVacBanned ? 'VAC banned' : 'clean', PHP_EOL;
+}
+```
+
+### `communityBadgeProgress()`
+
+```text frame="none"
+Steam::communityBadgeProgress(SteamId $steamId): list<CommunityBadgeQuest>
+```
+
+<Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
+
+Returns the quests behind the Steam community badge, each with the flag saying whether
+the account finished it. Steam publishes no names for them, so `questId` stays opaque.
+
+```php
+foreach (Steam::communityBadgeProgress($steamId) as $quest) {
+    echo $quest->questId, $quest->completed ? ' — done' : ' — pending', PHP_EOL;
 }
 ```
 
@@ -134,6 +173,27 @@ $library = Steam::ownedGames(
 );
 ```
 
+### `recentlyPlayedGames()`
+
+```text frame="none"
+Steam::recentlyPlayedGames(SteamId $steamId, ?int $count = null): RecentlyPlayedGames
+```
+
+<Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
+
+Returns what a player launched in the last two weeks. `count` caps how many games come
+back, while `totalCount` stays Steam's own figure for the window — that is how you tell a
+capped list from a complete one. A player who launched nothing comes back as
+`totalCount: 0`, not an exception.
+
+```php "count: 5"
+$recent = Steam::recentlyPlayedGames($steamId, count: 5);
+
+foreach ($recent->games as $game) {
+    echo $game->name, ' — ', $game->playtimeTwoWeeks, ' min', PHP_EOL;
+}
+```
+
 ### `resolveVanityUrl()`
 
 ```text frame="none"
@@ -147,6 +207,21 @@ Resolves a vanity slug — the `<name>` in `steamcommunity.com/id/<name>` — to
 
 ```php
 $steamId = Steam::resolveVanityUrl('gabelogannewell');
+```
+
+### `steamLevel()`
+
+```text frame="none"
+Steam::steamLevel(SteamId $steamId): int
+```
+
+<Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
+
+Returns a player's community level as a plain `int` rather than a DTO. Hiding game
+details leaves the level readable — only a profile Steam withholds altogether raises.
+
+```php
+$level = Steam::steamLevel($steamId);
 ```
 
 ### `summaries()`
@@ -188,6 +263,35 @@ foreach ($stats->stats as $stat) {
     echo $stat->name, ' = ', $stat->value, PHP_EOL;
 }
 ```
+
+## Resources
+
+The base SDK groups its endpoints into one resource per Steam interface, and the facade
+hands each back as the connector builds it — `PlayersResource`, `StatsResource` and
+`UsersResource` from `Fkrzski\SteamApiSdk\Http\Resources`.
+
+```text frame="none"
+Steam::players(): PlayersResource
+Steam::stats(): StatsResource
+Steam::users(): UsersResource
+```
+
+Every request helper above is a shortcut for the resource method of the same name, with
+the same signature, DTO and exceptions:
+
+```php
+Steam::summaries([$steamId]);           // the helper
+Steam::users()->summaries([$steamId]);  // the resource behind it
+```
+
+| Resource | Steam interface | Methods |
+| --- | --- | --- |
+| `Steam::players()` | `IPlayerService` | `badges()`, `communityBadgeProgress()`, `ownedGames()`, `recentlyPlayedGames()`, `steamLevel()` |
+| `Steam::stats()` | `ISteamUserStats` | `achievements()`, `userStats()` |
+| `Steam::users()` | `ISteamUser` | `bans()`, `friends()`, `groups()`, `resolveVanityUrl()`, `summaries()` |
+
+A resource sends through the same scoped connector the facade uses, so
+[`fake()`](#fake) covers one you reached before installing the mock.
 
 ## Low-level helpers
 
