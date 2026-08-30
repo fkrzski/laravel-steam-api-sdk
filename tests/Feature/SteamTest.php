@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
@@ -43,6 +44,10 @@ mutates(SteamManager::class);
 it('resolves the connector and manager once per container', function (): void {
     expect(app(SteamConnector::class))->toBe(app(SteamConnector::class))
         ->and(app(SteamManager::class))->toBe(app(SteamManager::class));
+});
+
+it('binds the manager contract to the concrete instance', function (): void {
+    expect(app(SteamManagerContract::class))->toBe(app(SteamManager::class));
 });
 
 it('rebuilds the connector once scoped instances are flushed', function (): void {
@@ -112,6 +117,14 @@ it('does not require the api key until the connector is built', function (): voi
 
 it('resolves the facade to the manager singleton', function (): void {
     expect(Steam::getFacadeRoot())->toBe(app(SteamManager::class));
+});
+
+it('resolves the facade through the manager contract', function (): void {
+    $replacement = new SteamManager(fn (): SteamConnector => app(SteamConnector::class), app());
+
+    app()->instance(SteamManagerContract::class, $replacement);
+
+    expect(Steam::getFacadeRoot())->toBe($replacement);
 });
 
 it('exposes the underlying connector', function (): void {

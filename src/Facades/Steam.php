@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Fkrzski\LaravelSteamApiSdk\Facades;
 
-use Fkrzski\LaravelSteamApiSdk\SteamManager;
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager;
 use Illuminate\Support\Facades\Facade;
 
 /**

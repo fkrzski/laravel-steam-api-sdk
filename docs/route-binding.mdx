@@ -68,9 +68,8 @@ names itself, keep your own binder for that parameter, claim a different
 
 ## Swapping the resolver
 
-`Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding` is pulled from the
-container on every request. A replacement must be invokable, take the segment as a
-`string`, return a `SteamId`, and throw
+`Fkrzski\LaravelSteamApiSdk\Contracts\SteamIdBinder` is pulled from the container on
+every request. One method — `__invoke(string $value): SteamId`, throwing
 `Symfony\Component\HttpKernel\Exception\NotFoundHttpException` on input it cannot
 resolve.
 
@@ -80,13 +79,14 @@ call on what it rejects:
 ```php title="app/Routing/VanityAwareSteamIdBinding.php"
 namespace App\Routing;
 
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamIdBinder;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
 use Fkrzski\SteamApiSdk\Exceptions\SteamUserNotFoundException;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-final readonly class VanityAwareSteamIdBinding
+final readonly class VanityAwareSteamIdBinding implements SteamIdBinder
 {
     public function __construct(private SteamIdRouteBinding $binding) {}
 
@@ -111,18 +111,15 @@ Register it in a service provider:
 
 ```php title="app/Providers/AppServiceProvider.php"
 use App\Routing\VanityAwareSteamIdBinding;
-use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamIdBinder;
 
-$this->app->bind(
-    SteamIdRouteBinding::class,
-    fn (): VanityAwareSteamIdBinding => new VanityAwareSteamIdBinding(new SteamIdRouteBinding),
-);
+$this->app->bind(SteamIdBinder::class, VanityAwareSteamIdBinding::class);
 ```
 
-<Aside type="caution" title="Build the wrapped binder with new">
-Autowiring that constructor would resolve `SteamIdRouteBinding` back to your
-replacement. The class is `final`, so the seam is the container binding, never a
-subclass.
+<Aside type="caution" title="The wrapper takes the class, not the contract">
+`SteamIdBinder` now resolves to your replacement, so type-hinting it in that
+constructor would send the container back into itself. The shipped class is `final` —
+the seam is the container binding, never a subclass.
 </Aside>
 
 Vanity routes now cost a Steam call per request — cache the resolution if the route

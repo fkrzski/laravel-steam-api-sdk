@@ -6,6 +6,8 @@ namespace Fkrzski\LaravelSteamApiSdk;
 
 use Fkrzski\LaravelSteamApiSdk\Console\AboutSection;
 use Fkrzski\LaravelSteamApiSdk\Console\InstallCommand;
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamIdBinder;
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
@@ -41,6 +43,14 @@ final class SteamServiceProvider extends ServiceProvider
                 $app,
             ),
         );
+
+        // Resolves through the concrete key, so both names hand back one instance.
+        $this->app->scoped(
+            SteamManagerContract::class,
+            fn (Application $app): SteamManagerContract => $app->make(SteamManager::class),
+        );
+
+        $this->app->bind(SteamIdBinder::class, SteamIdRouteBinding::class);
     }
 
     public function boot(): void
@@ -120,7 +130,7 @@ final class SteamServiceProvider extends ServiceProvider
      * Bind the configured route parameter to a {@see SteamId} value object.
      *
      * The binder is resolved from the container so its behaviour can be swapped
-     * by rebinding {@see SteamIdRouteBinding}.
+     * by rebinding {@see SteamIdBinder}.
      */
     private function registerRouteBinding(): void
     {
@@ -135,9 +145,9 @@ final class SteamServiceProvider extends ServiceProvider
         $router = $this->app->make('router');
 
         $router->bind($parameter, function (string $value): SteamId {
-            $binding = $this->app->make(SteamIdRouteBinding::class);
+            $binder = $this->app->make(SteamIdBinder::class);
 
-            return $binding($value);
+            return $binder($value);
         });
     }
 }
