@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BC break.** `fkrzski/php-steam-api-sdk` `^0.6` is required, and the `$language` argument on `Steam::userStats()` and `Steam::achievements()` is a `Language` enum rather than a string. A call passing `'english'` swaps it for `Language::English` ([#69](https://github.com/fkrzski/laravel-steam-api-sdk/issues/69)).
+
 ## [0.5.0] - 2026-08-30
 
 ### Added
