@@ -37,6 +37,7 @@ it('registers the Steam API section on the about command', function (): void {
         'rate_limit_store',
         'daily_requests_remaining',
         'route_binding',
+        'language',
     ]);
 });
 
@@ -49,6 +50,7 @@ it('renders the section under its own heading', function (): void {
         ->toContain('Rate Limit Store')
         ->toContain('Daily Requests Remaining')
         ->toContain('Route Binding')
+        ->toContain('Language')
         ->not->toContain('Application Name');
 });
 
@@ -173,6 +175,45 @@ it('reports an unknown parameter when the configured name is not a string', func
     ]);
 
     expect(steamAboutSection()['route_binding'])->toBe('enabled (UNKNOWN)');
+});
+
+it('reports english as the language until told otherwise', function (): void {
+    expect(steamAboutSection()['language'])->toBe('english');
+});
+
+it('names the configured language', function (): void {
+    config()->set('steam-api.language', 'polish');
+
+    expect(steamAboutSection()['language'])->toBe('polish');
+});
+
+it('names the trimmed language, matching the one the connector is built with', function (): void {
+    config()->set('steam-api.language', '  polish  ');
+
+    expect(steamAboutSection()['language'])->toBe('polish');
+});
+
+it('reports a blanked out language as unset', function (mixed $language): void {
+    config()->set('steam-api.language', $language);
+
+    expect(steamAboutSection()['language'])->toBe('NOT SET');
+})->with([
+    'null' => null,
+    'empty string' => '',
+    'whitespace only' => '   ',
+    'integer' => 123,
+]);
+
+it('reports a language steam does not know as invalid', function (): void {
+    config()->set('steam-api.language', 'klingon');
+
+    expect(steamAboutSection()['language'])->toBe('INVALID');
+});
+
+it('reports an unknown budget when the language is not a steam code', function (): void {
+    config()->set('steam-api.language', 'klingon');
+
+    expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
 });
 
 it('does not resolve the connector while booting', function (): void {
