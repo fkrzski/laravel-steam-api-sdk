@@ -19,6 +19,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
+use Fkrzski\SteamApiSdk\Dto\GameSchema;
 use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
 use Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames;
 use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
@@ -39,6 +40,7 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetGlobalAchievementPercentagesForAppRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetSchemaForGameRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Saloon\Http\Faking\MockResponse;
@@ -401,6 +403,20 @@ it('feeds global achievements back through the facade', function (): void {
         ->and($achievements[1]->percent)->toBe(12.5);
 });
 
+it('feeds the game schema back through the facade', function (): void {
+    Steam::fake([
+        GetSchemaForGameRequest::class => SteamResponse::gameSchema(
+            GameSchemaFactory::new()->gameName('Portal 2'),
+        ),
+    ]);
+
+    $schema = Steam::schema(appId: 620);
+
+    expect($schema->gameName)->toBe('Portal 2')
+        ->and($schema->stats)->toHaveCount(1)
+        ->and($schema->achievements)->toHaveCount(1);
+});
+
 it('feeds a resolved vanity url back through the facade', function (): void {
     Steam::fake([
         ResolveVanityUrlRequest::class => SteamResponse::vanityUrl(fakedId()),
@@ -490,6 +506,13 @@ it('raises unavailable stats from refused global achievements', function (): voi
 
     expect(fn (): array => Steam::globalAchievements(gameId: 381210))
         ->toThrow(StatsUnavailableException::class);
+});
+
+it('raises a missing app from an app id the schema endpoint does not know', function (): void {
+    Steam::fake([GetSchemaForGameRequest::class => SteamResponse::schemaAppNotFound()]);
+
+    expect(fn (): GameSchema => Steam::schema(appId: 1))
+        ->toThrow(AppNotFoundException::class);
 });
 
 it('raises a missing user from an unclaimed vanity url', function (): void {

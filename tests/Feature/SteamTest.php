@@ -10,6 +10,7 @@ use Fkrzski\LaravelSteamApiSdk\SteamManager;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameSchemaFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
@@ -37,6 +38,7 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetGlobalAchievementPercentagesForAppRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetSchemaForGameRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
@@ -466,6 +468,65 @@ it('fetches the global achievements for a game', function (): void {
 
     $mock->assertSent(
         fn (GetGlobalAchievementPercentagesForAppRequest $request): bool => $request->gameId === 381210,
+    );
+});
+
+it('fetches the schema for a game', function (): void {
+    $mock = Steam::fake([
+        GetSchemaForGameRequest::class => SteamResponse::gameSchema(
+            GameSchemaFactory::new()->gameName('Portal 2'),
+        ),
+    ]);
+
+    $schema = Steam::schema(appId: 620);
+
+    expect($schema->gameName)->toBe('Portal 2')
+        ->and($schema->stats)->toHaveCount(1)
+        ->and($schema->achievements)->toHaveCount(1);
+
+    $mock->assertSent(
+        fn (GetSchemaForGameRequest $request): bool => $request->appId === 620,
+    );
+});
+
+// An app publishing no schema answers 200 with every key dropped, which is a DTO
+// carrying nothing rather than the failure the status makes it look like.
+it('returns an empty schema for an app publishing none', function (): void {
+    Steam::fake([
+        GetSchemaForGameRequest::class => SteamResponse::gameSchema(
+            GameSchemaFactory::new()->empty(),
+        ),
+    ]);
+
+    $schema = Steam::schema(appId: 620);
+
+    expect($schema->gameName)->toBeNull()
+        ->and($schema->gameVersion)->toBeNull()
+        ->and($schema->stats)->toBeEmpty()
+        ->and($schema->achievements)->toBeEmpty();
+});
+
+it('sends no language with the schema request by default', function (): void {
+    $mock = Steam::fake([
+        GetSchemaForGameRequest::class => SteamResponse::gameSchema(GameSchemaFactory::new()),
+    ]);
+
+    Steam::schema(appId: 620);
+
+    $mock->assertSent(
+        fn (GetSchemaForGameRequest $request): bool => ! $request->language instanceof Language,
+    );
+});
+
+it('localises the schema request', function (): void {
+    $mock = Steam::fake([
+        GetSchemaForGameRequest::class => SteamResponse::gameSchema(GameSchemaFactory::new()),
+    ]);
+
+    Steam::schema(appId: 620, language: Language::Polish);
+
+    $mock->assertSent(
+        fn (GetSchemaForGameRequest $request): bool => $request->language === Language::Polish,
     );
 });
 
