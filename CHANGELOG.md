@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Steam::currentPlayers()` — wraps `GetNumberOfCurrentPlayersRequest` and returns the concurrent player count as a plain `int` rather than a DTO. An app ID Steam does not know raises `AppNotFoundException` ([#70](https://github.com/fkrzski/laravel-steam-api-sdk/issues/70)).
+- `Steam::globalAchievements()` — wraps `GetGlobalAchievementPercentagesForAppRequest` and returns `list<GlobalAchievement>`, one entry per achievement with the share of the player base that has it. Its argument is `$gameId`, the name the base SDK keeps because Valve spells this one endpoint `gameid` ([#70](https://github.com/fkrzski/laravel-steam-api-sdk/issues/70)).
+- `GlobalAchievementFactory`, with `SteamResponse::currentPlayers()` and `SteamResponse::globalAchievements()` for their envelopes. The factory holds the percentage as the string Steam sends, so the cast to a float stays the DTO's ([#70](https://github.com/fkrzski/laravel-steam-api-sdk/issues/70)).
+- `SteamResponse::appNotFound()` and `SteamResponse::globalAchievementsRefused()` — the two failure shapes the new endpoints answer with, a 404 carrying `result: 42` and a 403 carrying an empty JSON object. Neither could be built from the failure builders already here ([#70](https://github.com/fkrzski/laravel-steam-api-sdk/issues/70)).
+
 ### Changed
 
 - **BC break.** `fkrzski/php-steam-api-sdk` `^0.6` is required, and the `$language` argument on `Steam::userStats()` and `Steam::achievements()` is a `Language` enum rather than a string. A call passing `'english'` swaps it for `Language::English` ([#69](https://github.com/fkrzski/laravel-steam-api-sdk/issues/69)).
