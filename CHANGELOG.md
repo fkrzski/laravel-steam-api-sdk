@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SteamResponse::schemaAppNotFound()` — the bare 400 `GetSchemaForGameRequest` raises `AppNotFoundException` from. It returns byte for byte what `SteamResponse::statsRefused()` does, and keeps its own name because nothing but the endpoint says which failure a test is faking ([#71](https://github.com/fkrzski/laravel-steam-api-sdk/issues/71)).
 - `steam-api.language` — the default language every localised request carries, read from `STEAM_API_LANGUAGE` and validated against the base SDK's `Language` enum when the connector is built. It ships set to `english`; blank it out to send no language at all, and a code Steam does not know raises `InvalidSteamLanguageException` — a misconfiguration, so it renders as a 500 whatever `steam-api.exceptions.render` says ([#72](https://github.com/fkrzski/laravel-steam-api-sdk/issues/72)).
 - `php artisan about` — a "Language" row reporting the configured code, `NOT SET` once it is blanked out and `INVALID` for one Steam does not know ([#72](https://github.com/fkrzski/laravel-steam-api-sdk/issues/72)).
+- `AppNotFoundException` renders as a 404 — an app ID Steam does not know is a missing resource rather than a server fault, and `Steam::currentPlayers()` and `Steam::schema()` both raise it. It joins the client-facing group under `steam-api.exceptions.render`, so an application rendering these itself is unaffected ([#74](https://github.com/fkrzski/laravel-steam-api-sdk/issues/74)).
 
 ### Changed
 

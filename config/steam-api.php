@@ -57,10 +57,11 @@ return [
     |--------------------------------------------------------------------------
     |
     | Turn an unhandled Steam failure into a sensible HTTP response instead of a
-    | blanket 500: a missing user is a 404, a private profile a 403, a spent
-    | daily quota a 429 carrying Retry-After. Set this to false to render them
-    | yourself. Misconfiguration — a rejected API key, an oversized batch — is
-    | always a 500, so Steam's own status never reaches your client.
+    | blanket 500: a missing user or an app ID Steam does not know is a 404, a
+    | private profile a 403, a spent daily quota a 429 carrying Retry-After. Set
+    | this to false to render them yourself. Misconfiguration — a rejected API
+    | key, an oversized batch — is always a 500, so Steam's own status never
+    | reaches your client.
     |
     */
 
