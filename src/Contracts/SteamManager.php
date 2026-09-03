@@ -9,6 +9,7 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeNotInstalledException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\SteamApiSdk\Dto\CommunityBadgeQuest;
 use Fkrzski\SteamApiSdk\Dto\Friend;
+use Fkrzski\SteamApiSdk\Dto\GlobalAchievement;
 use Fkrzski\SteamApiSdk\Dto\OwnedGame;
 use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
 use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
@@ -151,6 +152,21 @@ interface SteamManager
      * Fetch a player's achievements for a single game.
      */
     public function achievements(SteamId $steamId, int $appId, ?Language $language = null): PlayerAchievements;
+
+    /**
+     * Fetch how many players are in a game right now.
+     */
+    public function currentPlayers(int $appId): int;
+
+    /**
+     * Fetch how much of the player base has each achievement in a game.
+     *
+     * The argument keeps the name the base SDK gives it: Valve spells this one
+     * endpoint's identifier `gameid`, though the value is an ordinary app ID.
+     *
+     * @return list<GlobalAchievement>
+     */
+    public function globalAchievements(int $gameId): array;
 
     /**
      * Resolve a Steam vanity URL slug to a {@see SteamId}.
