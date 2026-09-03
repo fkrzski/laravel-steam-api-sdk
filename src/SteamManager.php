@@ -19,6 +19,7 @@ use Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames;
 use Fkrzski\SteamApiSdk\Dto\UserGroup;
 use Fkrzski\SteamApiSdk\Dto\UserStats;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
+use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\Http\Resources\PlayersResource;
 use Fkrzski\SteamApiSdk\Http\Resources\StatsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\UsersResource;
@@ -207,7 +208,7 @@ final readonly class SteamManager implements SteamManagerContract
     /**
      * Fetch a player's stats for a single game.
      */
-    public function userStats(SteamId $steamId, int $appId, ?string $language = null): UserStats
+    public function userStats(SteamId $steamId, int $appId, ?Language $language = null): UserStats
     {
         return $this->stats()->userStats($steamId, $appId, $language);
     }
@@ -215,7 +216,7 @@ final readonly class SteamManager implements SteamManagerContract
     /**
      * Fetch a player's achievements for a single game.
      */
-    public function achievements(SteamId $steamId, int $appId, ?string $language = null): PlayerAchievements
+    public function achievements(SteamId $steamId, int $appId, ?Language $language = null): PlayerAchievements
     {
         return $this->stats()->achievements($steamId, $appId, $language);
     }

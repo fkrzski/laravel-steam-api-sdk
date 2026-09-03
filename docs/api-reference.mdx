@@ -23,7 +23,7 @@ extends `SteamApiException`.
 ### `achievements()`
 
 ```text frame="none"
-Steam::achievements(SteamId $steamId, int $appId, ?string $language = null): PlayerAchievements
+Steam::achievements(SteamId $steamId, int $appId, ?Language $language = null): PlayerAchievements
 ```
 
 <Badge text="throws StatsUnavailableException" variant="danger" size="small" />
@@ -35,7 +35,9 @@ profile and an app without achievements identically, so a `400` becomes
 `StatsUnavailableException` either way; a `401` is the hidden-profile case.
 
 ```php
-$result = Steam::achievements($steamId, appId: 381210, language: 'english');
+use Fkrzski\SteamApiSdk\Enums\Language;
+
+$result = Steam::achievements($steamId, appId: 381210, language: Language::English);
 
 foreach ($result->achievements as $achievement) {
     echo $achievement->apiName, ' — ', $achievement->achieved ? 'unlocked' : 'locked', PHP_EOL;
@@ -248,13 +250,13 @@ foreach ($summaries as $summary) {
 ### `userStats()`
 
 ```text frame="none"
-Steam::userStats(SteamId $steamId, int $appId, ?string $language = null): UserStats
+Steam::userStats(SteamId $steamId, int $appId, ?Language $language = null): UserStats
 ```
 
 <Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
 
 Returns a player's stats and achievement flags for one game. `language` localises
-achievement metadata (e.g. `'english'`).
+achievement metadata, e.g. `Language::English`.
 
 ```php
 $stats = Steam::userStats($steamId, appId: 381210);
