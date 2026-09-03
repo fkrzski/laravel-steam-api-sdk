@@ -25,6 +25,8 @@ use Illuminate\Support\Facades\Facade;
  * @method static list<\Fkrzski\SteamApiSdk\Dto\CommunityBadgeQuest> communityBadgeProgress(\Fkrzski\SteamApiSdk\ValueObjects\SteamId $steamId)
  * @method static \Fkrzski\SteamApiSdk\Dto\UserStats userStats(\Fkrzski\SteamApiSdk\ValueObjects\SteamId $steamId, int $appId, ?\Fkrzski\SteamApiSdk\Enums\Language $language = null)
  * @method static \Fkrzski\SteamApiSdk\Dto\PlayerAchievements achievements(\Fkrzski\SteamApiSdk\ValueObjects\SteamId $steamId, int $appId, ?\Fkrzski\SteamApiSdk\Enums\Language $language = null)
+ * @method static int currentPlayers(int $appId)
+ * @method static list<\Fkrzski\SteamApiSdk\Dto\GlobalAchievement> globalAchievements(int $gameId)
  * @method static \Fkrzski\SteamApiSdk\ValueObjects\SteamId resolveVanityUrl(string $vanityName)
  * @method static \Saloon\Http\Faking\MockClient fake(array<array-key, (callable(): mixed)|\Saloon\Http\Faking\Fixture|\Saloon\Http\Faking\MockResponse> $responses = [])
  * @method static void assertSent(string|callable $value)

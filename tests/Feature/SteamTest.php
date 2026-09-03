@@ -10,6 +10,7 @@ use Fkrzski\LaravelSteamApiSdk\SteamManager;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBadgesFactory;
@@ -33,6 +34,8 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerBansRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetUserGroupListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetGlobalAchievementPercentagesForAppRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
 use Fkrzski\SteamApiSdk\SteamConnector;
@@ -434,6 +437,51 @@ it('localises the achievements request', function (): void {
     $mock->assertSent(
         fn (GetPlayerAchievementsRequest $request): bool => $request->language === Language::Polish,
     );
+});
+
+it('fetches the current player count', function (): void {
+    $mock = Steam::fake([
+        GetNumberOfCurrentPlayersRequest::class => SteamResponse::currentPlayers(12_345),
+    ]);
+
+    expect(Steam::currentPlayers(appId: 381210))->toBe(12_345);
+
+    $mock->assertSent(
+        fn (GetNumberOfCurrentPlayersRequest $request): bool => $request->appId === 381210,
+    );
+});
+
+it('fetches the global achievements for a game', function (): void {
+    $mock = Steam::fake([
+        GetGlobalAchievementPercentagesForAppRequest::class => SteamResponse::globalAchievements(
+            GlobalAchievementFactory::new()->apiName('ACH_ESCAPE')->percent(12.5),
+        ),
+    ]);
+
+    $achievements = Steam::globalAchievements(gameId: 381210);
+
+    expect($achievements)->toHaveCount(1)
+        ->and($achievements[0]->apiName)->toBe('ACH_ESCAPE')
+        ->and($achievements[0]->percent)->toBe(12.5);
+
+    $mock->assertSent(
+        fn (GetGlobalAchievementPercentagesForAppRequest $request): bool => $request->gameId === 381210,
+    );
+});
+
+// The connector strips the key while booting the pending request, so the request
+// object still carries it — only what the pending request holds says what went out.
+it('sends no api key on an anonymous endpoint', function (): void {
+    Steam::fake([
+        GetNumberOfCurrentPlayersRequest::class => SteamResponse::currentPlayers(12_345),
+    ]);
+
+    Steam::currentPlayers(appId: 381210);
+
+    $query = Steam::lastResponse()?->getPendingRequest()->query()->all();
+
+    expect($query)->toHaveKey('appid', 381210)
+        ->and($query)->not->toHaveKey('key');
 });
 
 it('sends an arbitrary request and returns the raw response', function (): void {

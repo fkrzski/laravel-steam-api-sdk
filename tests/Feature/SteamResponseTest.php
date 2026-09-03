@@ -6,6 +6,7 @@ use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
@@ -19,6 +20,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
 use Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames;
+use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
 use Fkrzski\SteamApiSdk\Exceptions\InvalidApiKeyException;
 use Fkrzski\SteamApiSdk\Exceptions\ProfileNotPublicException;
 use Fkrzski\SteamApiSdk\Exceptions\StatsUnavailableException;
@@ -33,6 +35,8 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerBansRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetUserGroupListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetGlobalAchievementPercentagesForAppRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
@@ -163,6 +167,26 @@ it('nests player achievements under the playerstats key', function (): void {
     ]);
 });
 
+it('nests the player count under the response key', function (): void {
+    expect(bodyOf(SteamResponse::currentPlayers(12_345)))->toBe([
+        'response' => ['player_count' => 12_345],
+    ]);
+});
+
+it('nests global achievements under the achievementpercentages key', function (): void {
+    expect(bodyOf(SteamResponse::globalAchievements(
+        GlobalAchievementFactory::new(),
+        GlobalAchievementFactory::new()->apiName('ACH_ESCAPE')->percent(12.5),
+    )))->toBe([
+        'achievementpercentages' => [
+            'achievements' => [
+                GlobalAchievementFactory::new()->toArray(),
+                GlobalAchievementFactory::new()->apiName('ACH_ESCAPE')->percent(12.5)->toArray(),
+            ],
+        ],
+    ]);
+});
+
 it('reports a resolved vanity url as successful', function (): void {
     expect(bodyOf(SteamResponse::vanityUrl(fakedId())))->toBe([
         'response' => [
@@ -185,6 +209,16 @@ it('hides a player service result behind a 200 with an empty response', function
 it('refuses stats with a 400 carrying an empty json object', function (): void {
     expect(SteamResponse::statsRefused()->status())->toBe(400)
         ->and(bodyOf(SteamResponse::statsRefused()))->toBe('{}');
+});
+
+it('reports an unknown app with a 404 carrying result 42', function (): void {
+    expect(SteamResponse::appNotFound()->status())->toBe(404)
+        ->and(bodyOf(SteamResponse::appNotFound()))->toBe(['response' => ['result' => 42]]);
+});
+
+it('refuses global achievements with a 403 carrying an empty json object', function (): void {
+    expect(SteamResponse::globalAchievementsRefused()->status())->toBe(403)
+        ->and(bodyOf(SteamResponse::globalAchievementsRefused()))->toBe('{}');
 });
 
 it('reports an unclaimed vanity url in the body, not the status', function (): void {
@@ -326,6 +360,29 @@ it('feeds player achievements back through the facade', function (): void {
     expect(Steam::achievements(fakedId(), appId: 381210)->achievements)->toHaveCount(2);
 });
 
+it('feeds the player count back through the facade', function (): void {
+    Steam::fake([
+        GetNumberOfCurrentPlayersRequest::class => SteamResponse::currentPlayers(12_345),
+    ]);
+
+    expect(Steam::currentPlayers(appId: 381210))->toBe(12_345);
+});
+
+it('feeds global achievements back through the facade', function (): void {
+    Steam::fake([
+        GetGlobalAchievementPercentagesForAppRequest::class => SteamResponse::globalAchievements(
+            GlobalAchievementFactory::new(),
+            GlobalAchievementFactory::new()->apiName('ACH_ESCAPE')->percent(12.5),
+        ),
+    ]);
+
+    $achievements = Steam::globalAchievements(gameId: 381210);
+
+    expect($achievements)->toHaveCount(2)
+        ->and($achievements[1]->apiName)->toBe('ACH_ESCAPE')
+        ->and($achievements[1]->percent)->toBe(12.5);
+});
+
 it('feeds a resolved vanity url back through the facade', function (): void {
     Steam::fake([
         ResolveVanityUrlRequest::class => SteamResponse::vanityUrl(fakedId()),
@@ -396,6 +453,24 @@ it('raises unavailable stats from refused player achievements', function (): voi
     Steam::fake([GetPlayerAchievementsRequest::class => SteamResponse::statsRefused()]);
 
     expect(fn () => Steam::achievements(fakedId(), appId: 381210))
+        ->toThrow(StatsUnavailableException::class);
+});
+
+it('raises a missing app from an unknown app id', function (): void {
+    Steam::fake([GetNumberOfCurrentPlayersRequest::class => SteamResponse::appNotFound()]);
+
+    expect(fn (): int => Steam::currentPlayers(appId: 1))
+        ->toThrow(AppNotFoundException::class);
+});
+
+// The connector reads a 403 as a rejected key or a hidden profile; the request
+// claims this one first, which is what the fake has to keep working.
+it('raises unavailable stats from refused global achievements', function (): void {
+    Steam::fake([
+        GetGlobalAchievementPercentagesForAppRequest::class => SteamResponse::globalAchievementsRefused(),
+    ]);
+
+    expect(fn (): array => Steam::globalAchievements(gameId: 381210))
         ->toThrow(StatsUnavailableException::class);
 });
 

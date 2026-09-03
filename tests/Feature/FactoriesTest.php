@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
@@ -28,6 +29,7 @@ mutates(
     BadgeFactory::class,
     CommunityBadgeQuestFactory::class,
     FriendFactory::class,
+    GlobalAchievementFactory::class,
     OwnedGameFactory::class,
     PlayerAchievementFactory::class,
     PlayerAchievementsFactory::class,
@@ -782,4 +784,31 @@ it('marks a community badge quest as incomplete', function (): void {
 
 it('overrides the quest id', function (): void {
     expect(CommunityBadgeQuestFactory::new()->questId(202)->make()->questId)->toBe(202);
+});
+
+// GlobalAchievementFactory
+
+it('builds a global achievement payload', function (): void {
+    expect(GlobalAchievementFactory::new()->toArray())->toBe([
+        'name' => 'ACH_UNLOCK_KILLER_CHARACTER',
+        'percent' => '32.4',
+    ]);
+});
+
+it('maps a global achievement payload onto the dto', function (): void {
+    $achievement = GlobalAchievementFactory::new()->make();
+
+    expect($achievement->apiName)->toBe('ACH_UNLOCK_KILLER_CHARACTER')
+        ->and($achievement->percent)->toBe(32.4);
+});
+
+it('keeps a global achievement percentage a string in the payload', function (): void {
+    expect(GlobalAchievementFactory::new()->percent(12.5)->toArray()['percent'])->toBe('12.5');
+});
+
+it('overrides the global achievement api name and percentage', function (): void {
+    $achievement = GlobalAchievementFactory::new()->apiName('ACH_ESCAPE')->percent(12.5)->make();
+
+    expect($achievement->apiName)->toBe('ACH_ESCAPE')
+        ->and($achievement->percent)->toBe(12.5);
 });
