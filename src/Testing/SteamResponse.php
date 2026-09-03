@@ -6,6 +6,7 @@ namespace Fkrzski\LaravelSteamApiSdk\Testing;
 
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameSchemaFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
@@ -171,6 +172,13 @@ final class SteamResponse
         ]);
     }
 
+    public static function gameSchema(GameSchemaFactory $schema): MockResponse
+    {
+        return MockResponse::make([
+            'game' => $schema->toArray(),
+        ]);
+    }
+
     public static function vanityUrl(SteamId $steamId): MockResponse
     {
         return MockResponse::make([
@@ -202,10 +210,10 @@ final class SteamResponse
     }
 
     /**
-     * Both ISteamUserStats endpoints answer 400 with an empty JSON object, which
-     * `GetUserStatsForGame` raises as `ProfileNotPublicException` and
-     * `GetPlayerAchievements` as `StatsUnavailableException` — the cause is
-     * ambiguous, so the two requests read the same body differently.
+     * `GetUserStatsForGame` and `GetPlayerAchievements` both answer 400 with an empty
+     * JSON object, which the first raises as `ProfileNotPublicException` and the
+     * second as `StatsUnavailableException` — the cause is ambiguous, so the two
+     * requests read the same body differently.
      */
     public static function statsRefused(): MockResponse
     {
@@ -231,6 +239,17 @@ final class SteamResponse
     public static function globalAchievementsRefused(): MockResponse
     {
         return MockResponse::make('{}', 403);
+    }
+
+    /**
+     * An app ID `GetSchemaForGame` does not know, which it raises as
+     * `AppNotFoundException`. Byte for byte what {@see self::statsRefused()} returns,
+     * because Steam answers both with a bare 400 — the two keep their own names since
+     * nothing but the endpoint says which failure a test is faking.
+     */
+    public static function schemaAppNotFound(): MockResponse
+    {
+        return MockResponse::make('{}', 400);
     }
 
     /**

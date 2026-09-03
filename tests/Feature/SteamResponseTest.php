@@ -6,6 +6,7 @@ use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameSchemaFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementFactory;
@@ -187,6 +188,18 @@ it('nests global achievements under the achievementpercentages key', function ()
     ]);
 });
 
+it('nests the game schema under the game key', function (): void {
+    expect(bodyOf(SteamResponse::gameSchema(GameSchemaFactory::new())))->toBe([
+        'game' => GameSchemaFactory::new()->toArray(),
+    ]);
+});
+
+it('answers an app publishing no schema with an empty game object', function (): void {
+    expect(bodyOf(SteamResponse::gameSchema(GameSchemaFactory::new()->empty())))->toBe([
+        'game' => [],
+    ]);
+});
+
 it('reports a resolved vanity url as successful', function (): void {
     expect(bodyOf(SteamResponse::vanityUrl(fakedId())))->toBe([
         'response' => [
@@ -219,6 +232,11 @@ it('reports an unknown app with a 404 carrying result 42', function (): void {
 it('refuses global achievements with a 403 carrying an empty json object', function (): void {
     expect(SteamResponse::globalAchievementsRefused()->status())->toBe(403)
         ->and(bodyOf(SteamResponse::globalAchievementsRefused()))->toBe('{}');
+});
+
+it('reports an app the schema endpoint does not know with a bare 400', function (): void {
+    expect(SteamResponse::schemaAppNotFound()->status())->toBe(400)
+        ->and(bodyOf(SteamResponse::schemaAppNotFound()))->toBe('{}');
 });
 
 it('reports an unclaimed vanity url in the body, not the status', function (): void {
