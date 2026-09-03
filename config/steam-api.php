@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use Fkrzski\SteamApiSdk\Enums\Language;
 
 return [
 
@@ -16,6 +17,22 @@ return [
     */
 
     'key' => env('STEAM_API_KEY'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default Language
+    |--------------------------------------------------------------------------
+    |
+    | Steam's own language code, sent on every request whose payload is localised
+    | — achievement names and descriptions among them. English unless you say
+    | otherwise. The codes are Valve's rather than ISO ones, so "koreana",
+    | "schinese" and "brazilian"; see the Language enum for the full list.
+    | Anything outside it is a configuration error, and a blank value sends no
+    | language at all, leaving the choice to Steam.
+    |
+    */
+
+    'language' => env('STEAM_API_LANGUAGE', Language::English->value),
 
     /*
     |--------------------------------------------------------------------------
