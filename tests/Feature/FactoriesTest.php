@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameSchemaFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementFactory;
@@ -14,6 +15,8 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SchemaAchievementFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SchemaStatFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatFactory;
@@ -29,6 +32,7 @@ mutates(
     BadgeFactory::class,
     CommunityBadgeQuestFactory::class,
     FriendFactory::class,
+    GameSchemaFactory::class,
     GlobalAchievementFactory::class,
     OwnedGameFactory::class,
     PlayerAchievementFactory::class,
@@ -38,6 +42,8 @@ mutates(
     PlayerSummaryFactory::class,
     RecentlyPlayedGameFactory::class,
     RecentlyPlayedGamesFactory::class,
+    SchemaAchievementFactory::class,
+    SchemaStatFactory::class,
     UserGroupFactory::class,
     UserStatAchievementFactory::class,
     UserStatFactory::class,
@@ -811,4 +817,176 @@ it('overrides the global achievement api name and percentage', function (): void
 
     expect($achievement->apiName)->toBe('ACH_ESCAPE')
         ->and($achievement->percent)->toBe(12.5);
+});
+
+// SchemaStatFactory
+
+it('builds a schema stat payload', function (): void {
+    expect(SchemaStatFactory::new()->toArray())->toBe([
+        'name' => 'DBD_KillerSkulls',
+        'defaultvalue' => 0,
+        'displayName' => 'Killer Skulls',
+    ]);
+});
+
+it('maps a schema stat payload onto the dto', function (): void {
+    $stat = SchemaStatFactory::new()->make();
+
+    expect($stat->apiName)->toBe('DBD_KillerSkulls')
+        ->and($stat->name)->toBe('Killer Skulls')
+        ->and($stat->defaultValue)->toBe(0);
+});
+
+it('overrides the schema stat api name, name and default value', function (): void {
+    $stat = SchemaStatFactory::new()
+        ->apiName('DBD_SurvivorSkulls')
+        ->name('Survivor Skulls')
+        ->defaultValue(1.5)
+        ->make();
+
+    expect($stat->apiName)->toBe('DBD_SurvivorSkulls')
+        ->and($stat->name)->toBe('Survivor Skulls')
+        ->and($stat->defaultValue)->toBe(1.5);
+});
+
+it('reads a blank stat display name as no name at all', function (): void {
+    $stat = SchemaStatFactory::new()->unnamed();
+
+    expect($stat->toArray()['displayName'])->toBe('')
+        ->and($stat->make()->name)->toBeNull();
+});
+
+// SchemaAchievementFactory
+
+it('builds a schema achievement payload', function (): void {
+    expect(SchemaAchievementFactory::new()->toArray())->toBe([
+        'name' => 'ACH_UNLOCK_KILLER_CHARACTER',
+        'displayName' => 'Left for Dead',
+        'hidden' => 0,
+        'description' => 'Unlock a killer character.',
+        'icon' => 'https://cdn.steamstatic.com/steamcommunity/public/images/apps/381210/ee6b1c.jpg',
+        'icongray' => 'https://cdn.steamstatic.com/steamcommunity/public/images/apps/381210/ee6b1c_gray.jpg',
+    ]);
+});
+
+it('maps a schema achievement payload onto the dto', function (): void {
+    $achievement = SchemaAchievementFactory::new()->make();
+
+    expect($achievement->apiName)->toBe('ACH_UNLOCK_KILLER_CHARACTER')
+        ->and($achievement->name)->toBe('Left for Dead')
+        ->and($achievement->description)->toBe('Unlock a killer character.')
+        ->and($achievement->hidden)->toBeFalse()
+        ->and($achievement->icon)->toBe('https://cdn.steamstatic.com/steamcommunity/public/images/apps/381210/ee6b1c.jpg')
+        ->and($achievement->iconGray)->toBe('https://cdn.steamstatic.com/steamcommunity/public/images/apps/381210/ee6b1c_gray.jpg');
+});
+
+it('overrides the schema achievement api name, name and description', function (): void {
+    $achievement = SchemaAchievementFactory::new()
+        ->apiName('ACH_ESCAPE')
+        ->name('Escape Artist')
+        ->description('Escape through the hatch.')
+        ->make();
+
+    expect($achievement->apiName)->toBe('ACH_ESCAPE')
+        ->and($achievement->name)->toBe('Escape Artist')
+        ->and($achievement->description)->toBe('Escape through the hatch.');
+});
+
+it('overrides the schema achievement icons', function (): void {
+    $achievement = SchemaAchievementFactory::new()
+        ->icons('https://example.test/icon.jpg', 'https://example.test/icon_gray.jpg')
+        ->make();
+
+    expect($achievement->icon)->toBe('https://example.test/icon.jpg')
+        ->and($achievement->iconGray)->toBe('https://example.test/icon_gray.jpg');
+});
+
+it('hides a schema achievement', function (): void {
+    $achievement = SchemaAchievementFactory::new()->hidden();
+
+    expect($achievement->toArray()['hidden'])->toBe(1)
+        ->and($achievement->make()->hidden)->toBeTrue();
+});
+
+it('shows a hidden schema achievement again', function (): void {
+    $achievement = SchemaAchievementFactory::new()->hidden()->visible();
+
+    expect($achievement->toArray()['hidden'])->toBe(0)
+        ->and($achievement->make()->hidden)->toBeFalse();
+});
+
+it('drops the description of a schema achievement', function (): void {
+    $achievement = SchemaAchievementFactory::new()->withoutDescription();
+
+    expect($achievement->toArray())->not->toHaveKey('description')
+        ->and($achievement->make()->description)->toBeNull();
+});
+
+// GameSchemaFactory
+
+it('builds a game schema payload', function (): void {
+    expect(GameSchemaFactory::new()->toArray())->toBe([
+        'gameName' => 'Dead by Daylight',
+        'gameVersion' => '17',
+        'availableGameStats' => [
+            'stats' => [SchemaStatFactory::new()->toArray()],
+            'achievements' => [SchemaAchievementFactory::new()->toArray()],
+        ],
+    ]);
+});
+
+it('maps a game schema payload onto the dto', function (): void {
+    $schema = GameSchemaFactory::new()->make();
+
+    expect($schema->gameName)->toBe('Dead by Daylight')
+        ->and($schema->gameVersion)->toBe('17')
+        ->and($schema->stats)->toHaveCount(1)
+        ->and($schema->stats[0]->apiName)->toBe('DBD_KillerSkulls')
+        ->and($schema->achievements)->toHaveCount(1)
+        ->and($schema->achievements[0]->apiName)->toBe('ACH_UNLOCK_KILLER_CHARACTER');
+});
+
+it('overrides the game name and version', function (): void {
+    $schema = GameSchemaFactory::new()->gameName('Portal 2')->gameVersion('20')->make();
+
+    expect($schema->gameName)->toBe('Portal 2')
+        ->and($schema->gameVersion)->toBe('20');
+});
+
+it('reads a blank game name as no name at all', function (): void {
+    $schema = GameSchemaFactory::new()->unnamed();
+
+    expect($schema->toArray()['gameName'])->toBe('')
+        ->and($schema->make()->gameName)->toBeNull();
+});
+
+// Both lists sit under `availableGameStats`, so setting one has to leave the other
+// standing.
+it('replaces the schema stats and achievements side by side', function (): void {
+    $schema = GameSchemaFactory::new()
+        ->stats(
+            SchemaStatFactory::new()->apiName('DBD_SurvivorSkulls'),
+            SchemaStatFactory::new()->apiName('DBD_BloodwebPoints'),
+        )
+        ->achievements(SchemaAchievementFactory::new()->apiName('ACH_ESCAPE'))
+        ->make();
+
+    expect($schema->stats)->toHaveCount(2)
+        ->and($schema->stats[0]->apiName)->toBe('DBD_SurvivorSkulls')
+        ->and($schema->stats[1]->apiName)->toBe('DBD_BloodwebPoints')
+        ->and($schema->achievements)->toHaveCount(1)
+        ->and($schema->achievements[0]->apiName)->toBe('ACH_ESCAPE');
+});
+
+it('builds the schema an app publishing none answers with', function (): void {
+    expect(GameSchemaFactory::new()->empty()->toArray())->toBeEmpty();
+});
+
+it('maps a published-nothing schema onto an empty dto', function (): void {
+    $schema = GameSchemaFactory::new()->empty()->make();
+
+    expect($schema->gameName)->toBeNull()
+        ->and($schema->gameVersion)->toBeNull()
+        ->and($schema->stats)->toBeEmpty()
+        ->and($schema->achievements)->toBeEmpty();
 });

@@ -10,6 +10,7 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeNotInstalledException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\SteamApiSdk\Dto\CommunityBadgeQuest;
 use Fkrzski\SteamApiSdk\Dto\Friend;
+use Fkrzski\SteamApiSdk\Dto\GameSchema;
 use Fkrzski\SteamApiSdk\Dto\GlobalAchievement;
 use Fkrzski\SteamApiSdk\Dto\OwnedGame;
 use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
@@ -241,6 +242,17 @@ final readonly class SteamManager implements SteamManagerContract
     public function globalAchievements(int $gameId): array
     {
         return $this->stats()->globalAchievements($gameId);
+    }
+
+    /**
+     * Fetch every stat and achievement a game publishes.
+     *
+     * An app publishing no schema answers with an empty {@see GameSchema} rather
+     * than a failure; an app ID Steam does not know raises `AppNotFoundException`.
+     */
+    public function schema(int $appId, ?Language $language = null): GameSchema
+    {
+        return $this->stats()->schema($appId, $language);
     }
 
     /**

@@ -6,6 +6,7 @@ use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameSchemaFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementFactory;
@@ -18,6 +19,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
+use Fkrzski\SteamApiSdk\Dto\GameSchema;
 use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
 use Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames;
 use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
@@ -38,6 +40,7 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetGlobalAchievementPercentagesForAppRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetSchemaForGameRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Saloon\Http\Faking\MockResponse;
@@ -187,6 +190,18 @@ it('nests global achievements under the achievementpercentages key', function ()
     ]);
 });
 
+it('nests the game schema under the game key', function (): void {
+    expect(bodyOf(SteamResponse::gameSchema(GameSchemaFactory::new())))->toBe([
+        'game' => GameSchemaFactory::new()->toArray(),
+    ]);
+});
+
+it('answers an app publishing no schema with an empty game object', function (): void {
+    expect(bodyOf(SteamResponse::gameSchema(GameSchemaFactory::new()->empty())))->toBe([
+        'game' => [],
+    ]);
+});
+
 it('reports a resolved vanity url as successful', function (): void {
     expect(bodyOf(SteamResponse::vanityUrl(fakedId())))->toBe([
         'response' => [
@@ -219,6 +234,11 @@ it('reports an unknown app with a 404 carrying result 42', function (): void {
 it('refuses global achievements with a 403 carrying an empty json object', function (): void {
     expect(SteamResponse::globalAchievementsRefused()->status())->toBe(403)
         ->and(bodyOf(SteamResponse::globalAchievementsRefused()))->toBe('{}');
+});
+
+it('reports an app the schema endpoint does not know with a bare 400', function (): void {
+    expect(SteamResponse::schemaAppNotFound()->status())->toBe(400)
+        ->and(bodyOf(SteamResponse::schemaAppNotFound()))->toBe('{}');
 });
 
 it('reports an unclaimed vanity url in the body, not the status', function (): void {
@@ -383,6 +403,20 @@ it('feeds global achievements back through the facade', function (): void {
         ->and($achievements[1]->percent)->toBe(12.5);
 });
 
+it('feeds the game schema back through the facade', function (): void {
+    Steam::fake([
+        GetSchemaForGameRequest::class => SteamResponse::gameSchema(
+            GameSchemaFactory::new()->gameName('Portal 2'),
+        ),
+    ]);
+
+    $schema = Steam::schema(appId: 620);
+
+    expect($schema->gameName)->toBe('Portal 2')
+        ->and($schema->stats)->toHaveCount(1)
+        ->and($schema->achievements)->toHaveCount(1);
+});
+
 it('feeds a resolved vanity url back through the facade', function (): void {
     Steam::fake([
         ResolveVanityUrlRequest::class => SteamResponse::vanityUrl(fakedId()),
@@ -472,6 +506,13 @@ it('raises unavailable stats from refused global achievements', function (): voi
 
     expect(fn (): array => Steam::globalAchievements(gameId: 381210))
         ->toThrow(StatsUnavailableException::class);
+});
+
+it('raises a missing app from an app id the schema endpoint does not know', function (): void {
+    Steam::fake([GetSchemaForGameRequest::class => SteamResponse::schemaAppNotFound()]);
+
+    expect(fn (): GameSchema => Steam::schema(appId: 1))
+        ->toThrow(AppNotFoundException::class);
 });
 
 it('raises a missing user from an unclaimed vanity url', function (): void {
