@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use Fkrzski\SteamApiSdk\Enums\Language;
 
 return [
 
@@ -31,7 +32,7 @@ return [
     |
     */
 
-    'language' => env('STEAM_API_LANGUAGE', \Fkrzski\SteamApiSdk\Enums\Language::English->value),
+    'language' => env('STEAM_API_LANGUAGE', Language::English->value),
 
     /*
     |--------------------------------------------------------------------------
