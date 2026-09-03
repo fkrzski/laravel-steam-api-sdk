@@ -11,6 +11,7 @@ use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetUserGroupListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsRequest;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Foundation\Exceptions\Handler;
@@ -68,6 +69,16 @@ it('renders unavailable stats as a 404', function (): void {
     Route::get('steam/achievements', fn (): array => Steam::achievements(steamId(), 440)->achievements);
 
     $this->getJson('steam/achievements')->assertNotFound();
+});
+
+it('renders an app id steam does not know as a 404', function (): void {
+    Steam::fake([GetNumberOfCurrentPlayersRequest::class => SteamResponse::appNotFound()]);
+
+    Route::get('steam/players', fn (): int => Steam::currentPlayers(1));
+
+    $this->getJson('steam/players')
+        ->assertNotFound()
+        ->assertJsonPath('message', 'No Steam app found for app ID 1.');
 });
 
 it('renders a private profile as a 403', function (): void {

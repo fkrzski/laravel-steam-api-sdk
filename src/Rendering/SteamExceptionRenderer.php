@@ -8,6 +8,7 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
+use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
 use Fkrzski\SteamApiSdk\Exceptions\InvalidApiKeyException;
 use Fkrzski\SteamApiSdk\Exceptions\ProfileNotPublicException;
 use Fkrzski\SteamApiSdk\Exceptions\StatsUnavailableException;
@@ -51,13 +52,15 @@ final readonly class SteamExceptionRenderer
     ) {}
 
     /**
-     * No such user, or no stats for that game.
+     * No such user, no such app, or no stats for that game.
      *
      * Stats are ambiguous — the game exposes none, or the profile hides them —
-     * so both answer 404 and neither says which.
+     * so all three answer 404 and none says which.
      */
-    public function notFound(SteamUserNotFoundException|StatsUnavailableException $e, Request $request): Response
-    {
+    public function notFound(
+        SteamUserNotFoundException|StatsUnavailableException|AppNotFoundException $e,
+        Request $request,
+    ): Response {
         return $this->handler->render($request, new NotFoundHttpException($e->getMessage(), $e));
     }
 
