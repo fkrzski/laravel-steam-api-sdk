@@ -22,6 +22,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Enums\EconomyBan;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
+use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetBadgesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetCommunityBadgeProgressRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
@@ -381,6 +382,58 @@ it('fetches player achievements', function (): void {
         ->and($achievements->achievements)->toHaveCount(1);
 
     $mock->assertSent(GetPlayerAchievementsRequest::class);
+});
+
+it('sends no language with the user stats request by default', function (): void {
+    $mock = Steam::fake([
+        GetUserStatsForGameRequest::class => SteamResponse::userStats(UserStatsFactory::new()),
+    ]);
+
+    Steam::userStats(steamId(), appId: 381210);
+
+    $mock->assertSent(
+        fn (GetUserStatsForGameRequest $request): bool => ! $request->language instanceof Language,
+    );
+});
+
+it('localises the user stats request', function (): void {
+    $mock = Steam::fake([
+        GetUserStatsForGameRequest::class => SteamResponse::userStats(UserStatsFactory::new()),
+    ]);
+
+    Steam::userStats(steamId(), appId: 381210, language: Language::Polish);
+
+    $mock->assertSent(
+        fn (GetUserStatsForGameRequest $request): bool => $request->language === Language::Polish,
+    );
+});
+
+it('sends no language with the achievements request by default', function (): void {
+    $mock = Steam::fake([
+        GetPlayerAchievementsRequest::class => SteamResponse::playerAchievements(
+            PlayerAchievementsFactory::new(),
+        ),
+    ]);
+
+    Steam::achievements(steamId(), appId: 381210);
+
+    $mock->assertSent(
+        fn (GetPlayerAchievementsRequest $request): bool => ! $request->language instanceof Language,
+    );
+});
+
+it('localises the achievements request', function (): void {
+    $mock = Steam::fake([
+        GetPlayerAchievementsRequest::class => SteamResponse::playerAchievements(
+            PlayerAchievementsFactory::new(),
+        ),
+    ]);
+
+    Steam::achievements(steamId(), appId: 381210, language: Language::Polish);
+
+    $mock->assertSent(
+        fn (GetPlayerAchievementsRequest $request): bool => $request->language === Language::Polish,
+    );
 });
 
 it('sends an arbitrary request and returns the raw response', function (): void {
