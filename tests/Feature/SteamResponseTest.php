@@ -6,6 +6,7 @@ use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
@@ -163,6 +164,26 @@ it('nests player achievements under the playerstats key', function (): void {
     ]);
 });
 
+it('nests the player count under the response key', function (): void {
+    expect(bodyOf(SteamResponse::currentPlayers(12_345)))->toBe([
+        'response' => ['player_count' => 12_345],
+    ]);
+});
+
+it('nests global achievements under the achievementpercentages key', function (): void {
+    expect(bodyOf(SteamResponse::globalAchievements(
+        GlobalAchievementFactory::new(),
+        GlobalAchievementFactory::new()->apiName('ACH_ESCAPE')->percent(12.5),
+    )))->toBe([
+        'achievementpercentages' => [
+            'achievements' => [
+                GlobalAchievementFactory::new()->toArray(),
+                GlobalAchievementFactory::new()->apiName('ACH_ESCAPE')->percent(12.5)->toArray(),
+            ],
+        ],
+    ]);
+});
+
 it('reports a resolved vanity url as successful', function (): void {
     expect(bodyOf(SteamResponse::vanityUrl(fakedId())))->toBe([
         'response' => [
@@ -185,6 +206,16 @@ it('hides a player service result behind a 200 with an empty response', function
 it('refuses stats with a 400 carrying an empty json object', function (): void {
     expect(SteamResponse::statsRefused()->status())->toBe(400)
         ->and(bodyOf(SteamResponse::statsRefused()))->toBe('{}');
+});
+
+it('reports an unknown app with a 404 carrying result 42', function (): void {
+    expect(SteamResponse::appNotFound()->status())->toBe(404)
+        ->and(bodyOf(SteamResponse::appNotFound()))->toBe(['response' => ['result' => 42]]);
+});
+
+it('refuses global achievements with a 403 carrying an empty json object', function (): void {
+    expect(SteamResponse::globalAchievementsRefused()->status())->toBe(403)
+        ->and(bodyOf(SteamResponse::globalAchievementsRefused()))->toBe('{}');
 });
 
 it('reports an unclaimed vanity url in the body, not the status', function (): void {

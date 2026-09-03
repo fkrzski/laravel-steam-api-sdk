@@ -6,6 +6,7 @@ namespace Fkrzski\LaravelSteamApiSdk\Testing;
 
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBadgesFactory;
@@ -151,6 +152,25 @@ final class SteamResponse
         ]);
     }
 
+    public static function currentPlayers(int $count): MockResponse
+    {
+        return MockResponse::make([
+            'response' => ['player_count' => $count],
+        ]);
+    }
+
+    public static function globalAchievements(GlobalAchievementFactory ...$achievements): MockResponse
+    {
+        return MockResponse::make([
+            'achievementpercentages' => [
+                'achievements' => array_map(
+                    static fn (GlobalAchievementFactory $achievement): array => $achievement->toArray(),
+                    $achievements,
+                ),
+            ],
+        ]);
+    }
+
     public static function vanityUrl(SteamId $steamId): MockResponse
     {
         return MockResponse::make([
@@ -190,6 +210,27 @@ final class SteamResponse
     public static function statsRefused(): MockResponse
     {
         return MockResponse::make('{}', 400);
+    }
+
+    /**
+     * An app ID Steam does not know, which `GetNumberOfCurrentPlayers` raises as
+     * `AppNotFoundException`. The request reads the status alone; `result: 42` is
+     * here because that is what Steam sends with it.
+     */
+    public static function appNotFound(): MockResponse
+    {
+        return MockResponse::make(['response' => ['result' => 42]], 404);
+    }
+
+    /**
+     * `GetGlobalAchievementPercentagesForApp` answers 403 with an empty JSON object
+     * for a game carrying no achievements and for a game ID it does not know alike,
+     * raising `StatsUnavailableException` either way. The request claims this status
+     * before the connector can read it as a rejected key or a hidden profile.
+     */
+    public static function globalAchievementsRefused(): MockResponse
+    {
+        return MockResponse::make('{}', 403);
     }
 
     /**
