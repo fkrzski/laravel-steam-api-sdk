@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk\Rendering;
 
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
 use Fkrzski\SteamApiSdk\Exceptions\InvalidApiKeyException;
@@ -93,7 +94,8 @@ final readonly class SteamExceptionRenderer
      * the developer keeps the exception page naming the config value to fix.
      */
     public function misconfigured(
-        InvalidApiKeyException|TooManySteamIdsException|SteamApiKeyMissingException|FakeOutsideTestsException $e,
+        InvalidApiKeyException|TooManySteamIdsException|SteamApiKeyMissingException
+        |InvalidSteamLanguageException|FakeOutsideTestsException $e,
         Request $request,
     ): ?Response {
         if ($this->config->get('app.debug') === true) {

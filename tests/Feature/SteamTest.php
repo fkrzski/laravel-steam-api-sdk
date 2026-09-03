@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
@@ -110,6 +111,56 @@ it('names the env var and the config key in the exception', function (): void {
 
     expect($resolve)->toThrow(SteamApiKeyMissingException::class, 'STEAM_API_KEY')
         ->and($resolve)->toThrow(SteamApiKeyMissingException::class, 'steam-api.key');
+});
+
+it('configures the connector with english until told otherwise', function (): void {
+    expect(app(SteamConnector::class)->steamConfig->language)->toBe(Language::English);
+});
+
+it('configures the connector with the language code', function (): void {
+    config()->set('steam-api.language', 'polish');
+
+    expect(app(SteamConnector::class)->steamConfig->language)->toBe(Language::Polish);
+});
+
+it('trims surrounding whitespace from the language code', function (): void {
+    config()->set('steam-api.language', '  polish  ');
+
+    expect(app(SteamConnector::class)->steamConfig->language)->toBe(Language::Polish);
+});
+
+it('sends no language once the configured code is blanked out', function (mixed $language): void {
+    config()->set('steam-api.language', $language);
+
+    expect(app(SteamConnector::class)->steamConfig->language)->toBeNull();
+})->with([
+    'null' => null,
+    'empty string' => '',
+    'whitespace only' => '   ',
+    'integer' => 123,
+    'array' => [[]],
+    'boolean' => true,
+]);
+
+it('throws when the configured language is not one of steams codes', function (string $language): void {
+    config()->set('steam-api.language', $language);
+
+    expect(fn (): SteamConnector => app(SteamConnector::class))
+        ->toThrow(InvalidSteamLanguageException::class);
+})->with([
+    'an iso code' => 'en',
+    'a case name' => 'Korean',
+    'nonsense' => 'klingon',
+]);
+
+it('names the env var, the config key and the rejected code in the exception', function (): void {
+    config()->set('steam-api.language', 'klingon');
+
+    $resolve = fn (): SteamConnector => app(SteamConnector::class);
+
+    expect($resolve)->toThrow(InvalidSteamLanguageException::class, 'STEAM_API_LANGUAGE')
+        ->and($resolve)->toThrow(InvalidSteamLanguageException::class, 'steam-api.language')
+        ->and($resolve)->toThrow(InvalidSteamLanguageException::class, 'klingon');
 });
 
 it('does not require the api key until the connector is built', function (): void {
@@ -543,6 +594,18 @@ it('sends no api key on an anonymous endpoint', function (): void {
 
     expect($query)->toHaveKey('appid', 381210)
         ->and($query)->not->toHaveKey('key');
+});
+
+it('sends the configured language on every localised request', function (): void {
+    config()->set('steam-api.language', 'polish');
+
+    Steam::fake([
+        GetSchemaForGameRequest::class => SteamResponse::gameSchema(GameSchemaFactory::new()),
+    ]);
+
+    Steam::schema(appId: 620);
+
+    expect(Steam::lastResponse()?->getPendingRequest()->query()->all())->toHaveKey('l', 'polish');
 });
 
 it('sends an arbitrary request and returns the raw response', function (): void {

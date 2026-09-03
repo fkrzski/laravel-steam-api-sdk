@@ -8,9 +8,11 @@ use Fkrzski\LaravelSteamApiSdk\Console\AboutSection;
 use Fkrzski\LaravelSteamApiSdk\Console\InstallCommand;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamIdBinder;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
+use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
@@ -33,6 +35,7 @@ final class SteamServiceProvider extends ServiceProvider
             new SteamConfig(
                 apiKey: $this->steamApiKey(),
                 rateLimitStore: new LaravelCacheStore(Cache::store()),
+                language: $this->steamLanguage(),
             ),
         ));
 
@@ -124,6 +127,29 @@ final class SteamServiceProvider extends ServiceProvider
         }
 
         return trim($apiKey);
+    }
+
+    /**
+     * The configured default language, sent on every request that localises its
+     * payload.
+     *
+     * Resolved from config alongside the key, so a rejected code surfaces on the
+     * first Steam call rather than at boot. The shipped config defaults to
+     * English; blank it out and no language goes out at all, leaving the choice
+     * to Steam.
+     *
+     * @throws InvalidSteamLanguageException when the value is not one of Steam's codes
+     */
+    private function steamLanguage(): ?Language
+    {
+        $language = config('steam-api.language');
+        $code = is_string($language) ? trim($language) : '';
+
+        if ($code === '') {
+            return null;
+        }
+
+        return Language::tryFrom($code) ?? throw new InvalidSteamLanguageException($code);
     }
 
     /**

@@ -132,6 +132,16 @@ it('keeps the missing key message out of the response body', function (): void {
         ->assertExactJson(['message' => 'Server Error']);
 });
 
+it('renders a rejected language as a 500', function (): void {
+    config()->set(['app.debug' => false, 'steam-api.language' => 'klingon']);
+
+    Route::get('steam/language', fn (): string => Steam::connector()->resolveBaseUrl());
+
+    $this->getJson('steam/language')
+        ->assertStatus(500)
+        ->assertExactJson(['message' => 'Server Error']);
+});
+
 it('leaves a misconfiguration to the debug page while debugging', function (): void {
     config()->set('app.debug', true);
 
