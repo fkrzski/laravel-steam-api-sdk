@@ -7,9 +7,11 @@ namespace Fkrzski\LaravelSteamApiSdk;
 use Fkrzski\LaravelSteamApiSdk\Console\AboutSection;
 use Fkrzski\LaravelSteamApiSdk\Console\InstallCommand;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamIdBinder;
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Http\RequiresConfiguredApiKey;
+use Fkrzski\LaravelSteamApiSdk\Localization\LocaleLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
 use Fkrzski\SteamApiSdk\Enums\Language;
@@ -64,6 +66,7 @@ final class SteamServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(SteamIdBinder::class, SteamIdRouteBinding::class);
+        $this->app->bind(SteamLanguageResolver::class, LocaleLanguageResolver::class);
     }
 
     public function boot(): void
