@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-04
+
 ### Added
 
 - `Steam::currentPlayers()` — wraps `GetNumberOfCurrentPlayersRequest` and returns the concurrent player count as a plain `int` rather than a DTO. An app ID Steam does not know raises `AppNotFoundException` ([#70](https://github.com/fkrzski/laravel-steam-api-sdk/issues/70)).
@@ -17,9 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GameSchemaFactory`, `SchemaStatFactory` and `SchemaAchievementFactory`, with `SteamResponse::gameSchema()` for the `game` envelope. `->empty()` builds what an app publishing no schema answers with, dropping the name and version along with both lists ([#71](https://github.com/fkrzski/laravel-steam-api-sdk/issues/71)).
 - `SteamResponse::schemaAppNotFound()` — the bare 400 `GetSchemaForGameRequest` raises `AppNotFoundException` from. It returns byte for byte what `SteamResponse::statsRefused()` does, and keeps its own name because nothing but the endpoint says which failure a test is faking ([#71](https://github.com/fkrzski/laravel-steam-api-sdk/issues/71)).
 - `steam-api.language` — the default language every localised request carries, read from `STEAM_API_LANGUAGE` and validated against the base SDK's `Language` enum when the connector is built. It ships unset and an empty string sends no language at all, while a code Steam does not know raises `InvalidSteamLanguageException` — a misconfiguration, so it renders as a 500 whatever `steam-api.exceptions.render` says ([#72](https://github.com/fkrzski/laravel-steam-api-sdk/issues/72)).
-- `php artisan about` — a "Language" row reporting the code every localised request carries, `NOT SET` where none goes out and `INVALID` for one Steam does not know ([#72](https://github.com/fkrzski/laravel-steam-api-sdk/issues/72)).
+- `php artisan about` — a "Language" row reporting the code every localised request carries and which of the two answers it is, `polish (config)` or `polish (locale: pl)`. `NOT SET` names its source the same way, while `INVALID` stands alone, since only config can carry a rejected code ([#72](https://github.com/fkrzski/laravel-steam-api-sdk/issues/72), [#73](https://github.com/fkrzski/laravel-steam-api-sdk/issues/73)).
 - `Contracts\SteamLanguageResolver`, bound to `Localization\LocaleLanguageResolver` — with `steam-api.language` unset the language follows `app()->getLocale()` through a table of Valve's own codes, so `pl` is `polish` while `ko` is `koreana` and `pt_BR` is `brazilian`. A locale Steam publishes no language for sends none rather than raising, and an application with its own locale scheme rebinds the contract instead of forking the map ([#73](https://github.com/fkrzski/laravel-steam-api-sdk/issues/73)).
-- `php artisan about` — the "Language" row says which of the two answers it reports, `polish (config)` or `polish (locale: pl)`, and names the source alongside `NOT SET` too ([#73](https://github.com/fkrzski/laravel-steam-api-sdk/issues/73)).
 - `AppNotFoundException` renders as a 404 — an app ID Steam does not know is a missing resource rather than a server fault, and `Steam::currentPlayers()` and `Steam::schema()` both raise it. It joins the client-facing group under `steam-api.exceptions.render`, so an application rendering these itself is unaffected ([#74](https://github.com/fkrzski/laravel-steam-api-sdk/issues/74)).
 
 ### Changed
@@ -116,7 +117,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Steam` facade for static access to the manager.
 - `Steam::fake()` — attaches a Saloon `MockClient` to the singleton connector and returns it for assertions, removing per-test connector wiring.
 
-[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.5.0...HEAD
+[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.6.0...HEAD
+[0.6.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.4.0...0.5.0
 [0.4.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.3.0...0.4.0
 [0.3.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.2.0...0.3.0
