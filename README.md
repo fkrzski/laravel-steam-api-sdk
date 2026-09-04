@@ -15,6 +15,7 @@ It powers the [player stats](https://deadbystats.eu) on
 - Auto-discovered `SteamConnector` binding, scoped per request and safe under Octane.
 - Rate-limit budget shared across processes through the Laravel cache store.
 - Fluent `Steam` facade with first-class request helpers.
+- Localised payloads follow your application locale, or the language you pin in config.
 - `AsSteamId` Eloquent cast, `SteamIdRule` validation rule and one-liner test fakes via Saloon's `MockClient`, with DTO factories for the payloads.
 
 ## Requirements
@@ -63,6 +64,9 @@ $badges       = Steam::badges($id);
 $quests       = Steam::communityBadgeProgress($id);
 $stats        = Steam::userStats($id, appId: 381210);
 $achievements = Steam::achievements($id, appId: 381210);
+$playing      = Steam::currentPlayers(appId: 381210);
+$globalStats  = Steam::globalAchievements(gameId: 381210);
+$gameSchema   = Steam::schema(appId: 381210);
 $resolvedId   = Steam::resolveVanityUrl('gabelogannewell');
 ```
 

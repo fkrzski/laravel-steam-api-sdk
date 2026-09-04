@@ -22,6 +22,8 @@ JSON. It powers the [player stats](https://deadbystats.eu) on
   so every process draws on one counter.
 - **First-class request helpers** — `summaries()`, `ownedGames()`,
   `userStats()` and the rest return typed DTOs.
+- **Locale-aware language** — localised payloads follow `app()->getLocale()` through
+  Steam's own language codes, or the one you pin in the config file.
 - **Eloquent cast** — [`AsSteamId`](/laravel-steam-api-sdk/eloquent-cast) stores a
   Steam ID on a model and reads it back as a `SteamId` value object.
 - **Route binding** — opt in and a `{steamId}` route parameter arrives as a
