@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
@@ -167,6 +168,37 @@ it('configures the connector with english until told otherwise', function (): vo
     expect(app(SteamConnector::class)->steamConfig->language)->toBe(Language::English);
 });
 
+it('takes the language from the application locale when none is configured', function (): void {
+    app()->setLocale('pt_BR');
+
+    expect(app(SteamConnector::class)->steamConfig->language)->toBe(Language::PortugueseBrazil);
+});
+
+it('sends no language when steam publishes none for the locale', function (): void {
+    app()->setLocale('sw');
+
+    expect(app(SteamConnector::class)->steamConfig->language)->toBeNull();
+});
+
+it('prefers the configured language over the locale', function (): void {
+    config()->set('steam-api.language', 'english');
+    app()->setLocale('pl');
+
+    expect(app(SteamConnector::class)->steamConfig->language)->toBe(Language::English);
+});
+
+it('reads the locale through the rebound resolver contract', function (): void {
+    app()->bind(SteamLanguageResolver::class, fn (): SteamLanguageResolver => new class implements SteamLanguageResolver
+    {
+        public function __invoke(string $locale): Language
+        {
+            return Language::German;
+        }
+    });
+
+    expect(app(SteamConnector::class)->steamConfig->language)->toBe(Language::German);
+});
+
 it('configures the connector with the language code', function (): void {
     config()->set('steam-api.language', 'polish');
 
@@ -180,11 +212,11 @@ it('trims surrounding whitespace from the language code', function (): void {
 });
 
 it('sends no language once the configured code is blanked out', function (mixed $language): void {
+    app()->setLocale('pl');
     config()->set('steam-api.language', $language);
 
     expect(app(SteamConnector::class)->steamConfig->language)->toBeNull();
 })->with([
-    'null' => null,
     'empty string' => '',
     'whitespace only' => '   ',
     'integer' => 123,
