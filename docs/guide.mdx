@@ -62,6 +62,9 @@ $badges       = Steam::badges($id);
 $quests       = Steam::communityBadgeProgress($id);
 $stats        = Steam::userStats($id, appId: 381210);
 $achievements = Steam::achievements($id, appId: 381210);
+$playing      = Steam::currentPlayers(appId: 381210);
+$globalStats  = Steam::globalAchievements(gameId: 381210);
+$gameSchema   = Steam::schema(appId: 381210);
 $resolvedId   = Steam::resolveVanityUrl('gabelogannewell');
 ```
 
@@ -129,17 +132,19 @@ SDK exception, so a non-2xx response never reaches you as a DTO. All of them
 extend `SteamApiException`, so one catch handles the lot:
 
 ```text frame="none"
-SteamApiException                (root, extends RuntimeException)
-├── InvalidSteamIdException      Malformed SteamID64.
-├── InvalidApiKeyException       Steam rejected the key, or received none.
-├── SteamUserNotFoundException   Vanity URL unresolved or profile missing.
-├── ProfileNotPublicException    Profile, games list, or stats are private.
-├── StatsUnavailableException    No stats for that game, or the profile hides them.
-├── TooManySteamIdsException     More than 100 IDs in a batch request.
-├── SteamRateLimitException      Daily quota reached; exposes the offending Limit.
-├── SteamApiKeyMissingException  No API key configured. (Laravel bridge)
-├── FakeNotInstalledException    Facade assertion without Steam::fake(). (Laravel bridge)
-└── FakeOutsideTestsException    Steam::fake() outside tests. (Laravel bridge)
+SteamApiException                  (root, extends RuntimeException)
+├── InvalidSteamIdException        Malformed SteamID64.
+├── InvalidApiKeyException         Steam rejected the key, or received none.
+├── SteamUserNotFoundException     Vanity URL unresolved or profile missing.
+├── AppNotFoundException           App ID Steam does not know.
+├── ProfileNotPublicException      Profile, games list, or stats are private.
+├── StatsUnavailableException      No stats for that game, or the profile hides them.
+├── TooManySteamIdsException       More than 100 IDs in a batch request.
+├── SteamRateLimitException        Daily quota reached; exposes the offending Limit.
+├── SteamApiKeyMissingException    No API key configured. (Laravel bridge)
+├── InvalidSteamLanguageException  Language code Steam does not accept. (Laravel bridge)
+├── FakeNotInstalledException      Facade assertion without Steam::fake(). (Laravel bridge)
+└── FakeOutsideTestsException      Steam::fake() outside tests. (Laravel bridge)
 ```
 
 Catch the leaf you care about, or the root. The
@@ -148,7 +153,7 @@ Catch the leaf you care about, or the root. The
 A status no leaf claims — a 5xx from Steam, an unexpected 4xx — arrives as
 `SteamApiException` itself, carrying the response and Steam's status as the code.
 
-The last three are the bridge's own (`Fkrzski\LaravelSteamApiSdk\Exceptions`) and
+The last four are the bridge's own (`Fkrzski\LaravelSteamApiSdk\Exceptions`) and
 signal a misconfiguration, or a test wired up wrong, rather than a failed call — see
 [Configuration](/laravel-steam-api-sdk/configuration#the-api-key). The rest live in
 `Fkrzski\SteamApiSdk\Exceptions`.
@@ -161,15 +166,16 @@ to, rather than a blanket 500:
 | Exception | Status |
 | --- | --- |
 | `SteamUserNotFoundException` | 404 |
+| `AppNotFoundException` | 404 |
 | `StatsUnavailableException` | 404 — the cause is ambiguous, so the status says nothing about which |
 | `ProfileNotPublicException` | 403 |
 | `SteamRateLimitException` | 429, with `Retry-After` counting down the daily window |
-| `InvalidApiKeyException`, `TooManySteamIdsException`, `SteamApiKeyMissingException`, `FakeOutsideTestsException` | 500 |
+| `InvalidApiKeyException`, `TooManySteamIdsException`, `SteamApiKeyMissingException`, `InvalidSteamLanguageException`, `FakeOutsideTestsException` | 500 |
 
 `InvalidSteamIdException` and `FakeNotInstalledException` are left alone: an ID that
 fails to parse is already a 404 from the [route binding](/laravel-steam-api-sdk/route-binding),
 and a missing fake only happens in a test.
 
-The first four are turned off together by
+The first five are turned off together by
 [`steam-api.exceptions.render`](/laravel-steam-api-sdk/configuration#exception-rendering);
 the 500 group is not, and never carries Steam's own status.
