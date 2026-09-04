@@ -36,13 +36,14 @@ $summaries = Steam::summaries([$steamId]);
 
 A builder wrapping a collection takes as many factories as you want — an empty call fakes
 an empty result. The rest take exactly what their envelope carries: one container factory,
-the level itself, or a `SteamId`:
+a plain number, or a `SteamId`:
 
 ```php
 SteamResponse::playerSummaries();                       // no players matched
 SteamResponse::friendList($first, $second, $third);     // three friends
 SteamResponse::badges(PlayerBadgesFactory::new());      // the badges envelope
 SteamResponse::steamLevel(42);                          // a level, no factory
+SteamResponse::currentPlayers(12_345);                  // a head count, no factory
 ```
 
 It sits on the connector, so it covers every call through the facade — helpers,
@@ -68,6 +69,9 @@ is public at all. Hand-written envelopes get this wrong quietly.
 | `SteamResponse::communityBadgeProgress()` | `GetCommunityBadgeProgressRequest` |
 | `SteamResponse::userStats()` | `GetUserStatsForGameRequest` |
 | `SteamResponse::playerAchievements()` | `GetPlayerAchievementsRequest` |
+| `SteamResponse::currentPlayers()` | `GetNumberOfCurrentPlayersRequest` |
+| `SteamResponse::globalAchievements()` | `GetGlobalAchievementPercentagesForAppRequest` |
+| `SteamResponse::gameSchema()` | `GetSchemaForGameRequest` |
 | `SteamResponse::vanityUrl()` | `ResolveVanityUrlRequest` |
 
 ## DTO factories
@@ -97,10 +101,17 @@ BadgeFactory::new()->communityItem()->withoutApp();
 CommunityBadgeQuestFactory::new()->incomplete();
 PlayerAchievementFactory::new()->locked();
 UserStatsFactory::new()->empty();
+SchemaAchievementFactory::new()->hidden()->withoutDescription();
+GameSchemaFactory::new()->empty();
 ```
 
 `private()` withholds everything Steam does on a hidden profile, the creation date
 included — the summary it builds carries a null `timeCreated`.
+
+`empty()` on `GameSchemaFactory` builds what an app publishing no schema answers with:
+Steam drops every key, so the DTO comes back with a null `gameName` and two empty lists.
+`unnamed()` is the softer case — `GameSchemaFactory` and `SchemaStatFactory` both send the
+name as the empty string Steam really sends, which the DTO reads back as null.
 
 `state()` covers the rest — raw payload keys merged over the defaults:
 
@@ -119,6 +130,12 @@ PlayerAchievementsFactory::new()->achievements(
     PlayerAchievementFactory::new(),
     PlayerAchievementFactory::new()->locked(),
 );
+
+GameSchemaFactory::new()->stats(
+    SchemaStatFactory::new()->apiName('DBD_KillerSkulls'),
+)->achievements(
+    SchemaAchievementFactory::new()->apiName('ACH_ESCAPE'),
+);
 ```
 
 `RecentlyPlayedGamesFactory` carries a figure of its own: `games()` syncs `total_count` to
@@ -135,8 +152,9 @@ Available factories: `PlayerSummaryFactory`, `PlayerBanFactory`, `FriendFactory`
 `UserGroupFactory`, `OwnedGameFactory`, `RecentlyPlayedGameFactory`,
 `RecentlyPlayedGamesFactory`, `BadgeFactory`, `PlayerBadgesFactory`,
 `CommunityBadgeQuestFactory`, `UserStatFactory`, `UserStatAchievementFactory`,
-`UserStatsFactory`, `PlayerAchievementFactory` and `PlayerAchievementsFactory`, all under
-`Fkrzski\LaravelSteamApiSdk\Testing\Factories`.
+`UserStatsFactory`, `PlayerAchievementFactory`, `PlayerAchievementsFactory`,
+`GlobalAchievementFactory`, `GameSchemaFactory`, `SchemaStatFactory` and
+`SchemaAchievementFactory`, all under `Fkrzski\LaravelSteamApiSdk\Testing\Factories`.
 
 ## Faking failures
 
@@ -148,6 +166,9 @@ Which refusal you need depends on the endpoint under test:
 | `SteamResponse::playerServiceNotPublic()` | `ProfileNotPublicException` | every IPlayerService request |
 | `SteamResponse::statsRefused()` | `ProfileNotPublicException` | `GetUserStatsForGameRequest` |
 | `SteamResponse::statsRefused()` | `StatsUnavailableException` | `GetPlayerAchievementsRequest` |
+| `SteamResponse::appNotFound()` | `AppNotFoundException` | `GetNumberOfCurrentPlayersRequest` |
+| `SteamResponse::schemaAppNotFound()` | `AppNotFoundException` | `GetSchemaForGameRequest` |
+| `SteamResponse::globalAchievementsRefused()` | `StatsUnavailableException` | `GetGlobalAchievementPercentagesForAppRequest` |
 | `SteamResponse::vanityNotFound()` | `SteamUserNotFoundException` | `ResolveVanityUrlRequest` |
 | `SteamResponse::invalidApiKey()` | `InvalidApiKeyException` | any request |
 | `SteamResponse::apiKeyUnauthorized()` | `InvalidApiKeyException` | any request |
@@ -189,6 +210,13 @@ endpoint reads — `game_count` for `ownedGames()`, `player_level` for `steamLev
 ISteamUserStats endpoints read as different exceptions, because the cause is ambiguous
 and the SDK does not guess.
 
+The endpoints taking an app ID refuse it three more ways: `appNotFound()` is a `404`
+carrying `result: 42`, `schemaAppNotFound()` a bare `400`, and `globalAchievementsRefused()`
+a `403` with an empty JSON object — that last one covers a game with no achievements and a
+game ID Steam does not know alike. `schemaAppNotFound()` returns byte for byte what
+`statsRefused()` does and keeps its own name because nothing but the endpoint says which
+failure a test is faking.
+
 A rejected key lands on `403` or `401`, whichever the endpoint picks — `invalidApiKey()`
 fakes the first, `apiKeyUnauthorized()` the second, which is what
 `GetCommunityBadgeProgressRequest` answers with.
@@ -199,12 +227,12 @@ plugin before a response exists, and `TooManySteamIdsException` by the request
 constructor when you pass more than 100 IDs.
 </Aside>
 
-## A key is still required
+## A key for the requests that need one
 
-`Steam::fake()` builds the connector before swapping its HTTP client, so the suite
-needs *some* key or it hits
-[`SteamApiKeyMissingException`](/laravel-steam-api-sdk/configuration#the-api-key). No
-request leaves your machine, so the value is irrelevant:
+`Steam::fake()` swaps the HTTP client, not the middleware, so a faked request that needs a
+key still raises
+[`SteamApiKeyMissingException`](/laravel-steam-api-sdk/configuration#the-api-key) when none
+is configured. No request leaves your machine, so the value is irrelevant:
 
 ```xml title="phpunit.xml" ins={4}
 <phpunit>
@@ -214,6 +242,9 @@ request leaves your machine, so the value is irrelevant:
     </php>
 </phpunit>
 ```
+
+A suite covering only `currentPlayers()` and `globalAchievements()` needs no key at all —
+Steam serves those two anonymously, and the middleware lets them through.
 
 ## Asserting
 
