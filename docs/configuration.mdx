@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: Configure the Steam bridge — the published config file, your Steam Web API key, and the cache-backed rate-limit budget shared across every process.
+description: Configure the Steam bridge — the published config file, your Steam Web API key, the default language, and the cache-backed rate-limit budget.
 ---
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -62,6 +62,10 @@ return [
     // Sent as the "key" query parameter on every request to api.steampowered.com.
     'key' => env('STEAM_API_KEY'),
 
+    // Steam's own language code, sent on every request whose payload is
+    // localised. Unset, it follows the application locale.
+    'language' => env('STEAM_API_LANGUAGE'),
+
     // Resolve a route parameter into a SteamId value object. Opt-in. See the
     // route binding guide for details.
     'route_binding' => [
@@ -91,10 +95,58 @@ Get one from the [Steam Web API dashboard](https://steamcommunity.com/dev). A ke
 that is unset — or present but blank — raises `SteamApiKeyMissingException`, naming
 both `STEAM_API_KEY` and `steam-api.key`.
 
-<Aside title="The check runs late, on purpose">
-It fires when the connector is first built, not at boot — so an application boots,
-caches its config and publishes the config file before a key exists. The error
-surfaces on your first Steam call.
+<Aside title="The check runs per request, on purpose">
+It fires as a request that needs a key goes out — not at boot, and not when the connector
+is built — so an application boots, caches its config and publishes the config file before
+a key exists. `Steam::currentPlayers()` and `Steam::globalAchievements()` never trip it:
+Steam serves those two anonymously, and the connector strips the key from their query.
+</Aside>
+
+## Default language
+
+Steam localises achievement names, descriptions and stat labels, and the connector carries
+one language code on every request that reads them. The codes are Valve's own rather than
+ISO ones — `koreana`, not `ko`; see `Fkrzski\SteamApiSdk\Enums\Language` for the list:
+
+```dotenv title=".env"
+STEAM_API_LANGUAGE=polish
+```
+
+| `steam-api.language` | What the request carries |
+| --- | --- |
+| unset — the default | the language the application locale maps to, or nothing where it maps to none |
+| `''` | nothing; Steam picks |
+| `'polish'` | `polish` |
+| anything else | nothing goes out — `InvalidSteamLanguageException` instead |
+
+A rejected code raises the first time the connector is resolved, so it surfaces on your
+first Steam call rather than at boot. It is a misconfiguration, so it renders as a 500
+whatever [`steam-api.exceptions.render`](#exception-rendering) says.
+
+The `language:` argument on
+[`achievements()`](/laravel-steam-api-sdk/api-reference#achievements),
+[`schema()`](/laravel-steam-api-sdk/api-reference#schema) and
+[`userStats()`](/laravel-steam-api-sdk/api-reference#userstats) overrides the default for
+that one call.
+
+### Following the locale
+
+With `steam-api.language` unset, `Localization\LocaleLanguageResolver` maps `app()->getLocale()` through
+a table of Valve's spellings: `pl` is `polish`, `ko` is `koreana`, `pt_BR` is `brazilian`.
+A locale whose region Steam does not distinguish falls back to the base one — `de_AT` is
+`german` — and one Steam publishes no language for sends nothing rather than raising.
+
+Bind `Contracts\SteamLanguageResolver` when your application has a locale scheme of its own:
+
+```php title="app/Providers/AppServiceProvider.php"
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
+
+$this->app->bind(SteamLanguageResolver::class, TenantLanguageResolver::class);
+```
+
+<Aside type="caution" title="The locale is read once">
+The connector is scoped, so it reads the locale when it is first built — a later
+`App::setLocale()` does not reach it. Pass `language:` to the call to switch mid-request.
 </Aside>
 
 ## Route binding
@@ -132,8 +184,9 @@ final class PlayerController
 The contract and the concrete `SteamManager` resolve to one scoped instance, so binding
 either swaps what the facade hands back — a decorator wrapping the shipped manager, say.
 `Contracts\SteamIdBinder` is the same seam for the
-[route binding](/laravel-steam-api-sdk/route-binding#swapping-the-resolver). Every class
-the package ships is `final`; the container is the extension point.
+[route binding](/laravel-steam-api-sdk/route-binding#swapping-the-resolver), and
+`Contracts\SteamLanguageResolver` for the [locale mapping](#following-the-locale). Every
+class the package ships is `final`; the container is the extension point.
 
 ## Rate limiting
 
@@ -176,9 +229,10 @@ table. Turn the group off to render it yourself:
 ],
 ```
 
-The flag does not reach misconfiguration. A rejected API key, a missing one and a batch
-over 100 IDs are a 500 whatever it is set to: Steam answers a bad key with a 400 or a
-403, and passing that on would blame the caller for something only you can fix.
+The flag does not reach misconfiguration. A rejected API key, a missing one, a batch over
+100 IDs and a language code Steam does not know are a 500 whatever it is set to: Steam
+answers a bad key with a 400 or a 403, and passing that on would blame the caller for
+something only you can fix.
 
 <Aside title="Your own renderer wins either way">
 Callbacks registered in `bootstrap/app.php` run ahead of the package's, so a
@@ -198,6 +252,7 @@ php artisan about --only=steam_api
   Steam API ...........................................................
   API Key .................................................. ********4f2a
   Daily Requests Remaining ........................... 99,412 of 100,000
+  Language .......................................... polish (locale: pl)
   Rate Limit Store ................................................ redis
   Route Binding ....................................... enabled (steamId)
 ```
@@ -206,7 +261,10 @@ php artisan about --only=steam_api
   into a bug report. `NOT SET` when no key is configured.
 - **Rate Limit Store** — the cache store the counter lives in, i.e. `cache.default`.
 - **Daily Requests Remaining** — what is left of the 100 000, read from that store.
-  `UNKNOWN` while no key is set, since the API key is what the counter hangs off.
+  Anonymous requests spend the budget too, so the row reads with no key configured.
+- **Language** — the code every localised request carries, and which of the two answers it
+  is: `polish (config)` or `polish (locale: pl)`. `NOT SET` names its source the same way,
+  and `INVALID` stands alone, since only config can carry a rejected code.
 - **Route Binding** — `disabled`, or `enabled` with the parameter name it claims.
 
 Nothing here runs on boot: the values are computed when the command renders, and no
