@@ -13,9 +13,16 @@ identify a user and return readonly DTOs from the underlying SDK, documented in
 
 <Aside title="Three exceptions every request can raise">
 `SteamApiKeyMissingException` (no key configured), `InvalidApiKeyException` (Steam
-rejected it) and `SteamRateLimitException` (daily quota spent). They are listed
-per method only where a helper raises them on its own. Every exception below
-extends `SteamApiException`.
+rejected it) and `SteamRateLimitException` (daily quota spent). The first one skips
+`currentPlayers()` and `globalAchievements()`, which Steam serves without a key. They
+are listed per method only where a helper raises them on its own, and every exception
+below extends `SteamApiException`.
+</Aside>
+
+<Aside type="caution" title="The language argument is an enum since 0.6.0">
+`achievements()`, `schema()` and `userStats()` take a `Language` case rather than the
+raw code they took before, so a call passing `'english'` swaps it for `Language::English`.
+Omit it and the request carries the [configured default](/laravel-steam-api-sdk/configuration#default-language).
 </Aside>
 
 ## Request helpers
@@ -104,6 +111,21 @@ foreach (Steam::communityBadgeProgress($steamId) as $quest) {
 }
 ```
 
+### `currentPlayers()`
+
+```text frame="none"
+Steam::currentPlayers(int $appId): int
+```
+
+<Badge text="throws AppNotFoundException" variant="danger" size="small" />
+
+Returns how many players are in a game right now, as a plain `int` rather than a DTO.
+Steam serves it without a key; an app ID it does not know answers `404` and raises.
+
+```php
+$playing = Steam::currentPlayers(appId: 381210);
+```
+
 ### `friends()`
 
 ```text frame="none"
@@ -128,6 +150,30 @@ foreach ($friends as $friend) {
 <Aside type="caution" title="A private friend list is a 401">
 Unlike `ownedGames()`, this endpoint refuses the request rather than returning an
 empty payload — a hidden list never reaches you as an empty result.
+</Aside>
+
+### `globalAchievements()`
+
+```text frame="none"
+Steam::globalAchievements(int $gameId): list<GlobalAchievement>
+```
+
+<Badge text="throws StatsUnavailableException" variant="danger" size="small" />
+
+Returns the share of the player base holding each achievement in a game. The argument
+keeps the name the base SDK gives it — Valve spells this one endpoint's identifier
+`gameid`, though the value is an ordinary app ID. No key goes out here either.
+
+```php
+foreach (Steam::globalAchievements(gameId: 381210) as $achievement) {
+    echo $achievement->apiName, ' — ', round($achievement->percent, 2), '%', PHP_EOL;
+}
+```
+
+<Aside type="caution" title="One 403 covers two causes">
+Steam refuses a game carrying no achievements and a game ID it does not know
+identically, so `StatsUnavailableException` says nothing about which. It is never about
+your key: this endpoint sends none.
 </Aside>
 
 ### `groups()`
@@ -211,6 +257,27 @@ Resolves a vanity slug — the `<name>` in `steamcommunity.com/id/<name>` — to
 $steamId = Steam::resolveVanityUrl('gabelogannewell');
 ```
 
+### `schema()`
+
+```text frame="none"
+Steam::schema(int $appId, ?Language $language = null): GameSchema
+```
+
+<Badge text="throws AppNotFoundException" variant="danger" size="small" />
+
+Returns every stat and achievement a game publishes, with `language` localising the
+achievement names and descriptions. An app that publishes no schema comes back as an
+empty `GameSchema` — a null `gameName` and two empty lists — rather than raising; only
+an app ID Steam does not know does that.
+
+```php
+$schema = Steam::schema(appId: 381210);
+
+foreach ($schema->achievements as $achievement) {
+    echo $achievement->apiName, ' — ', $achievement->hidden ? 'hidden' : $achievement->name, PHP_EOL;
+}
+```
+
 ### `steamLevel()`
 
 ```text frame="none"
@@ -289,7 +356,7 @@ Steam::users()->summaries([$steamId]);  // the resource behind it
 | Resource | Steam interface | Methods |
 | --- | --- | --- |
 | `Steam::players()` | `IPlayerService` | `badges()`, `communityBadgeProgress()`, `ownedGames()`, `recentlyPlayedGames()`, `steamLevel()` |
-| `Steam::stats()` | `ISteamUserStats` | `achievements()`, `userStats()` |
+| `Steam::stats()` | `ISteamUserStats` | `achievements()`, `currentPlayers()`, `globalAchievements()`, `schema()`, `userStats()` |
 | `Steam::users()` | `ISteamUser` | `bans()`, `friends()`, `groups()`, `resolveVanityUrl()`, `summaries()` |
 
 A resource sends through the same scoped connector the facade uses, so
