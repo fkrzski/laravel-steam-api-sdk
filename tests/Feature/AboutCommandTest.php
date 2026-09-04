@@ -122,10 +122,12 @@ it('counts sent requests against the daily budget', function (): void {
     expect(steamAboutSection()['daily_requests_remaining'])->toBe('99,999 of 100,000');
 });
 
-it('reports an unknown budget when the api key is missing', function (): void {
+// The budget hangs off the connector, which is built without a key — and the
+// anonymous endpoints reachable that way spend it like any other request.
+it('reports the budget when the api key is missing', function (): void {
     config()->set(['steam-api.key' => null]);
 
-    expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
+    expect(steamAboutSection()['daily_requests_remaining'])->toBe('100,000 of 100,000');
 });
 
 it('reports an unknown budget when the connector declares no upfront limit', function (): void {

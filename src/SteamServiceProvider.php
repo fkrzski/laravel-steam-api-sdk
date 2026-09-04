@@ -9,7 +9,7 @@ use Fkrzski\LaravelSteamApiSdk\Console\InstallCommand;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamIdBinder;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
+use Fkrzski\LaravelSteamApiSdk\Http\RequiresConfiguredApiKey;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
 use Fkrzski\SteamApiSdk\Enums\Language;
@@ -31,13 +31,23 @@ final class SteamServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/steam-api.php', 'steam-api');
 
-        $this->app->scoped(SteamConnector::class, fn (): SteamConnector => new SteamConnector(
-            new SteamConfig(
-                apiKey: $this->steamApiKey(),
-                rateLimitStore: new LaravelCacheStore(Cache::store()),
-                language: $this->steamLanguage(),
-            ),
-        ));
+        $this->app->scoped(SteamConnector::class, function (): SteamConnector {
+            $apiKey = $this->steamApiKey();
+
+            $connector = new SteamConnector(
+                new SteamConfig(
+                    apiKey: $apiKey,
+                    rateLimitStore: new LaravelCacheStore(Cache::store()),
+                    language: $this->steamLanguage(),
+                ),
+            );
+
+            // Unnamed on purpose: a named pipe is unique, and a second one under
+            // the same name throws rather than replacing the first.
+            $connector->middleware()->onRequest(new RequiresConfiguredApiKey($apiKey !== ''));
+
+            return $connector;
+        });
 
         $this->app->scoped(
             SteamManager::class,
@@ -111,22 +121,18 @@ final class SteamServiceProvider extends ServiceProvider
     }
 
     /**
-     * The configured Steam Web API key.
+     * The configured Steam Web API key, blank when none is set.
      *
-     * Resolved from config rather than read once at register time, so the key is
-     * only required when the connector is actually built.
-     *
-     * @throws SteamApiKeyMissingException when the key is unset, blank, or not a string
+     * A key that is unset, blank or not a string is not an error here: the
+     * connector still has to be built for the endpoints Steam serves
+     * anonymously. {@see RequiresConfiguredApiKey} refuses the requests that do
+     * need one.
      */
     private function steamApiKey(): string
     {
         $apiKey = config('steam-api.key');
 
-        if (! is_string($apiKey) || trim($apiKey) === '') {
-            throw new SteamApiKeyMissingException;
-        }
-
-        return trim($apiKey);
+        return is_string($apiKey) ? trim($apiKey) : '';
     }
 
     /**

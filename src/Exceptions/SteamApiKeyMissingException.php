@@ -9,8 +9,9 @@ use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 /**
  * Thrown when the Steam Web API key is missing from the configuration.
  *
- * Raised lazily, the first time the connector is resolved, so an application can
- * still boot and publish the config before a key is set.
+ * Raised lazily, on the first request that needs the key rather than while the
+ * connector is built, so an application can boot and publish the config before a
+ * key is set — and reach the endpoints Steam serves anonymously without one.
  */
 final class SteamApiKeyMissingException extends SteamApiException
 {

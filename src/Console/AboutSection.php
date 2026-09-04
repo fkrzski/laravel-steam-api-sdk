@@ -6,7 +6,6 @@ namespace Fkrzski\LaravelSteamApiSdk\Console;
 
 use Closure;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
@@ -163,6 +162,9 @@ final readonly class AboutSection
      * — an app the connector cannot be built for yet, and counter data the plugin
      * cannot read back — degrade to "unknown" instead of taking the whole command
      * down. The rows above name the misconfiguration this one cannot report.
+     *
+     * A missing key is not one of those states any more: the connector is built
+     * without one, and the budget it reports is the one anonymous requests spend.
      */
     private function dailyLimit(): ?Limit
     {
@@ -177,7 +179,7 @@ final readonly class AboutSection
             );
 
             return $limit?->update($connector->rateLimitStore());
-        } catch (SteamApiKeyMissingException|InvalidSteamLanguageException|LimitException|JsonException) {
+        } catch (InvalidSteamLanguageException|LimitException|JsonException) {
             return null;
         }
     }
