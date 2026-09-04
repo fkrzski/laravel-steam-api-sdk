@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk\Console;
 
 use Closure;
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
-use Illuminate\Contracts\Container\Container;
+use Illuminate\Contracts\Foundation\Application;
 use JsonException;
 use Saloon\RateLimitPlugin\Exceptions\LimitException;
 use Saloon\RateLimitPlugin\Limit;
@@ -46,7 +47,7 @@ final readonly class AboutSection
     private const string INVALID = 'INVALID';
 
     public function __construct(
-        private Container $container,
+        private Application $app,
         private ConfigRepository $config,
     ) {}
 
@@ -82,22 +83,44 @@ final readonly class AboutSection
     }
 
     /**
-     * The default language every localised request carries, if one is set.
+     * The default language every localised request carries, and which of the two
+     * answers it is — a resolved language and a configured one are not the same.
      *
      * Repeats the provider's rule so the row cannot report a state the provider
-     * does not act on: a blank value is no language, and a code Steam does not
-     * know is a misconfiguration the connector refuses to be built with.
+     * does not act on. `INVALID` names no source because only config can carry one.
      */
     private function language(): string
     {
         $language = $this->config->get('steam-api.language');
+
+        if ($language === null) {
+            return $this->localeLanguage();
+        }
+
         $code = is_string($language) ? trim($language) : '';
 
         if ($code === '') {
-            return self::MISSING;
+            return self::MISSING.' (config)';
         }
 
-        return Language::tryFrom($code) instanceof Language ? $code : self::INVALID;
+        return Language::tryFrom($code) instanceof Language ? $code.' (config)' : self::INVALID;
+    }
+
+    /**
+     * Resolved through the container rather than built here, so the row reports
+     * the table the connector is actually handed.
+     */
+    private function localeLanguage(): string
+    {
+        $locale = $this->app->getLocale();
+        $resolver = $this->app->make(SteamLanguageResolver::class);
+        $language = $resolver($locale);
+
+        return sprintf(
+            '%s (locale: %s)',
+            $language instanceof Language ? $language->value : self::MISSING,
+            $locale,
+        );
     }
 
     /**
@@ -169,7 +192,7 @@ final readonly class AboutSection
     private function dailyLimit(): ?Limit
     {
         try {
-            $connector = $this->container->make(SteamConnector::class);
+            $connector = $this->app->make(SteamConnector::class);
 
             // The 429 detector is response-driven and carries no budget of its
             // own — the daily quota is the limit that counts hits upfront.

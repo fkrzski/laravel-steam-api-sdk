@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamIdBinder;
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+use Fkrzski\LaravelSteamApiSdk\Localization\LocaleLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
 use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 
@@ -36,7 +38,11 @@ arch('contracts are interfaces')
     ->expect('Fkrzski\\LaravelSteamApiSdk\\Contracts')
     ->toBeInterfaces();
 
-// The provider binds the contract by class name, which nothing type-checks.
+// The provider binds the contracts by class name, which nothing type-checks.
 arch('the shipped binding implements the binder contract')
     ->expect(SteamIdRouteBinding::class)
     ->toImplement(SteamIdBinder::class);
+
+arch('the shipped resolver implements the resolver contract')
+    ->expect(LocaleLanguageResolver::class)
+    ->toImplement(SteamLanguageResolver::class);

@@ -7,9 +7,11 @@ namespace Fkrzski\LaravelSteamApiSdk;
 use Fkrzski\LaravelSteamApiSdk\Console\AboutSection;
 use Fkrzski\LaravelSteamApiSdk\Console\InstallCommand;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamIdBinder;
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Http\RequiresConfiguredApiKey;
+use Fkrzski\LaravelSteamApiSdk\Localization\LocaleLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
 use Fkrzski\SteamApiSdk\Enums\Language;
@@ -64,6 +66,7 @@ final class SteamServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(SteamIdBinder::class, SteamIdRouteBinding::class);
+        $this->app->bind(SteamLanguageResolver::class, LocaleLanguageResolver::class);
     }
 
     public function boot(): void
@@ -136,19 +139,22 @@ final class SteamServiceProvider extends ServiceProvider
     }
 
     /**
-     * The configured default language, sent on every request that localises its
-     * payload.
+     * The default language, sent on every request that localises its payload.
      *
-     * Resolved from config alongside the key, so a rejected code surfaces on the
-     * first Steam call rather than at boot. The shipped config defaults to
-     * English; blank it out and no language goes out at all, leaving the choice
-     * to Steam.
+     * A configured code wins, an unset value falls to the locale, and one blanked
+     * out on purpose sends no language at all. Resolved from config alongside the
+     * key, so a rejected code surfaces on the first Steam call rather than at boot.
      *
      * @throws InvalidSteamLanguageException when the value is not one of Steam's codes
      */
     private function steamLanguage(): ?Language
     {
         $language = config('steam-api.language');
+
+        if ($language === null) {
+            return $this->localeLanguage();
+        }
+
         $code = is_string($language) ? trim($language) : '';
 
         if ($code === '') {
@@ -156,6 +162,18 @@ final class SteamServiceProvider extends ServiceProvider
         }
 
         return Language::tryFrom($code) ?? throw new InvalidSteamLanguageException($code);
+    }
+
+    /**
+     * The locale is read once, when the connector is first resolved — the
+     * connector is scoped, so a later `setLocale()` does not reach it. Switching
+     * mid-request means passing the language to the call.
+     */
+    private function localeLanguage(): ?Language
+    {
+        $resolver = $this->app->make(SteamLanguageResolver::class);
+
+        return $resolver($this->app->getLocale());
     }
 
     /**

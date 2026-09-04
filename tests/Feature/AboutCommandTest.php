@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Console\AboutSection;
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Fkrzski\SteamApiSdk\SteamConnector;
@@ -180,27 +182,51 @@ it('reports an unknown parameter when the configured name is not a string', func
 });
 
 it('reports english as the language until told otherwise', function (): void {
-    expect(steamAboutSection()['language'])->toBe('english');
+    expect(steamAboutSection()['language'])->toBe('english (locale: en)');
 });
 
-it('names the configured language', function (): void {
+it('names the configured language and says it came from config', function (): void {
     config()->set('steam-api.language', 'polish');
 
-    expect(steamAboutSection()['language'])->toBe('polish');
+    expect(steamAboutSection()['language'])->toBe('polish (config)');
 });
 
 it('names the trimmed language, matching the one the connector is built with', function (): void {
     config()->set('steam-api.language', '  polish  ');
 
-    expect(steamAboutSection()['language'])->toBe('polish');
+    expect(steamAboutSection()['language'])->toBe('polish (config)');
+});
+
+it('names the language it read from the locale, and the locale it read', function (): void {
+    app()->setLocale('pt_BR');
+
+    expect(steamAboutSection()['language'])->toBe('brazilian (locale: pt_BR)');
+});
+
+it('reports a locale steam publishes no language for as unset', function (): void {
+    app()->setLocale('sw');
+
+    expect(steamAboutSection()['language'])->toBe('NOT SET (locale: sw)');
+});
+
+it('reports the language the rebound resolver reads', function (): void {
+    app()->bind(SteamLanguageResolver::class, fn (): SteamLanguageResolver => new class implements SteamLanguageResolver
+    {
+        public function __invoke(string $locale): Language
+        {
+            return Language::German;
+        }
+    });
+
+    expect(steamAboutSection()['language'])->toBe('german (locale: en)');
 });
 
 it('reports a blanked out language as unset', function (mixed $language): void {
+    app()->setLocale('pl');
     config()->set('steam-api.language', $language);
 
-    expect(steamAboutSection()['language'])->toBe('NOT SET');
+    expect(steamAboutSection()['language'])->toBe('NOT SET (config)');
 })->with([
-    'null' => null,
     'empty string' => '',
     'whitespace only' => '   ',
     'integer' => 123,
