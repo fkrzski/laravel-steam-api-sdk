@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BC break.** `fkrzski/php-steam-api-sdk` `^0.6` is required, and the `$language` argument on `Steam::userStats()` and `Steam::achievements()` is a `Language` enum rather than a string. A call passing `'english'` swaps it for `Language::English` ([#69](https://github.com/fkrzski/laravel-steam-api-sdk/issues/69)).
+- `php artisan about` reports the daily request budget with no key configured, where it read `UNKNOWN` before. The counter hangs off the connector, which is now built without a key, and anonymous requests spend it like any other ([#75](https://github.com/fkrzski/laravel-steam-api-sdk/issues/75)).
+
+### Fixed
+
+- `Steam::currentPlayers()` and `Steam::globalAchievements()` no longer need `STEAM_API_KEY` set, because the key is checked when a request that needs one is sent rather than while the connector is built. Steam serves both endpoints anonymously, and a request that does need a key still fails before it goes out, with `SteamApiKeyMissingException` naming the config value to set ([#75](https://github.com/fkrzski/laravel-steam-api-sdk/issues/75)).
 
 ## [0.5.0] - 2026-08-30
 
