@@ -90,11 +90,12 @@ it('trims surrounding whitespace from the api key', function (): void {
     expect(app(SteamConnector::class)->steamConfig->apiKey)->toBe('test-steam-api-key');
 });
 
-it('throws when the api key is missing', function (mixed $key): void {
+// The connector has to be built without a key, or the endpoints Steam serves
+// anonymously are unreachable — the check moves to the request that needs one.
+it('builds the connector with a blank key when none is configured', function (mixed $key): void {
     config()->set('steam-api.key', $key);
 
-    expect(fn (): SteamConnector => app(SteamConnector::class))
-        ->toThrow(SteamApiKeyMissingException::class);
+    expect(app(SteamConnector::class)->steamConfig->apiKey)->toBeEmpty();
 })->with([
     'null' => null,
     'empty string' => '',
@@ -104,13 +105,62 @@ it('throws when the api key is missing', function (mixed $key): void {
     'boolean' => true,
 ]);
 
+it('throws when a request needing the key is sent without one', function (): void {
+    config()->set(['steam-api.key' => null]);
+
+    Steam::fake([
+        GetPlayerSummariesRequest::class => SteamResponse::playerSummaries(),
+    ]);
+
+    expect(fn (): array => Steam::summaries([steamId()]))
+        ->toThrow(SteamApiKeyMissingException::class);
+});
+
+it('sends an anonymous request with no key configured', function (Closure $call, string $request): void {
+    config()->set(['steam-api.key' => null]);
+
+    Steam::fake([
+        GetNumberOfCurrentPlayersRequest::class => SteamResponse::currentPlayers(12_345),
+        GetGlobalAchievementPercentagesForAppRequest::class => SteamResponse::globalAchievements(
+            GlobalAchievementFactory::new()->apiName('ACH_ESCAPE')->percent(12.5),
+        ),
+    ]);
+
+    $call();
+
+    expect(Steam::lastResponse()?->getPendingRequest()->query()->all())->not->toHaveKey('key');
+
+    Steam::assertSent($request);
+})->with([
+    'current players' => [
+        fn (): int => Steam::currentPlayers(appId: 381210),
+        GetNumberOfCurrentPlayersRequest::class,
+    ],
+    'global achievements' => [
+        fn (): array => Steam::globalAchievements(gameId: 381210),
+        GetGlobalAchievementPercentagesForAppRequest::class,
+    ],
+]);
+
+it('attaches a fake with no key configured', function (): void {
+    config()->set(['steam-api.key' => null]);
+
+    Steam::fake();
+
+    expect(app(SteamConnector::class)->hasMockClient())->toBeTrue();
+});
+
 it('names the env var and the config key in the exception', function (): void {
     config()->set(['steam-api.key' => null]);
 
-    $resolve = fn (): SteamConnector => app(SteamConnector::class);
+    Steam::fake([
+        GetPlayerSummariesRequest::class => SteamResponse::playerSummaries(),
+    ]);
 
-    expect($resolve)->toThrow(SteamApiKeyMissingException::class, 'STEAM_API_KEY')
-        ->and($resolve)->toThrow(SteamApiKeyMissingException::class, 'steam-api.key');
+    $send = fn (): array => Steam::summaries([steamId()]);
+
+    expect($send)->toThrow(SteamApiKeyMissingException::class, 'STEAM_API_KEY')
+        ->and($send)->toThrow(SteamApiKeyMissingException::class, 'steam-api.key');
 });
 
 it('configures the connector with english until told otherwise', function (): void {
@@ -163,13 +213,13 @@ it('names the env var, the config key and the rejected code in the exception', f
         ->and($resolve)->toThrow(InvalidSteamLanguageException::class, 'klingon');
 });
 
-it('does not require the api key until the connector is built', function (): void {
+it('does not require the api key to reach the connector', function (): void {
     config()->set(['steam-api.key' => null]);
 
     expect(fn (): SteamManager => app(SteamManager::class))
         ->not->toThrow(SteamApiKeyMissingException::class)
         ->and(fn (): SteamConnector => Steam::connector())
-        ->toThrow(SteamApiKeyMissingException::class);
+        ->not->toThrow(SteamApiKeyMissingException::class);
 });
 
 it('resolves the facade to the manager singleton', function (): void {
