@@ -8,9 +8,11 @@ use Closure;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeNotInstalledException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
+use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
 use Fkrzski\SteamApiSdk\Dto\CommunityBadgeQuest;
 use Fkrzski\SteamApiSdk\Dto\Friend;
 use Fkrzski\SteamApiSdk\Dto\GameSchema;
+use Fkrzski\SteamApiSdk\Dto\GameServer;
 use Fkrzski\SteamApiSdk\Dto\GlobalAchievement;
 use Fkrzski\SteamApiSdk\Dto\OwnedGame;
 use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
@@ -22,6 +24,7 @@ use Fkrzski\SteamApiSdk\Dto\UserGroup;
 use Fkrzski\SteamApiSdk\Dto\UserStats;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Enums\Language;
+use Fkrzski\SteamApiSdk\Http\Resources\AppsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\PlayersResource;
 use Fkrzski\SteamApiSdk\Http\Resources\StatsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\UsersResource;
@@ -107,6 +110,14 @@ final readonly class SteamManager implements SteamManagerContract
     public function stats(): StatsResource
     {
         return $this->connector()->stats();
+    }
+
+    /**
+     * The ISteamApps endpoints, reached fluently.
+     */
+    public function apps(): AppsResource
+    {
+        return $this->connector()->apps();
     }
 
     /**
@@ -261,6 +272,29 @@ final readonly class SteamManager implements SteamManagerContract
     public function resolveVanityUrl(string $vanityName): SteamId
     {
         return $this->users()->resolveVanityUrl($vanityName);
+    }
+
+    /**
+     * Check whether a game server running this version of an app is current.
+     *
+     * An app ID Steam does not know and an app running no versioned servers both
+     * raise `AppVersionUnavailableException`.
+     */
+    public function upToDateCheck(int $appId, int $version): AppVersionCheck
+    {
+        return $this->apps()->upToDateCheck($appId, $version);
+    }
+
+    /**
+     * Fetch the game servers at an IP address, optionally narrowed to one query port.
+     *
+     * An address Steam rejects raises `InvalidServerAddressException`.
+     *
+     * @return list<GameServer>
+     */
+    public function serversAtAddress(string $address): array
+    {
+        return $this->apps()->serversAtAddress($address);
     }
 
     /**

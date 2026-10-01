@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppVersionCheckFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameSchemaFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameServerFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementFactory;
@@ -26,13 +28,16 @@ use Fkrzski\SteamApiSdk\Enums\CommunityVisibility;
 use Fkrzski\SteamApiSdk\Enums\EconomyBan;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Enums\PersonaState;
+use Fkrzski\SteamApiSdk\Enums\ServerRegion;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 
 mutates(
+    AppVersionCheckFactory::class,
     BadgeFactory::class,
     CommunityBadgeQuestFactory::class,
     FriendFactory::class,
     GameSchemaFactory::class,
+    GameServerFactory::class,
     GlobalAchievementFactory::class,
     OwnedGameFactory::class,
     PlayerAchievementFactory::class,
@@ -989,4 +994,113 @@ it('maps a published-nothing schema onto an empty dto', function (): void {
         ->and($schema->gameVersion)->toBeNull()
         ->and($schema->stats)->toBeEmpty()
         ->and($schema->achievements)->toBeEmpty();
+});
+
+// AppVersionCheckFactory
+
+it('builds an up to date version check payload', function (): void {
+    expect(AppVersionCheckFactory::new()->toArray())->toBe([
+        'up_to_date' => true,
+        'version_is_listable' => true,
+    ]);
+});
+
+it('maps a version check payload onto the dto', function (): void {
+    $check = AppVersionCheckFactory::new()->make();
+
+    expect($check->isUpToDate)->toBeTrue()
+        ->and($check->isListable)->toBeTrue()
+        ->and($check->requiredVersion)->toBeNull()
+        ->and($check->message)->toBeNull();
+});
+
+it('marks a version check as out of date', function (): void {
+    expect(AppVersionCheckFactory::new()->outOfDate()->toArray())->toBe([
+        'up_to_date' => false,
+        'version_is_listable' => false,
+        'required_version' => 10828683,
+        'message' => 'Your server is out of date, please upgrade',
+    ]);
+
+    $check = AppVersionCheckFactory::new()->outOfDate()->make();
+
+    expect($check->isUpToDate)->toBeFalse()
+        ->and($check->isListable)->toBeFalse()
+        ->and($check->requiredVersion)->toBe(10828683)
+        ->and($check->message)->toBe('Your server is out of date, please upgrade');
+});
+
+it('sets the version and message an out of date check asks for', function (): void {
+    $check = AppVersionCheckFactory::new()
+        ->outOfDate(requiredVersion: 1418, message: 'Server version required: 1.41.8.6')
+        ->make();
+
+    expect($check->requiredVersion)->toBe(1418)
+        ->and($check->message)->toBe('Server version required: 1.41.8.6');
+});
+
+it('overrides arbitrary version check keys through state', function (): void {
+    $check = AppVersionCheckFactory::new()->outOfDate()->state(['version_is_listable' => true])->make();
+
+    expect($check->isUpToDate)->toBeFalse()
+        ->and($check->isListable)->toBeTrue();
+});
+
+// GameServerFactory
+
+it('builds a game server payload', function (): void {
+    expect(GameServerFactory::new()->toArray())->toBe([
+        'addr' => '108.181.62.21:27015',
+        'steamid' => '85568392924469984',
+        'appid' => 440,
+        'gamedir' => 'tf',
+        'region' => 0,
+        'secure' => true,
+        'lan' => false,
+        'gameport' => 27015,
+        'specport' => 27016,
+    ]);
+});
+
+it('maps a game server payload onto the dto', function (): void {
+    $server = GameServerFactory::new()->make();
+
+    expect($server->address)->toBe('108.181.62.21:27015')
+        ->and($server->steamId->value)->toBe('85568392924469984')
+        ->and($server->appId)->toBe(440)
+        ->and($server->gameDir)->toBe('tf')
+        ->and($server->region)->toBe(ServerRegion::UsEast)
+        ->and($server->isSecure)->toBeTrue()
+        ->and($server->isLan)->toBeFalse()
+        ->and($server->gamePort)->toBe(27015)
+        ->and($server->spectatorPort)->toBe(27016);
+});
+
+it('overrides the game server address, steam id, app id and region', function (): void {
+    $server = GameServerFactory::new()
+        ->address('216.39.241.176:28015')
+        ->steamId(SteamId::fromSteamId64('90293757517545488'))
+        ->appId(252490)
+        ->region(ServerRegion::Europe)
+        ->make();
+
+    expect($server->address)->toBe('216.39.241.176:28015')
+        ->and($server->steamId->value)->toBe('90293757517545488')
+        ->and($server->appId)->toBe(252490)
+        ->and($server->region)->toBe(ServerRegion::Europe);
+});
+
+it('marks a game server as insecure', function (): void {
+    expect(GameServerFactory::new()->insecure()->make()->isSecure)->toBeFalse();
+});
+
+it('reads a zero spectator port as no port at all', function (): void {
+    $server = GameServerFactory::new()->withoutSpectatorPort();
+
+    expect($server->toArray()['specport'])->toBe(0)
+        ->and($server->make()->spectatorPort)->toBeNull();
+});
+
+it('overrides arbitrary game server keys through state', function (): void {
+    expect(GameServerFactory::new()->state(['gamedir' => 'rust'])->make()->gameDir)->toBe('rust');
 });
