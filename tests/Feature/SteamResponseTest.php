@@ -21,19 +21,25 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
+use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
 use Fkrzski\SteamApiSdk\Dto\GameSchema;
 use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
 use Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames;
 use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
+use Fkrzski\SteamApiSdk\Exceptions\AppVersionUnavailableException;
 use Fkrzski\SteamApiSdk\Exceptions\InvalidApiKeyException;
+use Fkrzski\SteamApiSdk\Exceptions\InvalidServerAddressException;
 use Fkrzski\SteamApiSdk\Exceptions\ProfileNotPublicException;
 use Fkrzski\SteamApiSdk\Exceptions\StatsUnavailableException;
+use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamUserNotFoundException;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetBadgesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetCommunityBadgeProgressRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetRecentlyPlayedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetSteamLevelRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\GetServersAtAddressRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\UpToDateCheckRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerBansRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
@@ -491,6 +497,32 @@ it('feeds a resolved vanity url back through the facade', function (): void {
     expect(Steam::resolveVanityUrl('gabelogannewell')->value)->toBe('76561198000000000');
 });
 
+it('feeds a version check back through the facade', function (): void {
+    Steam::fake([
+        UpToDateCheckRequest::class => SteamResponse::upToDateCheck(AppVersionCheckFactory::new()->outOfDate()),
+    ]);
+
+    $check = Steam::upToDateCheck(appId: 440, version: 1);
+
+    expect($check->isUpToDate)->toBeFalse()
+        ->and($check->requiredVersion)->toBe(10828683)
+        ->and($check->message)->toBe('Your server is out of date, please upgrade');
+});
+
+it('feeds a server list back through the facade', function (): void {
+    Steam::fake([
+        GetServersAtAddressRequest::class => SteamResponse::serversAtAddress(
+            GameServerFactory::new()->withoutSpectatorPort(),
+        ),
+    ]);
+
+    $servers = Steam::serversAtAddress('108.181.62.21');
+
+    expect($servers)->toHaveCount(1)
+        ->and($servers[0]->address)->toBe('108.181.62.21:27015')
+        ->and($servers[0]->spectatorPort)->toBeNull();
+});
+
 // Failures — these pin the contract with the base SDK's exception mapping
 
 it('raises a not public profile from a refused friend list', function (): void {
@@ -586,6 +618,29 @@ it('raises a missing user from an unclaimed vanity url', function (): void {
 
     expect(fn (): SteamId => Steam::resolveVanityUrl('nobody'))
         ->toThrow(SteamUserNotFoundException::class);
+});
+
+it('raises an unavailable app version from an unsuccessful version check', function (): void {
+    Steam::fake([UpToDateCheckRequest::class => SteamResponse::appVersionUnavailable()]);
+
+    expect(fn (): AppVersionCheck => Steam::upToDateCheck(appId: 999999999, version: 1))
+        ->toThrow(AppVersionUnavailableException::class);
+});
+
+it('raises an invalid server address from a rejected address', function (): void {
+    Steam::fake([GetServersAtAddressRequest::class => SteamResponse::invalidServerAddress()]);
+
+    expect(fn (): array => Steam::serversAtAddress('not-an-ip'))
+        ->toThrow(InvalidServerAddressException::class);
+});
+
+// InvalidServerAddressException is a SteamApiException too, so only the message
+// says the base fell through to the root type.
+it('raises the root exception from a refused server lookup', function (): void {
+    Steam::fake([GetServersAtAddressRequest::class => SteamResponse::serversAtAddressRefused()]);
+
+    expect(fn (): array => Steam::serversAtAddress('127.0.0.1'))
+        ->toThrow(SteamApiException::class, 'once per minute for a given IP');
 });
 
 it('raises an invalid api key from a rejected key', function (): void {

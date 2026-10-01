@@ -8,10 +8,12 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppVersionCheckFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameSchemaFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameServerFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
@@ -23,6 +25,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
+use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
 use Fkrzski\SteamApiSdk\Enums\EconomyBan;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Enums\Language;
@@ -32,6 +35,8 @@ use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetCommunityBadgeProgressRe
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetRecentlyPlayedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetSteamLevelRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\GetServersAtAddressRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\UpToDateCheckRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerBansRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
@@ -127,6 +132,8 @@ it('sends an anonymous request with no key configured', function (Closure $call,
         GetGlobalAchievementPercentagesForAppRequest::class => SteamResponse::globalAchievements(
             GlobalAchievementFactory::new()->apiName('ACH_ESCAPE')->percent(12.5),
         ),
+        UpToDateCheckRequest::class => SteamResponse::upToDateCheck(AppVersionCheckFactory::new()),
+        GetServersAtAddressRequest::class => SteamResponse::serversAtAddress(GameServerFactory::new()),
     ]);
 
     $call();
@@ -142,6 +149,14 @@ it('sends an anonymous request with no key configured', function (Closure $call,
     'global achievements' => [
         fn (): array => Steam::globalAchievements(gameId: 381210),
         GetGlobalAchievementPercentagesForAppRequest::class,
+    ],
+    'up to date check' => [
+        fn (): AppVersionCheck => Steam::upToDateCheck(appId: 440, version: 10828683),
+        UpToDateCheckRequest::class,
+    ],
+    'servers at address' => [
+        fn (): array => Steam::serversAtAddress('108.181.62.21'),
+        GetServersAtAddressRequest::class,
     ],
 ]);
 
@@ -649,6 +664,41 @@ it('localises the schema request', function (): void {
 
     $mock->assertSent(
         fn (GetSchemaForGameRequest $request): bool => $request->language === Language::Polish,
+    );
+});
+
+it('fetches an app version check', function (): void {
+    $mock = Steam::fake([
+        UpToDateCheckRequest::class => SteamResponse::upToDateCheck(
+            AppVersionCheckFactory::new()->outOfDate(requiredVersion: 10828683),
+        ),
+    ]);
+
+    $check = Steam::upToDateCheck(appId: 440, version: 1);
+
+    expect($check->isUpToDate)->toBeFalse()
+        ->and($check->requiredVersion)->toBe(10828683);
+
+    $mock->assertSent(
+        fn (UpToDateCheckRequest $request): bool => $request->appId === 440 && $request->version === 1,
+    );
+});
+
+it('fetches the servers at an address', function (): void {
+    $mock = Steam::fake([
+        GetServersAtAddressRequest::class => SteamResponse::serversAtAddress(
+            GameServerFactory::new(),
+            GameServerFactory::new()->address('108.181.62.21:27025'),
+        ),
+    ]);
+
+    $servers = Steam::serversAtAddress('108.181.62.21');
+
+    expect($servers)->toHaveCount(2)
+        ->and($servers[1]->address)->toBe('108.181.62.21:27025');
+
+    $mock->assertSent(
+        fn (GetServersAtAddressRequest $request): bool => $request->address === '108.181.62.21',
     );
 });
 

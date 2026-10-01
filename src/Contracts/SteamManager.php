@@ -7,9 +7,11 @@ namespace Fkrzski\LaravelSteamApiSdk\Contracts;
 use Closure;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeNotInstalledException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
+use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
 use Fkrzski\SteamApiSdk\Dto\CommunityBadgeQuest;
 use Fkrzski\SteamApiSdk\Dto\Friend;
 use Fkrzski\SteamApiSdk\Dto\GameSchema;
+use Fkrzski\SteamApiSdk\Dto\GameServer;
 use Fkrzski\SteamApiSdk\Dto\GlobalAchievement;
 use Fkrzski\SteamApiSdk\Dto\OwnedGame;
 use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
@@ -21,6 +23,7 @@ use Fkrzski\SteamApiSdk\Dto\UserGroup;
 use Fkrzski\SteamApiSdk\Dto\UserStats;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Enums\Language;
+use Fkrzski\SteamApiSdk\Http\Resources\AppsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\PlayersResource;
 use Fkrzski\SteamApiSdk\Http\Resources\StatsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\UsersResource;
@@ -78,6 +81,11 @@ interface SteamManager
      * The ISteamUserStats endpoints, reached fluently.
      */
     public function stats(): StatsResource;
+
+    /**
+     * The ISteamApps endpoints, reached fluently.
+     */
+    public function apps(): AppsResource;
 
     /**
      * Fetch player summaries for up to 100 Steam IDs.
@@ -181,6 +189,23 @@ interface SteamManager
      * Resolve a Steam vanity URL slug to a {@see SteamId}.
      */
     public function resolveVanityUrl(string $vanityName): SteamId;
+
+    /**
+     * Check whether a game server running this version of an app is current.
+     *
+     * An app ID Steam does not know and an app running no versioned servers both
+     * raise `AppVersionUnavailableException`.
+     */
+    public function upToDateCheck(int $appId, int $version): AppVersionCheck;
+
+    /**
+     * Fetch the game servers at an IP address, optionally narrowed to one query port.
+     *
+     * An address Steam rejects raises `InvalidServerAddressException`.
+     *
+     * @return list<GameServer>
+     */
+    public function serversAtAddress(string $address): array;
 
     /**
      * Swap the connector's HTTP client for a Saloon mock, returning it for assertions.
