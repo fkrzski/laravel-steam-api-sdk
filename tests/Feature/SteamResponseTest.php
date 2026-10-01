@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppVersionCheckFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameSchemaFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameServerFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementFactory;
@@ -211,6 +213,40 @@ it('reports a resolved vanity url as successful', function (): void {
     ]);
 });
 
+it('flags the version check as successful', function (): void {
+    expect(bodyOf(SteamResponse::upToDateCheck(AppVersionCheckFactory::new()->outOfDate())))->toBe([
+        'response' => [
+            'success' => true,
+            ...AppVersionCheckFactory::new()->outOfDate()->toArray(),
+        ],
+    ]);
+});
+
+it('flags the server list as successful', function (): void {
+    expect(bodyOf(SteamResponse::serversAtAddress(
+        GameServerFactory::new(),
+        GameServerFactory::new()->address('108.181.62.21:27025'),
+    )))->toBe([
+        'response' => [
+            'success' => true,
+            'servers' => [
+                GameServerFactory::new()->toArray(),
+                GameServerFactory::new()->address('108.181.62.21:27025')->toArray(),
+            ],
+        ],
+    ]);
+});
+
+it('answers an address with no servers with steams message', function (): void {
+    expect(bodyOf(SteamResponse::serversAtAddress()))->toBe([
+        'response' => [
+            'success' => true,
+            'servers' => [],
+            'message' => 'No servers found at that address',
+        ],
+    ]);
+});
+
 it('refuses a request outright with a 401', function (): void {
     expect(SteamResponse::profileNotPublic()->status())->toBe(401)
         ->and(bodyOf(SteamResponse::profileNotPublic()))->toBe(['message' => 'Access is denied.']);
@@ -247,6 +283,36 @@ it('reports an unclaimed vanity url in the body, not the status', function (): v
             'response' => [
                 'success' => 42,
                 'message' => 'No match',
+            ],
+        ]);
+});
+
+it('reports an unavailable version check in the body, not the status', function (): void {
+    expect(SteamResponse::appVersionUnavailable()->status())->toBe(200)
+        ->and(bodyOf(SteamResponse::appVersionUnavailable()))->toBe([
+            'response' => [
+                'success' => false,
+                'error' => "Couldn't get app info for the app specified.",
+            ],
+        ]);
+});
+
+it('reports a rejected server address in the body, not the status', function (): void {
+    expect(SteamResponse::invalidServerAddress()->status())->toBe(200)
+        ->and(bodyOf(SteamResponse::invalidServerAddress()))->toBe([
+            'response' => [
+                'success' => false,
+                'message' => "'addr' param should specify a valid IPv4 or IPv4:queryport",
+            ],
+        ]);
+});
+
+it('reports a refused server lookup in the body, not the status', function (): void {
+    expect(SteamResponse::serversAtAddressRefused()->status())->toBe(200)
+        ->and(bodyOf(SteamResponse::serversAtAddressRefused()))->toBe([
+            'response' => [
+                'success' => false,
+                'message' => "Please don't call this API more often than once per minute for a given IP.",
             ],
         ]);
 });
