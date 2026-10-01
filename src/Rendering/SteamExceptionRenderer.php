@@ -6,8 +6,8 @@ namespace Fkrzski\LaravelSteamApiSdk\Rendering;
 
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
+use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
 use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
 use Fkrzski\SteamApiSdk\Exceptions\InvalidApiKeyException;
 use Fkrzski\SteamApiSdk\Exceptions\ProfileNotPublicException;
@@ -94,10 +94,10 @@ final readonly class SteamExceptionRenderer
      * response said, and whatever `steam-api.exceptions.render` is set to.
      *
      * Debug builds fall through instead: the status is a 500 either way, and
-     * the developer keeps the exception page naming the config value to fix.
+     * the developer keeps the exception page saying what to fix.
      */
     public function misconfigured(
-        InvalidApiKeyException|TooManySteamIdsException|SteamApiKeyMissingException
+        InvalidApiKeyException|TooManySteamIdsException|ApiKeyNotConfiguredException
         |InvalidSteamLanguageException|FakeOutsideTestsException $e,
         Request $request,
     ): ?Response {

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
+use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetUserGroupListRequest;
@@ -132,11 +132,11 @@ it('renders an oversized batch as a 500', function (): void {
 });
 
 it('keeps the missing key message out of the response body', function (): void {
-    config()->set('app.debug', false);
+    config()->set(['app.debug' => false, 'steam-api.key' => null]);
 
-    Route::get('steam/key', function (): never {
-        throw new SteamApiKeyMissingException;
-    });
+    Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::playerSummaries()]);
+
+    Route::get('steam/key', fn (): array => Steam::summaries([steamId()]));
 
     $this->getJson('steam/key')
         ->assertStatus(500)
@@ -156,7 +156,7 @@ it('renders a rejected language as a 500', function (): void {
 it('leaves a misconfiguration to the debug page while debugging', function (): void {
     config()->set('app.debug', true);
 
-    expect(renderer()->misconfigured(new SteamApiKeyMissingException, request()))->toBeNull();
+    expect(renderer()->misconfigured(ApiKeyNotConfiguredException::blank(), request()))->toBeNull();
 });
 
 it('renders a misconfiguration whatever the flag says', function (): void {
@@ -164,7 +164,7 @@ it('renders a misconfiguration whatever the flag says', function (): void {
 
     bootExceptionRenderers();
 
-    $response = renderer()->misconfigured(new SteamApiKeyMissingException, request());
+    $response = renderer()->misconfigured(ApiKeyNotConfiguredException::blank(), request());
 
     expect($response?->getStatusCode())->toBe(500);
 });
