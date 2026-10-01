@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BC break.** `fkrzski/php-steam-api-sdk` `^0.7` is required, and a transport failure surfaces as its `SteamConnectionException` rather than Saloon's `FatalRequestException`. Code catching the Saloon exception has to catch the SDK one instead ([#85](https://github.com/fkrzski/laravel-steam-api-sdk/issues/85)).
+- `php artisan about` reads `not metered (no API key)` for the daily budget with no key configured, where it counted down from 100 000 before. Steam bills the quota to the key, so a connector built without one meters nothing ([#85](https://github.com/fkrzski/laravel-steam-api-sdk/issues/85)).
+
+### Removed
+
+- **BC break.** `SteamApiKeyMissingException` and `Http\RequiresConfiguredApiKey` — the base SDK refuses a request that needs a key before it goes out, raising `ApiKeyNotConfiguredException`, which renders as a 500 the same way. Code catching the bridge exception has to catch the base one instead ([#85](https://github.com/fkrzski/laravel-steam-api-sdk/issues/85)).
+
 ## [0.6.0] - 2026-09-04
 
 ### Added

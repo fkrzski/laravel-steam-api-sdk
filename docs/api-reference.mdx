@@ -12,7 +12,7 @@ identify a user and return readonly DTOs from the underlying SDK, documented in
 [Data objects](/php-steam-api-sdk/dto-reference).
 
 <Aside title="Three exceptions every request can raise">
-`SteamApiKeyMissingException` (no key configured), `InvalidApiKeyException` (Steam
+`ApiKeyNotConfiguredException` (no key configured), `InvalidApiKeyException` (Steam
 rejected it) and `SteamRateLimitException` (daily quota spent). The first one skips
 `currentPlayers()` and `globalAchievements()`, which Steam serves without a key. They
 are listed per method only where a helper raises them on its own, and every exception

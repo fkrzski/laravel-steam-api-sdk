@@ -6,7 +6,6 @@ use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\SteamApiKeyMissingException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
@@ -27,6 +26,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Enums\EconomyBan;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Enums\Language;
+use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetBadgesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetCommunityBadgeProgressRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
@@ -91,12 +91,12 @@ it('trims surrounding whitespace from the api key', function (): void {
     expect(app(SteamConnector::class)->steamConfig->apiKey)->toBe('test-steam-api-key');
 });
 
-// The connector has to be built without a key, or the endpoints Steam serves
-// anonymously are unreachable — the check moves to the request that needs one.
-it('builds the connector with a blank key when none is configured', function (mixed $key): void {
+// SteamConfig rejects a blank key, and the endpoints Steam serves anonymously
+// need the connector built — so no key is null, and the base refuses the rest.
+it('builds the connector without a key when none is configured', function (mixed $key): void {
     config()->set('steam-api.key', $key);
 
-    expect(app(SteamConnector::class)->steamConfig->apiKey)->toBeEmpty();
+    expect(app(SteamConnector::class)->steamConfig->apiKey)->toBeNull();
 })->with([
     'null' => null,
     'empty string' => '',
@@ -114,7 +114,9 @@ it('throws when a request needing the key is sent without one', function (): voi
     ]);
 
     expect(fn (): array => Steam::summaries([steamId()]))
-        ->toThrow(SteamApiKeyMissingException::class);
+        ->toThrow(ApiKeyNotConfiguredException::class);
+
+    Steam::assertNothingSent();
 });
 
 it('sends an anonymous request with no key configured', function (Closure $call, string $request): void {
@@ -149,19 +151,6 @@ it('attaches a fake with no key configured', function (): void {
     Steam::fake();
 
     expect(app(SteamConnector::class)->hasMockClient())->toBeTrue();
-});
-
-it('names the env var and the config key in the exception', function (): void {
-    config()->set(['steam-api.key' => null]);
-
-    Steam::fake([
-        GetPlayerSummariesRequest::class => SteamResponse::playerSummaries(),
-    ]);
-
-    $send = fn (): array => Steam::summaries([steamId()]);
-
-    expect($send)->toThrow(SteamApiKeyMissingException::class, 'STEAM_API_KEY')
-        ->and($send)->toThrow(SteamApiKeyMissingException::class, 'steam-api.key');
 });
 
 it('configures the connector with english until told otherwise', function (): void {
@@ -249,9 +238,9 @@ it('does not require the api key to reach the connector', function (): void {
     config()->set(['steam-api.key' => null]);
 
     expect(fn (): SteamManager => app(SteamManager::class))
-        ->not->toThrow(SteamApiKeyMissingException::class)
+        ->not->toThrow(ApiKeyNotConfiguredException::class)
         ->and(fn (): SteamConnector => Steam::connector())
-        ->not->toThrow(SteamApiKeyMissingException::class);
+        ->not->toThrow(ApiKeyNotConfiguredException::class);
 });
 
 it('resolves the facade to the manager singleton', function (): void {

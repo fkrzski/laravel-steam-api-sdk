@@ -229,9 +229,9 @@ constructor when you pass more than 100 IDs.
 
 ## A key for the requests that need one
 
-`Steam::fake()` swaps the HTTP client, not the middleware, so a faked request that needs a
+`Steam::fake()` swaps the HTTP client, not the connector, so a faked request that needs a
 key still raises
-[`SteamApiKeyMissingException`](/laravel-steam-api-sdk/configuration#the-api-key) when none
+[`ApiKeyNotConfiguredException`](/laravel-steam-api-sdk/configuration#the-api-key) when none
 is configured. No request leaves your machine, so the value is irrelevant:
 
 ```xml title="phpunit.xml" ins={4}
@@ -244,7 +244,7 @@ is configured. No request leaves your machine, so the value is irrelevant:
 ```
 
 A suite covering only `currentPlayers()` and `globalAchievements()` needs no key at all —
-Steam serves those two anonymously, and the middleware lets them through.
+Steam serves those two anonymously, and the connector sends them without one.
 
 ## Asserting
 

@@ -91,15 +91,21 @@ every request, so you never pass it per call:
 STEAM_API_KEY=your-steam-web-api-key
 ```
 
-Get one from the [Steam Web API dashboard](https://steamcommunity.com/dev). A key
-that is unset — or present but blank — raises `SteamApiKeyMissingException`, naming
-both `STEAM_API_KEY` and `steam-api.key`.
+Get one from the [Steam Web API dashboard](https://steamcommunity.com/dev). With the
+key unset — or present but blank — a request that needs one raises the base SDK's
+`ApiKeyNotConfiguredException`. Its message says to pass a key to `SteamConfig`, which
+here means setting `STEAM_API_KEY`, or `steam-api.key` directly.
 
 <Aside title="The check runs per request, on purpose">
-It fires as a request that needs a key goes out — not at boot, and not when the connector
-is built — so an application boots, caches its config and publishes the config file before
-a key exists. `Steam::currentPlayers()` and `Steam::globalAchievements()` never trip it:
-Steam serves those two anonymously, and the connector strips the key from their query.
+It fires as a request that needs a key is sent, before it goes out — not at boot, and not
+when the connector is built — so an application boots, caches its config and publishes the
+config file before a key exists. `Steam::currentPlayers()` and `Steam::globalAchievements()`
+never trip it: Steam serves those two anonymously.
+</Aside>
+
+<Aside type="caution" title="SteamApiKeyMissingException is gone since 0.7.0">
+The base SDK refuses a keyless request before the bridge's own check could run, so catch
+`ApiKeyNotConfiguredException` instead.
 </Aside>
 
 ## Default language
@@ -192,7 +198,9 @@ class the package ships is `final`; the container is the extension point.
 
 The Steam Web API allows **100 000 requests per API key per day**. The connector
 enforces this through [`saloonphp/rate-limit-plugin`](https://github.com/saloonphp/rate-limit-plugin)
-and throws `SteamRateLimitException` once the budget is spent.
+and throws `SteamRateLimitException` once the budget is spent. With no key configured it
+counts nothing, since Steam bills the quota to the key, and a `429` from Steam still raises
+`SteamRateLimitException`.
 
 The counter is keyed by the API key itself — hashed, so the key never lands in the
 store — rather than by the connector class. Two keys in one application draw down two
@@ -261,7 +269,7 @@ php artisan about --only=steam_api
   into a bug report. `NOT SET` when no key is configured.
 - **Rate Limit Store** — the cache store the counter lives in, i.e. `cache.default`.
 - **Daily Requests Remaining** — what is left of the 100 000, read from that store.
-  Anonymous requests spend the budget too, so the row reads with no key configured.
+  `not metered (no API key)` with no key configured, since Steam bills the budget to the key.
 - **Language** — the code every localised request carries, and which of the two answers it
   is: `polish (config)` or `polish (locale: pl)`. `NOT SET` names its source the same way,
   and `INVALID` stands alone, since only config can carry a rejected code.

@@ -12,7 +12,7 @@ use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
  *
  * Raised lazily, the first time the connector is resolved, so a rejected code
  * surfaces on the first Steam call rather than taking the application down at
- * boot — the same bargain {@see SteamApiKeyMissingException} strikes.
+ * boot.
  */
 final class InvalidSteamLanguageException extends SteamApiException
 {
