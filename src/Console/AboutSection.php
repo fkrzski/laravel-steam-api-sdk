@@ -46,6 +46,8 @@ final readonly class AboutSection
 
     private const string INVALID = 'INVALID';
 
+    private const string NOT_METERED = 'not metered (no API key)';
+
     public function __construct(
         private Application $app,
         private ConfigRepository $config,
@@ -131,13 +133,12 @@ final readonly class AboutSection
      */
     private function maskedApiKey(): string
     {
-        $key = $this->config->get('steam-api.key');
+        $key = $this->configuredApiKey();
 
-        if (! is_string($key) || trim($key) === '') {
+        if ($key === null) {
             return self::MISSING;
         }
 
-        $key = trim($key);
         $mask = str_repeat(self::MASK_CHARACTER, self::MASK_LENGTH);
 
         if (mb_strlen($key) <= self::MASK_LENGTH) {
@@ -145,6 +146,20 @@ final readonly class AboutSection
         }
 
         return $mask.mb_substr($key, -self::VISIBLE_KEY_CHARACTERS);
+    }
+
+    /**
+     * The configured key, null when none is set.
+     *
+     * Repeats the provider's rule so neither row can report a key the connector
+     * is not built with.
+     */
+    private function configuredApiKey(): ?string
+    {
+        $key = $this->config->get('steam-api.key');
+        $key = is_string($key) ? trim($key) : '';
+
+        return $key === '' ? null : $key;
     }
 
     /**
@@ -162,9 +177,16 @@ final readonly class AboutSection
 
     /**
      * How much of the daily request budget is left.
+     *
+     * Steam bills the budget to the key, so a connector built without one counts
+     * nothing — and is not built just to say so.
      */
     private function remainingDailyRequests(): string
     {
+        if ($this->configuredApiKey() === null) {
+            return self::NOT_METERED;
+        }
+
         $limit = $this->dailyLimit();
 
         if (! $limit instanceof Limit) {
