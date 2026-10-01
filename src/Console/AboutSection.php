@@ -6,6 +6,7 @@ namespace Fkrzski\LaravelSteamApiSdk\Console;
 
 use Closure;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\SteamConnector;
@@ -221,7 +222,7 @@ final readonly class AboutSection
             );
 
             return $limit?->update($connector->rateLimitStore());
-        } catch (InvalidSteamLanguageException|LimitException|JsonException) {
+        } catch (InvalidSteamLanguageException|InvalidSteamHttpOptionException|LimitException|JsonException) {
             return null;
         }
     }

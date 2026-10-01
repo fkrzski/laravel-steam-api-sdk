@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
@@ -151,6 +152,15 @@ it('renders a rejected language as a 500', function (): void {
     $this->getJson('steam/language')
         ->assertStatus(500)
         ->assertExactJson(['message' => 'Server Error']);
+});
+
+// Called directly: through a route, an exception nothing renders is the same bare 500.
+it('renders a rejected http option as a 500', function (): void {
+    config()->set('app.debug', false);
+
+    $response = renderer()->misconfigured(new InvalidSteamHttpOptionException('retry.tries', '0'), request());
+
+    expect($response?->getStatusCode())->toBe(500);
 });
 
 it('leaves a misconfiguration to the debug page while debugging', function (): void {

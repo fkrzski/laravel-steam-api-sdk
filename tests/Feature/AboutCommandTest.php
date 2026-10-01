@@ -245,6 +245,12 @@ it('reports an unknown budget when the language is not a steam code', function (
     expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
 });
 
+it('reports an unknown budget when an http option is rejected', function (): void {
+    config()->set('steam-api.http.retry.tries', '0');
+
+    expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
+});
+
 it('does not resolve the connector while booting', function (): void {
     config()->set(['steam-api.key' => null]);
 

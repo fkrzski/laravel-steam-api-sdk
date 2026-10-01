@@ -10,6 +10,7 @@ use Fkrzski\LaravelSteamApiSdk\Contracts\SteamIdBinder;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
+use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
 use Fkrzski\LaravelSteamApiSdk\Localization\LocaleLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
@@ -32,13 +33,20 @@ final class SteamServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/steam-api.php', 'steam-api');
 
-        $this->app->scoped(SteamConnector::class, fn (): SteamConnector => new SteamConnector(
-            new SteamConfig(
+        $this->app->scoped(SteamConnector::class, function (Application $app): SteamConnector {
+            $http = $app->make(HttpOptions::class);
+
+            return new SteamConnector(new SteamConfig(
                 apiKey: $this->steamApiKey(),
                 rateLimitStore: new LaravelCacheStore(Cache::store()),
                 language: $this->steamLanguage(),
-            ),
-        ));
+                connectTimeout: $http->connectTimeout(),
+                requestTimeout: $http->requestTimeout(),
+                tries: $http->tries(),
+                retryInterval: $http->retryInterval(),
+                exponentialBackoff: $http->exponentialBackoff(),
+            ));
+        });
 
         $this->app->scoped(
             SteamManager::class,
