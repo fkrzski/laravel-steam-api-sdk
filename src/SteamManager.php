@@ -300,7 +300,8 @@ final readonly class SteamManager implements SteamManagerContract
     /**
      * Swap the connector's HTTP client for a Saloon mock, returning it for assertions.
      *
-     * Nothing detaches the mock, so faking is refused outside tests.
+     * Nothing detaches the mock, so faking is refused outside tests. A faked
+     * retry keeps its tries but not the pause between them.
      *
      * @param  array<array-key, (callable(): mixed)|Fixture|MockResponse>  $responses
      *
@@ -314,7 +315,11 @@ final readonly class SteamManager implements SteamManagerContract
 
         $mockClient = new MockClient($responses);
 
-        $this->connector()->withMockClient($mockClient);
+        $connector = $this->connector();
+        $connector->withMockClient($mockClient);
+
+        // Saloon pauses with a bare usleep(), which Sleep::fake() cannot reach.
+        $connector->retryInterval = 0;
 
         return $mockClient;
     }

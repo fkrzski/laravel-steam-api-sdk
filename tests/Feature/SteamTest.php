@@ -30,6 +30,7 @@ use Fkrzski\SteamApiSdk\Enums\EconomyBan;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
+use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetBadgesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetCommunityBadgeProgressRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
@@ -50,6 +51,7 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Saloon\Http\Faking\MockClient;
+use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\Response;
 
 mutates(SteamManager::class);
@@ -299,6 +301,25 @@ it('does not leak the fake past the scope that installed it', function (): void 
 
     expect($fakedInScope)->toBeTrue()
         ->and(app(SteamConnector::class)->hasMockClient())->toBeFalse();
+});
+
+it('keeps the configured tries on a fake but not the pause between them', function (): void {
+    config()->set([
+        'steam-api.http.retry.tries' => 3,
+        'steam-api.http.retry.interval' => 1000,
+    ]);
+
+    Steam::fake([
+        GetPlayerSummariesRequest::class => MockResponse::make([], 503),
+    ]);
+
+    expect(fn (): array => Steam::summaries([steamId()]))
+        ->toThrow(SteamApiException::class, 'HTTP 503');
+
+    Steam::assertSentCount(3);
+
+    expect(Steam::connector()->retryInterval)->toBe(0)
+        ->and(Steam::connector()->tries)->toBe(3);
 });
 
 it('refuses to fake outside the testing environment', function (): void {

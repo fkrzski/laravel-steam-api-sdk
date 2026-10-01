@@ -210,6 +210,8 @@ interface SteamManager
     /**
      * Swap the connector's HTTP client for a Saloon mock, returning it for assertions.
      *
+     * A faked retry keeps its tries but not the pause between them.
+     *
      * @param  array<array-key, (callable(): mixed)|Fixture|MockResponse>  $responses
      *
      * @throws FakeOutsideTestsException when the application is not running tests
