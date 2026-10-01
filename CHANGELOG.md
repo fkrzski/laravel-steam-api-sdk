@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Steam::apps()` — the base SDK's `AppsResource`, handed back the same way as `players()`, `users()` and `stats()`. Steam serves every ISteamApps endpoint anonymously, so none of them needs `STEAM_API_KEY` ([#86](https://github.com/fkrzski/laravel-steam-api-sdk/issues/86)).
+- `Steam::upToDateCheck()` — wraps `UpToDateCheckRequest` and returns `AppVersionCheck`, telling a game server whether its version is current. An app ID Steam does not know and an app running no versioned servers both raise `AppVersionUnavailableException`, because Steam answers the two alike ([#86](https://github.com/fkrzski/laravel-steam-api-sdk/issues/86)).
+- `Steam::serversAtAddress()` — wraps `GetServersAtAddressRequest` and returns `list<GameServer>`, the game servers at an IP address. An address Steam rejects raises `InvalidServerAddressException` ([#86](https://github.com/fkrzski/laravel-steam-api-sdk/issues/86)).
+- `AppVersionCheckFactory` and `GameServerFactory`, with `SteamResponse::upToDateCheck()` and `SteamResponse::serversAtAddress()` for their `response` envelopes. `->withoutSpectatorPort()` sends the `0` Steam sends for a server without SourceTV, which the DTO reads back as `null` ([#86](https://github.com/fkrzski/laravel-steam-api-sdk/issues/86)).
+- `SteamResponse::appVersionUnavailable()`, `SteamResponse::invalidServerAddress()` and `SteamResponse::serversAtAddressRefused()` — the three failures the new endpoints answer with 200 and `success: false`. The last is the per-IP refusal the base SDK raises as the root `SteamApiException`, so nothing but the builder names it ([#86](https://github.com/fkrzski/laravel-steam-api-sdk/issues/86)).
+
 ### Changed
 
 - **BC break.** `fkrzski/php-steam-api-sdk` `^0.7` is required, and a transport failure surfaces as its `SteamConnectionException` rather than Saloon's `FatalRequestException`. Code catching the Saloon exception has to catch the SDK one instead ([#85](https://github.com/fkrzski/laravel-steam-api-sdk/issues/85)).
