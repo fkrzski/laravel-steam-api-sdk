@@ -6,12 +6,15 @@ namespace Fkrzski\LaravelSteamApiSdk\Console;
 
 use Closure;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
+use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
 use JsonException;
+use Saloon\Config as SaloonConfig;
 use Saloon\RateLimitPlugin\Exceptions\LimitException;
 use Saloon\RateLimitPlugin\Limit;
 use Saloon\RateLimitPlugin\Stores\LaravelCacheStore;
@@ -48,9 +51,14 @@ final readonly class AboutSection
 
     private const string NOT_METERED = 'not metered (no API key)';
 
+    private const string UNLIMITED = 'unlimited';
+
+    private const string NO_RETRIES = 'none';
+
     public function __construct(
         private Application $app,
         private ConfigRepository $config,
+        private HttpOptions $http,
     ) {}
 
     /**
@@ -64,6 +72,8 @@ final readonly class AboutSection
             'Daily Requests Remaining' => $this->remainingDailyRequests(...),
             'Route Binding' => $this->routeBinding(...),
             'Language' => $this->language(...),
+            'Timeouts' => $this->timeouts(...),
+            'Retries' => $this->retries(...),
         ];
     }
 
@@ -123,6 +133,63 @@ final readonly class AboutSection
             $language instanceof Language ? $language->value : self::MISSING,
             $locale,
         );
+    }
+
+    /**
+     * How long the connector waits to connect, then for the whole request.
+     *
+     * Read through the {@see HttpOptions} the provider builds the connector from,
+     * so the row cannot report a timeout the connector is not given. An unset one
+     * falls back to Saloon's default, as it does on the connector.
+     */
+    private function timeouts(): string
+    {
+        try {
+            $connect = $this->http->connectTimeout();
+            $request = $this->http->requestTimeout();
+        } catch (InvalidSteamHttpOptionException) {
+            return self::INVALID;
+        }
+
+        $timeouts = sprintf(
+            'connect %s, request %s',
+            $this->seconds($connect ?? SaloonConfig::$defaultConnectionTimeout),
+            $this->seconds($request ?? SaloonConfig::$defaultRequestTimeout),
+        );
+
+        return $connect === null && $request === null ? $timeouts.' (default)' : $timeouts;
+    }
+
+    private function seconds(float|int $seconds): string
+    {
+        return $seconds > 0 ? $seconds.'s' : self::UNLIMITED;
+    }
+
+    /**
+     * How many attempts a request gets, and the pause between them.
+     *
+     * `(default)` only while all three options are what the shipped config sets:
+     * a pause configured beside a single attempt changes nothing, but it is set.
+     */
+    private function retries(): string
+    {
+        try {
+            $tries = $this->http->tries();
+            $interval = $this->http->retryInterval();
+            $backoff = $this->http->exponentialBackoff();
+        } catch (InvalidSteamHttpOptionException) {
+            return self::INVALID;
+        }
+
+        if ($tries === 1) {
+            return $interval === 0 && ! $backoff ? self::NO_RETRIES.' (default)' : self::NO_RETRIES;
+        }
+
+        return sprintf('%d attempts, %s', $tries, match (true) {
+            $interval === 0 => 'no pause',
+            $backoff => sprintf('%dms apart, doubling', $interval),
+            default => sprintf('%dms apart', $interval),
+        });
     }
 
     /**
@@ -221,7 +288,7 @@ final readonly class AboutSection
             );
 
             return $limit?->update($connector->rateLimitStore());
-        } catch (InvalidSteamLanguageException|LimitException|JsonException) {
+        } catch (InvalidSteamLanguageException|InvalidSteamHttpOptionException|LimitException|JsonException) {
             return null;
         }
     }

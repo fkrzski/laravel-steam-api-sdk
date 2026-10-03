@@ -40,6 +40,8 @@ it('registers the Steam API section on the about command', function (): void {
         'daily_requests_remaining',
         'route_binding',
         'language',
+        'timeouts',
+        'retries',
     ]);
 });
 
@@ -53,6 +55,8 @@ it('renders the section under its own heading', function (): void {
         ->toContain('Daily Requests Remaining')
         ->toContain('Route Binding')
         ->toContain('Language')
+        ->toContain('Timeouts')
+        ->toContain('Retries')
         ->not->toContain('Application Name');
 });
 
@@ -241,6 +245,100 @@ it('reports a language steam does not know as invalid', function (): void {
 
 it('reports an unknown budget when the language is not a steam code', function (): void {
     config()->set('steam-api.language', 'klingon');
+
+    expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
+});
+
+it('reports saloons timeouts as the default', function (): void {
+    expect(steamAboutSection()['timeouts'])->toBe('connect 10s, request 30s (default)');
+});
+
+it('reports the configured timeouts', function (): void {
+    config()->set([
+        'steam-api.http.connect_timeout' => '0.5',
+        'steam-api.http.request_timeout' => '60',
+    ]);
+
+    expect(steamAboutSection()['timeouts'])->toBe('connect 0.5s, request 60s');
+});
+
+it('reports a timeout of zero as unlimited', function (): void {
+    config()->set('steam-api.http.connect_timeout', '0');
+
+    expect(steamAboutSection()['timeouts'])->toBe('connect unlimited, request 30s');
+});
+
+it('drops the default once the request timeout alone is set', function (): void {
+    config()->set('steam-api.http.request_timeout', '60');
+
+    expect(steamAboutSection()['timeouts'])->toBe('connect 10s, request 60s');
+});
+
+it('reports a rejected timeout as invalid', function (string $option): void {
+    config()->set('steam-api.http.'.$option, 'abc');
+
+    expect(steamAboutSection()['timeouts'])->toBe('INVALID');
+})->with([
+    'connect' => 'connect_timeout',
+    'request' => 'request_timeout',
+]);
+
+it('reports no retries as the default', function (): void {
+    expect(steamAboutSection()['retries'])->toBe('none (default)');
+});
+
+it('reports the attempts and the pause between them', function (): void {
+    config()->set([
+        'steam-api.http.retry.tries' => '3',
+        'steam-api.http.retry.interval' => '500',
+    ]);
+
+    expect(steamAboutSection()['retries'])->toBe('3 attempts, 500ms apart');
+});
+
+it('says the pause doubles with exponential backoff', function (): void {
+    config()->set([
+        'steam-api.http.retry.tries' => '3',
+        'steam-api.http.retry.interval' => '500',
+        'steam-api.http.retry.exponential_backoff' => true,
+    ]);
+
+    expect(steamAboutSection()['retries'])->toBe('3 attempts, 500ms apart, doubling');
+});
+
+it('reports attempts sent without a pause, backoff or not', function (bool $backoff): void {
+    config()->set([
+        'steam-api.http.retry.tries' => '3',
+        'steam-api.http.retry.exponential_backoff' => $backoff,
+    ]);
+
+    expect(steamAboutSection()['retries'])->toBe('3 attempts, no pause');
+})->with([
+    'without backoff' => false,
+    'with backoff' => true,
+]);
+
+it('drops the default for a pause set beside a single attempt', function (string $option, mixed $value): void {
+    config()->set('steam-api.http.retry.'.$option, $value);
+
+    expect(steamAboutSection()['retries'])->toBe('none');
+})->with([
+    'an interval' => ['interval', '500'],
+    'exponential backoff' => ['exponential_backoff', true],
+]);
+
+it('reports a rejected retry option as invalid', function (string $option, mixed $value): void {
+    config()->set('steam-api.http.retry.'.$option, $value);
+
+    expect(steamAboutSection()['retries'])->toBe('INVALID');
+})->with([
+    'tries' => ['tries', '0'],
+    'interval' => ['interval', '-1'],
+    'exponential backoff' => ['exponential_backoff', 'maybe'],
+]);
+
+it('reports an unknown budget when an http option is rejected', function (): void {
+    config()->set('steam-api.http.retry.tries', '0');
 
     expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
 });

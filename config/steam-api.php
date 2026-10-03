@@ -37,6 +37,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Timeouts & Retries
+    |--------------------------------------------------------------------------
+    |
+    | How long the connector waits on Steam, in seconds — to connect, then for
+    | the whole request. Left unset, Saloon's 10 and 30 apply; 0 waits forever.
+    |
+    | Only a request Steam never answered, or answered with a 5xx, is sent
+    | again — up to `tries` attempts in all, `interval` milliseconds apart,
+    | doubled after each retry with exponential backoff. A 4xx or a spent quota
+    | never is, because every attempt spends a request from the daily budget.
+    | One attempt is the default, and requests sent through a pool go out once.
+    |
+    */
+
+    'http' => [
+        'connect_timeout' => env('STEAM_API_CONNECT_TIMEOUT'),
+        'request_timeout' => env('STEAM_API_REQUEST_TIMEOUT'),
+
+        'retry' => [
+            'tries' => env('STEAM_API_RETRY_TRIES', 1),
+            'interval' => env('STEAM_API_RETRY_INTERVAL', 0),
+            'exponential_backoff' => env('STEAM_API_RETRY_EXPONENTIAL_BACKOFF', false),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Route Model Binding
     |--------------------------------------------------------------------------
     |
