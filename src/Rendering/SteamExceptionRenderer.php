@@ -7,6 +7,7 @@ namespace Fkrzski\LaravelSteamApiSdk\Rendering;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitStoreException;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
 use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
 use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
@@ -99,7 +100,8 @@ final readonly class SteamExceptionRenderer
      */
     public function misconfigured(
         InvalidApiKeyException|TooManySteamIdsException|ApiKeyNotConfiguredException
-        |InvalidSteamLanguageException|InvalidSteamHttpOptionException|FakeOutsideTestsException $e,
+        |InvalidSteamLanguageException|InvalidSteamHttpOptionException|InvalidSteamRateLimitStoreException
+        |FakeOutsideTestsException $e,
         Request $request,
     ): ?Response {
         if ($this->config->get('app.debug') === true) {

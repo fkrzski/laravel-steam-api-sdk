@@ -18,11 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `php artisan about` — "Timeouts" and "Retries" rows reporting what the connector is built with, marked `(default)` until the `steam-api.http` block changes them. A rejected value reads `INVALID` in its own row, and the daily budget falls back to `UNKNOWN`, since the connector cannot be built ([#87](https://github.com/fkrzski/laravel-steam-api-sdk/issues/87)).
 - `Steam::fake()` drops the pause between attempts but keeps the tries, so a faked 5xx is retried at once and `Steam::assertSentCount()` still counts every attempt. Saloon pauses with a bare `usleep()`, which `Sleep::fake()` cannot reach ([#87](https://github.com/fkrzski/laravel-steam-api-sdk/issues/87)).
 - `Queue\Middleware\RespectsSteamRateLimit` — job middleware for a job's own `middleware()`, releasing it for what is left of the window when the daily budget is already spent, before the job runs, or when a request inside it raises `SteamRateLimitException`; without an API key only a 429 from Steam holds it back. A release counts as an attempt, so a job waiting out a daily window wants `retryUntil()` rather than a small `$tries` ([#88](https://github.com/fkrzski/laravel-steam-api-sdk/issues/88)).
+- `steam-api.rate_limit.store` — the cache store the rate limit counter is kept in, read from `STEAM_API_RATE_LIMIT_STORE`, so a `cache:clear` of the default store no longer resets the daily budget while Steam's own count carries on. Left unset it stays the default store, and a name `cache.stores` does not define raises `InvalidSteamRateLimitStoreException`, which renders as a 500 whatever `steam-api.exceptions.render` says ([#96](https://github.com/fkrzski/laravel-steam-api-sdk/issues/96)).
 
 ### Changed
 
 - **BC break.** `fkrzski/php-steam-api-sdk` `^0.7` is required, and a transport failure surfaces as its `SteamConnectionException` rather than Saloon's `FatalRequestException`. Code catching the Saloon exception has to catch the SDK one instead ([#85](https://github.com/fkrzski/laravel-steam-api-sdk/issues/85)).
 - `php artisan about` reads `not metered (no API key)` for the daily budget with no key configured, where it counted down from 100 000 before. Steam bills the quota to the key, so a connector built without one meters nothing ([#85](https://github.com/fkrzski/laravel-steam-api-sdk/issues/85)).
+- `php artisan about` names the configured store in its "Rate Limit Store" row and marks the default one `(default)`, where it always read `cache.default` before. A store the cache config does not define reads `INVALID`, and the daily budget `UNKNOWN`, since the connector cannot be built ([#96](https://github.com/fkrzski/laravel-steam-api-sdk/issues/96)).
 
 ### Removed
 

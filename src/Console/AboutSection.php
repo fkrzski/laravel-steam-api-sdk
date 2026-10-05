@@ -8,7 +8,9 @@ use Closure;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitStoreException;
 use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
+use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
@@ -59,6 +61,7 @@ final readonly class AboutSection
         private Application $app,
         private ConfigRepository $config,
         private HttpOptions $http,
+        private RateLimitOptions $rateLimit,
     ) {}
 
     /**
@@ -232,14 +235,25 @@ final readonly class AboutSection
     /**
      * The cache store the rate-limit counter is kept in.
      *
-     * The provider hands the plugin a {@see LaravelCacheStore} over the default
-     * store, so the daily budget lives wherever `cache.default` points.
+     * Read through the {@see RateLimitOptions} the provider builds the plugin's
+     * {@see LaravelCacheStore} from, so the row cannot name a store the counter
+     * is not in. `(default)` while the option is unset and `cache.default` decides.
      */
     private function rateLimitStore(): string
     {
-        $store = $this->config->get('cache.default');
+        try {
+            $store = $this->rateLimit->store();
+        } catch (InvalidSteamRateLimitStoreException) {
+            return self::INVALID;
+        }
 
-        return is_string($store) ? $store : self::UNKNOWN;
+        if ($store !== null) {
+            return $store;
+        }
+
+        $default = $this->config->get('cache.default');
+
+        return (is_string($default) ? $default : self::UNKNOWN).' (default)';
     }
 
     /**
@@ -288,7 +302,10 @@ final readonly class AboutSection
             );
 
             return $limit?->update($connector->rateLimitStore());
-        } catch (InvalidSteamLanguageException|InvalidSteamHttpOptionException|LimitException|JsonException) {
+        } catch (
+            InvalidSteamLanguageException|InvalidSteamHttpOptionException|InvalidSteamRateLimitStoreException
+            |LimitException|JsonException
+        ) {
             return null;
         }
     }

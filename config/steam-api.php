@@ -64,6 +64,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Rate Limit Store
+    |--------------------------------------------------------------------------
+    |
+    | The cache store holding the daily request counter and the wait after a
+    | 429. Left unset it is the default store, which `cache:clear` flushes —
+    | resetting the count while Steam's own carries on. Name a store from
+    | config/cache.php to keep it apart; one that evicts keys can drop it too.
+    |
+    */
+
+    'rate_limit' => [
+        'store' => env('STEAM_API_RATE_LIMIT_STORE'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Route Model Binding
     |--------------------------------------------------------------------------
     |
