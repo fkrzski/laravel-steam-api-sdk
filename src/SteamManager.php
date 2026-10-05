@@ -20,6 +20,7 @@ use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
 use Fkrzski\SteamApiSdk\Dto\PlayerBan;
 use Fkrzski\SteamApiSdk\Dto\PlayerSummary;
 use Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames;
+use Fkrzski\SteamApiSdk\Dto\SdrConfig;
 use Fkrzski\SteamApiSdk\Dto\UserGroup;
 use Fkrzski\SteamApiSdk\Dto\UserStats;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
@@ -295,6 +296,17 @@ final readonly class SteamManager implements SteamManagerContract
     public function serversAtAddress(string $address): array
     {
         return $this->apps()->serversAtAddress($address);
+    }
+
+    /**
+     * Fetch the Steam Datagram Relay network a game connects through, keyed by
+     * point-of-presence code.
+     *
+     * An app ID Steam does not know raises `AppNotFoundException`.
+     */
+    public function sdrConfig(int $appId): SdrConfig
+    {
+        return $this->apps()->sdrConfig($appId);
     }
 
     /**

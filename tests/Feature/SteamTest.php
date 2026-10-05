@@ -22,10 +22,13 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrConfigFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrPointOfPresenceFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
+use Fkrzski\SteamApiSdk\Dto\SdrConfig;
 use Fkrzski\SteamApiSdk\Enums\EconomyBan;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Enums\Language;
@@ -36,6 +39,7 @@ use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetCommunityBadgeProgressRe
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetRecentlyPlayedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetSteamLevelRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\GetSdrConfigRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\GetServersAtAddressRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\UpToDateCheckRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
@@ -136,6 +140,7 @@ it('sends an anonymous request with no key configured', function (Closure $call,
         ),
         UpToDateCheckRequest::class => SteamResponse::upToDateCheck(AppVersionCheckFactory::new()),
         GetServersAtAddressRequest::class => SteamResponse::serversAtAddress(GameServerFactory::new()),
+        GetSdrConfigRequest::class => SteamResponse::sdrConfig(SdrConfigFactory::new()),
     ]);
 
     $call();
@@ -159,6 +164,10 @@ it('sends an anonymous request with no key configured', function (Closure $call,
     'servers at address' => [
         fn (): array => Steam::serversAtAddress('108.181.62.21'),
         GetServersAtAddressRequest::class,
+    ],
+    'sdr config' => [
+        fn (): SdrConfig => Steam::sdrConfig(appId: 730),
+        GetSdrConfigRequest::class,
     ],
 ]);
 
@@ -721,6 +730,21 @@ it('fetches the servers at an address', function (): void {
     $mock->assertSent(
         fn (GetServersAtAddressRequest $request): bool => $request->address === '108.181.62.21',
     );
+});
+
+it('fetches the sdr config', function (): void {
+    $mock = Steam::fake([
+        GetSdrConfigRequest::class => SteamResponse::sdrConfig(
+            SdrConfigFactory::new()->pointsOfPresence(
+                SdrPointOfPresenceFactory::new(),
+                SdrPointOfPresenceFactory::new()->code('waw'),
+            ),
+        ),
+    ]);
+
+    expect(array_keys(Steam::sdrConfig(appId: 730)->pointsOfPresence))->toBe(['ams', 'waw']);
+
+    $mock->assertSent(fn (GetSdrConfigRequest $request): bool => $request->appId === 730);
 });
 
 // The connector strips the key while booting the pending request, so the request

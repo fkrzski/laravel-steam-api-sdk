@@ -16,6 +16,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBadgesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrConfigFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
@@ -225,6 +226,18 @@ final class SteamResponse
     }
 
     /**
+     * The config sits at the top level, without the `response` wrapper, beside
+     * the `success` flag Steam sends with it.
+     */
+    public static function sdrConfig(SdrConfigFactory $config): MockResponse
+    {
+        return MockResponse::make([
+            ...$config->toArray(),
+            'success' => true,
+        ]);
+    }
+
+    /**
      * A profile that refuses the request outright, raising `ProfileNotPublicException`
      * from `GetFriendList`, `GetUserGroupList` and `GetPlayerSummaries`.
      */
@@ -342,6 +355,19 @@ final class SteamResponse
                 'message' => "Please don't call this API more often than once per minute for a given IP.",
             ],
         ]);
+    }
+
+    /**
+     * An app ID `GetSDRConfig` does not know, the third shape of it after
+     * {@see self::appNotFound()} and {@see self::schemaAppNotFound()}. The request
+     * raises `AppNotFoundException` before the connector can retry the 500.
+     */
+    public static function sdrConfigAppNotFound(): MockResponse
+    {
+        return MockResponse::make([
+            'success' => false,
+            'message' => 'Failed to get appinfo',
+        ], 500);
     }
 
     /**
