@@ -343,6 +343,12 @@ it('reports an unknown budget when an http option is rejected', function (): voi
     expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
 });
 
+it('reports an unknown budget when the rate limit store is not defined', function (): void {
+    config()->set('steam-api.rate_limit.store', 'redis-x');
+
+    expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
+});
+
 it('does not resolve the connector while booting', function (): void {
     config()->set(['steam-api.key' => null]);
 
