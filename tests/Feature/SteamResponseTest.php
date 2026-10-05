@@ -19,6 +19,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrConfigFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrPointOfPresenceFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
@@ -26,6 +27,7 @@ use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
 use Fkrzski\SteamApiSdk\Dto\GameSchema;
 use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
 use Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames;
+use Fkrzski\SteamApiSdk\Dto\SdrConfig;
 use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
 use Fkrzski\SteamApiSdk\Exceptions\AppVersionUnavailableException;
 use Fkrzski\SteamApiSdk\Exceptions\InvalidApiKeyException;
@@ -39,6 +41,7 @@ use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetCommunityBadgeProgressRe
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetOwnedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetRecentlyPlayedGamesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetSteamLevelRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\GetSdrConfigRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\GetServersAtAddressRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\UpToDateCheckRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
@@ -539,6 +542,23 @@ it('feeds a server list back through the facade', function (): void {
         ->and($servers[0]->spectatorPort)->toBeNull();
 });
 
+it('feeds an sdr config back through the facade', function (): void {
+    Steam::fake([
+        GetSdrConfigRequest::class => SteamResponse::sdrConfig(SdrConfigFactory::new()->pointsOfPresence(
+            SdrPointOfPresenceFactory::new()->code('waw')->latitude(52.22)->longitude(21),
+            SdrPointOfPresenceFactory::new()->code('eat')->aliases('mwh')->withoutRelays(),
+        )),
+    ]);
+
+    $pointsOfPresence = Steam::sdrConfig(appId: 730)->pointsOfPresence;
+
+    expect(array_keys($pointsOfPresence))->toBe(['waw', 'eat'])
+        ->and($pointsOfPresence['waw']->latitude)->toBe(52.22)
+        ->and($pointsOfPresence['waw']->longitude)->toBe(21.0)
+        ->and($pointsOfPresence['eat']->aliases)->toBe(['mwh'])
+        ->and($pointsOfPresence['eat']->relays)->toBeEmpty();
+});
+
 // Failures — these pin the contract with the base SDK's exception mapping
 
 it('raises a not public profile from a refused friend list', function (): void {
@@ -657,6 +677,24 @@ it('raises the root exception from a refused server lookup', function (): void {
 
     expect(fn (): array => Steam::serversAtAddress('127.0.0.1'))
         ->toThrow(SteamApiException::class, 'once per minute for a given IP');
+});
+
+it('raises a missing app from an app id the sdr config does not know', function (): void {
+    Steam::fake([GetSdrConfigRequest::class => SteamResponse::sdrConfigAppNotFound()]);
+
+    expect(fn (): SdrConfig => Steam::sdrConfig(appId: 999999999))
+        ->toThrow(AppNotFoundException::class, 'No Steam app found for app ID 999999999.');
+});
+
+it('claims an app the sdr config does not know before the retry loop', function (): void {
+    config()->set(['steam-api.http.retry.tries' => 3]);
+
+    Steam::fake([GetSdrConfigRequest::class => SteamResponse::sdrConfigAppNotFound()]);
+
+    expect(fn (): SdrConfig => Steam::sdrConfig(appId: 999999999))
+        ->toThrow(AppNotFoundException::class);
+
+    Steam::assertSentCount(1);
 });
 
 it('raises an invalid api key from a rejected key', function (): void {

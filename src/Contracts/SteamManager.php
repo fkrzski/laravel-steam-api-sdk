@@ -19,6 +19,7 @@ use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
 use Fkrzski\SteamApiSdk\Dto\PlayerBan;
 use Fkrzski\SteamApiSdk\Dto\PlayerSummary;
 use Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames;
+use Fkrzski\SteamApiSdk\Dto\SdrConfig;
 use Fkrzski\SteamApiSdk\Dto\UserGroup;
 use Fkrzski\SteamApiSdk\Dto\UserStats;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
@@ -206,6 +207,14 @@ interface SteamManager
      * @return list<GameServer>
      */
     public function serversAtAddress(string $address): array;
+
+    /**
+     * Fetch the Steam Datagram Relay network a game connects through, keyed by
+     * point-of-presence code.
+     *
+     * An app ID Steam does not know raises `AppNotFoundException`.
+     */
+    public function sdrConfig(int $appId): SdrConfig;
 
     /**
      * Swap the connector's HTTP client for a Saloon mock, returning it for assertions.
