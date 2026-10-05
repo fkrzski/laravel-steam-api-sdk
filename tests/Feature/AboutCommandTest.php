@@ -100,16 +100,43 @@ it('reports a missing api key instead of masking nothing', function (mixed $key)
     'integer' => 123,
 ]);
 
-it('reports the cache store backing the rate limit', function (): void {
+it('reports the default cache store backing the rate limit', function (): void {
     config()->set('cache.default', 'file');
 
-    expect(steamAboutSection()['rate_limit_store'])->toBe('file');
+    expect(steamAboutSection()['rate_limit_store'])->toBe('file (default)');
 });
 
 it('reports an unknown cache store when the default store is not a name', function (): void {
     config()->set(['cache.default' => null]);
 
-    expect(steamAboutSection()['rate_limit_store'])->toBe('UNKNOWN');
+    expect(steamAboutSection()['rate_limit_store'])->toBe('UNKNOWN (default)');
+});
+
+it('names the configured rate limit store', function (string $store): void {
+    config()->set([
+        'cache.stores.steam' => ['driver' => 'array'],
+        'steam-api.rate_limit.store' => $store,
+    ]);
+
+    expect(steamAboutSection()['rate_limit_store'])->toBe('steam');
+})->with([
+    'as written' => 'steam',
+    'surrounded by whitespace' => '  steam  ',
+]);
+
+it('reports the default cache store for a blank rate limit store', function (string $store): void {
+    config()->set('steam-api.rate_limit.store', $store);
+
+    expect(steamAboutSection()['rate_limit_store'])->toBe('array (default)');
+})->with([
+    'empty string' => '',
+    'whitespace only' => '   ',
+]);
+
+it('reports a rate limit store the cache config does not define as invalid', function (): void {
+    config()->set('steam-api.rate_limit.store', 'redis-x');
+
+    expect(steamAboutSection()['rate_limit_store'])->toBe('INVALID');
 });
 
 it('reports the untouched daily request budget', function (): void {
