@@ -11,9 +11,13 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitStoreException;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
 use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
 use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
+use Fkrzski\SteamApiSdk\Exceptions\AppVersionUnavailableException;
 use Fkrzski\SteamApiSdk\Exceptions\InvalidApiKeyException;
+use Fkrzski\SteamApiSdk\Exceptions\InvalidServerAddressException;
 use Fkrzski\SteamApiSdk\Exceptions\ProfileNotPublicException;
 use Fkrzski\SteamApiSdk\Exceptions\StatsUnavailableException;
+use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
+use Fkrzski\SteamApiSdk\Exceptions\SteamConnectionException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamUserNotFoundException;
 use Fkrzski\SteamApiSdk\Exceptions\TooManySteamIdsException;
@@ -24,7 +28,9 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
  * Turns an unhandled Steam failure into the HTTP response it deserves.
@@ -48,19 +54,26 @@ final readonly class SteamExceptionRenderer
      */
     private const string SERVER_ERROR = 'Server Error';
 
+    /**
+     * What a 503 says instead of the exception message: base 0.7.0 quotes
+     * Guzzle's reason for a failed connection, request URI and API key included.
+     */
+    private const string SERVICE_UNAVAILABLE = 'Service Unavailable';
+
     public function __construct(
         private ExceptionHandler $handler,
         private ConfigRepository $config,
     ) {}
 
     /**
-     * No such user, no such app, or no stats for that game.
+     * No such user, no such app, no stats for that game, or no server version.
      *
      * Stats are ambiguous — the game exposes none, or the profile hides them —
-     * so all three answer 404 and none says which.
+     * and so is a version check — no such app, or one publishing no server
+     * version — so all of them answer 404 and none says which.
      */
     public function notFound(
-        SteamUserNotFoundException|StatsUnavailableException|AppNotFoundException $e,
+        SteamUserNotFoundException|StatsUnavailableException|AppNotFoundException|AppVersionUnavailableException $e,
         Request $request,
     ): Response {
         return $this->handler->render($request, new NotFoundHttpException($e->getMessage(), $e));
@@ -69,6 +82,15 @@ final readonly class SteamExceptionRenderer
     public function forbidden(ProfileNotPublicException $e, Request $request): Response
     {
         return $this->handler->render($request, new AccessDeniedHttpException($e->getMessage(), $e));
+    }
+
+    /**
+     * The server address is input, typically a route parameter, and Steam
+     * rejected its format.
+     */
+    public function unprocessable(InvalidServerAddressException $e, Request $request): Response
+    {
+        return $this->handler->render($request, new UnprocessableEntityHttpException($e->getMessage(), $e));
     }
 
     /**
@@ -84,6 +106,28 @@ final readonly class SteamExceptionRenderer
         return $this->handler->render($request, new TooManyRequestsHttpException(
             max(1, $e->limit->getRemainingSeconds()),
             $e->getMessage(),
+            $e,
+        ));
+    }
+
+    /**
+     * Steam never answered, or answered with a 5xx until the retries ran out.
+     *
+     * The base SDK raises the second as the root type, so this callback sees
+     * every subclass nothing else rendered and has to hand each of them back.
+     */
+    public function unavailable(SteamApiException $e, Request $request): ?Response
+    {
+        $unreachable = $e instanceof SteamConnectionException
+            || ($e::class === SteamApiException::class && $e->response?->serverError() === true);
+
+        if (! $unreachable) {
+            return null;
+        }
+
+        return $this->handler->render($request, new ServiceUnavailableHttpException(
+            null,
+            self::SERVICE_UNAVAILABLE,
             $e,
         ));
     }

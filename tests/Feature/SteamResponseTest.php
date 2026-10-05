@@ -35,6 +35,7 @@ use Fkrzski\SteamApiSdk\Exceptions\InvalidServerAddressException;
 use Fkrzski\SteamApiSdk\Exceptions\ProfileNotPublicException;
 use Fkrzski\SteamApiSdk\Exceptions\StatsUnavailableException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
+use Fkrzski\SteamApiSdk\Exceptions\SteamConnectionException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamUserNotFoundException;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetBadgesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetCommunityBadgeProgressRequest;
@@ -716,4 +717,31 @@ it('raises an invalid api key from a request sent without one', function (): voi
 
     expect(fn (): array => Steam::summaries([fakedId()]))
         ->toThrow(InvalidApiKeyException::class);
+});
+
+it('raises a connection failure from a request that never reaches steam', function (): void {
+    Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::connectionFailed()]);
+
+    expect(fn (): array => Steam::summaries([fakedId()]))->toThrow(
+        SteamConnectionException::class,
+        'Could not reach the Steam Web API: cURL error 28: Operation timed out after 10000 milliseconds',
+    );
+});
+
+it('retries a connection failure without recording any attempt', function (): void {
+    config()->set(['steam-api.http.retry.tries' => 3]);
+
+    $attempts = 0;
+
+    Steam::fake([
+        GetPlayerSummariesRequest::class => function () use (&$attempts): MockResponse {
+            $attempts++;
+
+            return SteamResponse::connectionFailed();
+        },
+    ]);
+
+    expect(fn (): array => Steam::summaries([fakedId()]))->toThrow(SteamConnectionException::class)
+        ->and($attempts)->toBe(3)
+        ->and(Steam::recorded())->toBeEmpty();
 });
