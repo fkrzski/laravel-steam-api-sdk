@@ -18,6 +18,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrConfigFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
@@ -253,6 +254,13 @@ it('answers an address with no servers with steams message', function (): void {
     ]);
 });
 
+it('puts the sdr config at the top level beside a success flag', function (): void {
+    expect(bodyOf(SteamResponse::sdrConfig(SdrConfigFactory::new())))->toBe([
+        ...SdrConfigFactory::new()->toArray(),
+        'success' => true,
+    ]);
+});
+
 it('refuses a request outright with a 401', function (): void {
     expect(SteamResponse::profileNotPublic()->status())->toBe(401)
         ->and(bodyOf(SteamResponse::profileNotPublic()))->toBe(['message' => 'Access is denied.']);
@@ -320,6 +328,14 @@ it('reports a refused server lookup in the body, not the status', function (): v
                 'success' => false,
                 'message' => "Please don't call this API more often than once per minute for a given IP.",
             ],
+        ]);
+});
+
+it('reports an app the sdr config does not know with a 500', function (): void {
+    expect(SteamResponse::sdrConfigAppNotFound()->status())->toBe(500)
+        ->and(bodyOf(SteamResponse::sdrConfigAppNotFound()))->toBe([
+            'success' => false,
+            'message' => 'Failed to get appinfo',
         ]);
 });
 

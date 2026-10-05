@@ -19,6 +19,9 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SchemaAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SchemaStatFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrConfigFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrPointOfPresenceFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrRelayFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatFactory;
@@ -49,6 +52,9 @@ mutates(
     RecentlyPlayedGamesFactory::class,
     SchemaAchievementFactory::class,
     SchemaStatFactory::class,
+    SdrConfigFactory::class,
+    SdrPointOfPresenceFactory::class,
+    SdrRelayFactory::class,
     UserGroupFactory::class,
     UserStatAchievementFactory::class,
     UserStatFactory::class,
@@ -1103,4 +1109,156 @@ it('reads a zero spectator port as no port at all', function (): void {
 
 it('overrides arbitrary game server keys through state', function (): void {
     expect(GameServerFactory::new()->state(['gamedir' => 'rust'])->make()->gameDir)->toBe('rust');
+});
+
+// SdrRelayFactory
+
+it('builds a relay payload', function (): void {
+    expect(SdrRelayFactory::new()->toArray())->toBe([
+        'ipv4' => '155.133.248.36',
+        'port_range' => [27015, 27060],
+    ]);
+});
+
+it('maps a relay payload onto the dto', function (): void {
+    $relay = SdrRelayFactory::new()->make();
+
+    expect($relay->ipv4)->toBe('155.133.248.36')
+        ->and($relay->minPort)->toBe(27015)
+        ->and($relay->maxPort)->toBe(27060);
+});
+
+it('overrides the relay address and ports', function (): void {
+    $relay = SdrRelayFactory::new()->ipv4('155.133.230.98')->ports(minPort: 27015, maxPort: 27030);
+
+    expect($relay->toArray()['port_range'])->toBe([27015, 27030]);
+
+    $relay = $relay->make();
+
+    expect($relay->ipv4)->toBe('155.133.230.98')
+        ->and($relay->minPort)->toBe(27015)
+        ->and($relay->maxPort)->toBe(27030);
+});
+
+it('overrides arbitrary relay keys through state', function (): void {
+    expect(SdrRelayFactory::new()->state(['ipv4' => '155.133.230.99'])->make()->ipv4)->toBe('155.133.230.99');
+});
+
+// SdrPointOfPresenceFactory
+
+it('builds a point of presence payload without its code', function (): void {
+    expect(SdrPointOfPresenceFactory::new()->toArray())->toBe([
+        'desc' => 'Amsterdam (Netherlands)',
+        'geo' => [4.9, 52.37],
+        'relays' => [SdrRelayFactory::new()->toArray()],
+    ]);
+});
+
+it('maps a point of presence payload onto the dto', function (): void {
+    $pointOfPresence = SdrPointOfPresenceFactory::new()->make();
+
+    expect($pointOfPresence->code)->toBe('ams')
+        ->and($pointOfPresence->description)->toBe('Amsterdam (Netherlands)')
+        ->and($pointOfPresence->latitude)->toBe(52.37)
+        ->and($pointOfPresence->longitude)->toBe(4.9)
+        ->and($pointOfPresence->aliases)->toBeEmpty()
+        ->and($pointOfPresence->relays)->toHaveCount(1)
+        ->and($pointOfPresence->relays[0]->ipv4)->toBe('155.133.248.36');
+});
+
+it('writes the coordinates in valves longitude, latitude order', function (): void {
+    $pointOfPresence = SdrPointOfPresenceFactory::new()->latitude(52.22)->longitude(21.0);
+
+    expect($pointOfPresence->toArray()['geo'])->toBe([21.0, 52.22])
+        ->and($pointOfPresence->make()->latitude)->toBe(52.22)
+        ->and($pointOfPresence->make()->longitude)->toBe(21.0);
+});
+
+it('keeps the other coordinate when setting one', function (): void {
+    expect(SdrPointOfPresenceFactory::new()->latitude(1.5)->toArray()['geo'])->toBe([4.9, 1.5])
+        ->and(SdrPointOfPresenceFactory::new()->longitude(2.5)->toArray()['geo'])->toBe([2.5, 52.37]);
+});
+
+it('overrides the point of presence code and description', function (): void {
+    $pointOfPresence = SdrPointOfPresenceFactory::new()->code('waw')->description('Warsaw (Poland)');
+
+    expect($pointOfPresence->code)->toBe('waw')
+        ->and($pointOfPresence->toArray())->not->toHaveKey('code')
+        ->and($pointOfPresence->make()->code)->toBe('waw')
+        ->and($pointOfPresence->make()->description)->toBe('Warsaw (Poland)');
+});
+
+it('adds aliases to a point of presence', function (): void {
+    $pointOfPresence = SdrPointOfPresenceFactory::new()->aliases('mwh', 'wnt');
+
+    expect($pointOfPresence->toArray()['aliases'])->toBe(['mwh', 'wnt'])
+        ->and($pointOfPresence->make()->aliases)->toBe(['mwh', 'wnt']);
+});
+
+it('replaces the relays of a point of presence', function (): void {
+    $relays = SdrPointOfPresenceFactory::new()->relays(
+        SdrRelayFactory::new(),
+        SdrRelayFactory::new()->ipv4('155.133.248.37'),
+    )->make()->relays;
+
+    expect($relays)->toHaveCount(2)
+        ->and($relays[0]->ipv4)->toBe('155.133.248.36')
+        ->and($relays[1]->ipv4)->toBe('155.133.248.37');
+});
+
+it('drops the relays key from a point of presence without relays', function (): void {
+    $pointOfPresence = SdrPointOfPresenceFactory::new()->withoutRelays();
+
+    expect($pointOfPresence->toArray())->not->toHaveKey('relays')
+        ->and($pointOfPresence->make()->relays)->toBeEmpty();
+});
+
+it('keeps the point of presence code through state and a dropped key', function (): void {
+    $pointOfPresence = SdrPointOfPresenceFactory::new()->code('eat');
+
+    expect($pointOfPresence->state(['desc' => 'Wenatchee (Washington)'])->code)->toBe('eat')
+        ->and($pointOfPresence->withoutRelays()->code)->toBe('eat');
+});
+
+it('overrides arbitrary point of presence keys through state', function (): void {
+    expect(SdrPointOfPresenceFactory::new()->state(['desc' => 'Wenatchee (Washington)'])->make()->description)
+        ->toBe('Wenatchee (Washington)');
+});
+
+// SdrConfigFactory
+
+it('builds an sdr config payload', function (): void {
+    expect(SdrConfigFactory::new()->toArray())->toBe([
+        'revision' => 1790374330,
+        'pops' => ['ams' => SdrPointOfPresenceFactory::new()->toArray()],
+    ]);
+});
+
+it('maps an sdr config payload onto the dto', function (): void {
+    $config = SdrConfigFactory::new()->make();
+
+    expect($config->revision)->toBe(1790374330)
+        ->and(array_keys($config->pointsOfPresence))->toBe(['ams'])
+        ->and($config->pointsOfPresence['ams']->code)->toBe('ams');
+});
+
+it('keys each point of presence by its own code', function (): void {
+    $config = SdrConfigFactory::new()->pointsOfPresence(
+        SdrPointOfPresenceFactory::new(),
+        SdrPointOfPresenceFactory::new()->code('waw'),
+    );
+
+    expect($config->toArray()['pops'])->toBe([
+        'ams' => SdrPointOfPresenceFactory::new()->toArray(),
+        'waw' => SdrPointOfPresenceFactory::new()->toArray(),
+    ])
+        ->and($config->make()->pointsOfPresence['waw']->code)->toBe('waw');
+});
+
+it('overrides the sdr config revision', function (): void {
+    expect(SdrConfigFactory::new()->revision(1790374331)->make()->revision)->toBe(1790374331);
+});
+
+it('overrides arbitrary sdr config keys through state', function (): void {
+    expect(SdrConfigFactory::new()->state(['pops' => []])->make()->pointsOfPresence)->toBeEmpty();
 });
