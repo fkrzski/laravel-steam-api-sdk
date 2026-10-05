@@ -20,7 +20,10 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrConfigFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use GuzzleHttp\Exception\ConnectException;
+use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Http\Faking\MockResponse;
+use Saloon\Http\PendingRequest;
 
 /**
  * Wraps the factory payloads in the envelope each Steam endpoint answers with.
@@ -405,6 +408,25 @@ final class SteamResponse
         return MockResponse::make(
             "<html><head><title>Bad Request</title></head><body><h1>Bad Request</h1>Please verify that all required parameters are being sent.<pre>Parameter 'key' is missing</pre></body></html>",
             400,
+        );
+    }
+
+    /**
+     * A request that never reaches Steam, retried like a real outage and raised as
+     * `SteamConnectionException` once the tries are spent. Saloon throws it before
+     * recording a response, so `Steam::recorded()` and the `assertSent` family never
+     * see the attempt.
+     */
+    public static function connectionFailed(): MockResponse
+    {
+        return MockResponse::make()->throw(
+            static fn (PendingRequest $pendingRequest): FatalRequestException => new FatalRequestException(
+                new ConnectException(
+                    'cURL error 28: Operation timed out after 10000 milliseconds',
+                    $pendingRequest->createPsrRequest(),
+                ),
+                $pendingRequest,
+            ),
         );
     }
 }
