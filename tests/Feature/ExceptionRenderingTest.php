@@ -9,7 +9,12 @@ use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
+use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
+use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\GetSdrConfigRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\GetServersAtAddressRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\UpToDateCheckRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetUserGroupListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
@@ -18,6 +23,7 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsReque
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Foundation\Exceptions\Handler;
 use Illuminate\Support\Facades\Route;
+use Saloon\Http\Faking\MockResponse;
 use Saloon\RateLimitPlugin\Limit;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -83,12 +89,38 @@ it('renders an app id steam does not know as a 404', function (): void {
         ->assertJsonPath('message', 'No Steam app found for app ID 1.');
 });
 
+it('renders an app steam cannot check for updates as a 404', function (): void {
+    Steam::fake([UpToDateCheckRequest::class => SteamResponse::appVersionUnavailable()]);
+
+    Route::get('steam/version', fn (): bool => Steam::upToDateCheck(999999999, 1)->isUpToDate);
+
+    $this->getJson('steam/version')
+        ->assertNotFound()
+        ->assertJsonPath(
+            'message',
+            'Steam cannot check app 999999999 for updates: no app has that ID, or it publishes no server version.',
+        );
+});
+
 it('renders a private profile as a 403', function (): void {
     Steam::fake([GetUserGroupListRequest::class => SteamResponse::profileNotPublic()]);
 
     Route::get('steam/groups', fn (): array => Steam::groups(steamId()));
 
     $this->getJson('steam/groups')->assertForbidden();
+});
+
+it('renders a rejected server address as a 422', function (): void {
+    Steam::fake([GetServersAtAddressRequest::class => SteamResponse::invalidServerAddress()]);
+
+    Route::get('steam/servers', fn (): array => Steam::serversAtAddress('not-an-ip'));
+
+    $this->getJson('steam/servers')
+        ->assertUnprocessable()
+        ->assertJsonPath(
+            'message',
+            'Steam rejected "not-an-ip" as a server address: it takes an IPv4 address, optionally with a query port.',
+        );
 });
 
 it('renders a spent quota as a 429 carrying Retry-After', function (): void {
@@ -111,6 +143,81 @@ it('still sends a Retry-After for a window that already closed', function (): vo
 
     expect($response->getStatusCode())->toBe(429)
         ->and($response->headers->get('Retry-After'))->toBe('1');
+});
+
+it('renders an unreachable steam as a 503 that keeps the reason out', function (): void {
+    config()->set('app.debug', false);
+
+    Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::connectionFailed()]);
+
+    Route::get('steam/summaries', fn (): array => Steam::summaries([steamId()]));
+
+    $this->getJson('steam/summaries')
+        ->assertServiceUnavailable()
+        ->assertExactJson(['message' => 'Service Unavailable']);
+});
+
+it('renders a 5xx that outlasted the retries as a 503', function (): void {
+    config()->set(['app.debug' => false, 'steam-api.http.retry.tries' => 2]);
+
+    Steam::fake([GetPlayerSummariesRequest::class => MockResponse::make([], 502)]);
+
+    Route::get('steam/summaries', fn (): array => Steam::summaries([steamId()]));
+
+    $this->getJson('steam/summaries')
+        ->assertServiceUnavailable()
+        ->assertExactJson(['message' => 'Service Unavailable']);
+
+    Steam::assertSentCount(2);
+});
+
+it('still renders an unreachable steam as a 503 while debugging', function (): void {
+    config()->set('app.debug', true);
+
+    Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::connectionFailed()]);
+
+    Route::get('steam/summaries', fn (): array => Steam::summaries([steamId()]));
+
+    $this->getJson('steam/summaries')->assertServiceUnavailable();
+});
+
+it('leaves a rejected key to the debug page rather than a 503', function (): void {
+    config()->set('app.debug', true);
+
+    Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::invalidApiKey()]);
+
+    Route::get('steam/summaries', fn (): array => Steam::summaries([steamId()]));
+
+    $this->getJson('steam/summaries')->assertStatus(500);
+});
+
+it('leaves a root failure steam answered without a 5xx as a 500', function (): void {
+    config()->set('app.debug', false);
+
+    Steam::fake([GetServersAtAddressRequest::class => SteamResponse::serversAtAddressRefused()]);
+
+    Route::get('steam/servers', fn (): array => Steam::serversAtAddress('127.0.0.1'));
+
+    $this->getJson('steam/servers')->assertStatus(500);
+});
+
+it('hands back a root failure that carries no response', function (): void {
+    expect(renderer()->unavailable(new SteamApiException('Something failed.'), request()))->toBeNull();
+});
+
+it('hands back a subclass that carries a 5xx', function (): void {
+    Steam::fake([GetSdrConfigRequest::class => SteamResponse::sdrConfigAppNotFound()]);
+
+    try {
+        Steam::sdrConfig(999999999);
+    } catch (AppNotFoundException $appNotFoundException) {
+        expect($appNotFoundException->response?->status())->toBe(500)
+            ->and(renderer()->unavailable($appNotFoundException, request()))->toBeNull();
+
+        return;
+    }
+
+    throw new RuntimeException('Expected the lookup to fail.');
 });
 
 it('renders a rejected api key as a 500, not the status steam sent', function (): void {
@@ -198,6 +305,18 @@ it('leaves the failure alone once rendering is turned off', function (): void {
     Route::get('steam/vanity', fn (): string => Steam::resolveVanityUrl('nobody')->value);
 
     $this->getJson('steam/vanity')->assertStatus(500);
+});
+
+it('leaves an unreachable steam alone once rendering is turned off', function (): void {
+    config()->set(['app.debug' => false, 'steam-api.exceptions.render' => false]);
+
+    bootExceptionRenderers();
+
+    Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::connectionFailed()]);
+
+    Route::get('steam/summaries', fn (): array => Steam::summaries([steamId()]));
+
+    $this->getJson('steam/summaries')->assertStatus(500);
 });
 
 // mergeConfigFrom() is shallow, so a config published before the key existed

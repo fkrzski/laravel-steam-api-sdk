@@ -119,6 +119,8 @@ final class SteamServiceProvider extends ServiceProvider
             $handler->renderable($renderer->notFound(...));
             $handler->renderable($renderer->forbidden(...));
             $handler->renderable($renderer->rateLimited(...));
+            $handler->renderable($renderer->unprocessable(...));
+            $handler->renderable($renderer->unavailable(...));
         });
     }
 
