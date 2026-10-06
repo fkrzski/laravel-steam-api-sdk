@@ -11,12 +11,13 @@ Every method here lives on the `Steam` facade
 identify a user and return readonly DTOs from the underlying SDK, documented in
 [Data objects](/php-steam-api-sdk/dto-reference).
 
-<Aside title="Three exceptions every request can raise">
+<Aside title="Four exceptions every request can raise">
 `ApiKeyNotConfiguredException` (no key configured), `InvalidApiKeyException` (Steam
-rejected it) and `SteamRateLimitException` (daily quota spent). The first one skips
-`currentPlayers()` and `globalAchievements()`, which Steam serves without a key. They
-are listed per method only where a helper raises them on its own, and every exception
-below extends `SteamApiException`.
+rejected it), `SteamRateLimitException` (daily quota spent) and `SteamConnectionException`
+(Steam never answered, once the [retries](/laravel-steam-api-sdk/configuration#timeouts-and-retries)
+are spent). The first one skips `currentPlayers()`, `globalAchievements()` and the three
+ISteamApps helpers, which Steam serves without a key. They are listed per method only where
+a helper raises them on its own, and every exception below extends `SteamApiException`.
 </Aside>
 
 <Aside type="caution" title="The language argument is an enum since 0.6.0">
@@ -278,6 +279,50 @@ foreach ($schema->achievements as $achievement) {
 }
 ```
 
+### `sdrConfig()`
+
+```text frame="none"
+Steam::sdrConfig(int $appId): SdrConfig
+```
+
+<Badge text="throws AppNotFoundException" variant="danger" size="small" />
+
+Returns the Steam Datagram Relay network a game connects through, its points of presence
+keyed by code. A game without a network of its own gets Valve's default one. Steam serves
+it without a key, and answers an app ID it does not know with a `500` that raises at once,
+however many tries the connector allows.
+
+```php
+$config = Steam::sdrConfig(appId: 730);
+
+foreach ($config->pointsOfPresence['waw']->relays as $relay) {
+    echo $relay->ipv4, ':', $relay->minPort, '-', $relay->maxPort, PHP_EOL;
+}
+```
+
+### `serversAtAddress()`
+
+```text frame="none"
+Steam::serversAtAddress(string $address): list<GameServer>
+```
+
+<Badge text="throws InvalidServerAddressException" variant="danger" size="small" />
+
+Lists the game servers Steam knows at an IPv4 address, or only the one behind
+`ip:queryport`. An address with no servers returns an empty list, and no key goes out.
+
+```php
+foreach (Steam::serversAtAddress('108.181.62.21') as $server) {
+    echo $server->address, ' runs app ', $server->appId, PHP_EOL;
+}
+```
+
+<Aside type="caution" title="The port is the query port">
+The game port or the SourceTV port finds nothing, and an IPv6 address or a hostname raises.
+Steam refuses to look some addresses up at all, with a "once per minute" message that
+arrives as `SteamApiException` itself.
+</Aside>
+
 ### `steamLevel()`
 
 ```text frame="none"
@@ -314,6 +359,27 @@ foreach ($summaries as $summary) {
 }
 ```
 
+### `upToDateCheck()`
+
+```text frame="none"
+Steam::upToDateCheck(int $appId, int $version): AppVersionCheck
+```
+
+<Badge text="throws AppVersionUnavailableException" variant="danger" size="small" />
+
+Tells a game server whether its build is still the one Steam accepts, and which version to
+update to if not. Steam serves it without a key, and answers an app ID it does not know
+exactly like a game publishing no server version, so both raise. App ID `0` gets a `400`,
+which arrives as `SteamApiException` itself.
+
+```php
+$check = Steam::upToDateCheck(appId: 440, version: $installedVersion);
+
+if (! $check->isUpToDate) {
+    echo 'Update to ', $check->requiredVersion, ': ', $check->message, PHP_EOL;
+}
+```
+
 ### `userStats()`
 
 ```text frame="none"
@@ -336,10 +402,11 @@ foreach ($stats->stats as $stat) {
 ## Resources
 
 The base SDK groups its endpoints into one resource per Steam interface, and the facade
-hands each back as the connector builds it — `PlayersResource`, `StatsResource` and
-`UsersResource` from `Fkrzski\SteamApiSdk\Http\Resources`.
+hands each back as the connector builds it — `AppsResource`, `PlayersResource`,
+`StatsResource` and `UsersResource` from `Fkrzski\SteamApiSdk\Http\Resources`.
 
 ```text frame="none"
+Steam::apps(): AppsResource
 Steam::players(): PlayersResource
 Steam::stats(): StatsResource
 Steam::users(): UsersResource
@@ -355,6 +422,7 @@ Steam::users()->summaries([$steamId]);  // the resource behind it
 
 | Resource | Steam interface | Methods |
 | --- | --- | --- |
+| `Steam::apps()` | `ISteamApps` | `sdrConfig()`, `serversAtAddress()`, `upToDateCheck()` |
 | `Steam::players()` | `IPlayerService` | `badges()`, `communityBadgeProgress()`, `ownedGames()`, `recentlyPlayedGames()`, `steamLevel()` |
 | `Steam::stats()` | `ISteamUserStats` | `achievements()`, `currentPlayers()`, `globalAchievements()`, `schema()`, `userStats()` |
 | `Steam::users()` | `ISteamUser` | `bans()`, `friends()`, `groups()`, `resolveVanityUrl()`, `summaries()` |
@@ -381,17 +449,17 @@ resolved it. See [The connector binding](/laravel-steam-api-sdk/configuration#th
 ### `fake()`
 
 ```text frame="none"
-Steam::fake(array<class-string, mixed> $responses = []): Saloon\Http\Faking\MockClient
+Steam::fake(array<class-string, mixed> $responses = []): SteamFake
 ```
 
 <Badge text="throws FakeOutsideTestsException" variant="danger" size="small" />
 
-Attaches a Saloon `MockClient` to the connector and returns it for assertions.
-Refused unless the application environment is `testing`. The same assertions and
-readers sit on the facade — see [Test assertions](#test-assertions) and
-[Recorded traffic](#recorded-traffic) — so the return value is only worth keeping
-for the rest of the mock's API. See
-[Testing](/laravel-steam-api-sdk/testing).
+Attaches `Testing\SteamFake`, a Saloon `MockClient`, to the connector and returns it.
+Refused unless the application environment is `testing`. Its `apps()`, `players()`,
+`stats()` and `users()` fake each endpoint by name and hand the mock back — see
+[Faking responses](/laravel-steam-api-sdk/testing#faking-responses). The assertions and
+readers sit on the facade too, under [Test assertions](#test-assertions) and
+[Recorded traffic](#recorded-traffic).
 
 ### `pool()`
 

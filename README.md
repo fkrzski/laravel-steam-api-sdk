@@ -13,10 +13,11 @@ It powers the [player stats](https://deadbystats.eu) on
 [Dead by Stats](https://deadbystats.eu).
 
 - Auto-discovered `SteamConnector` binding, scoped per request and safe under Octane.
-- Rate-limit budget shared across processes through the Laravel cache store.
+- Rate-limit budget shared across processes through a Laravel cache store of your choosing.
+- Timeouts and retries from the config file, and queue middleware that holds a job back once the daily budget is spent.
 - Fluent `Steam` facade with first-class request helpers.
 - Localised payloads follow your application locale, or the language you pin in config.
-- `AsSteamId` Eloquent cast, `SteamIdRule` validation rule and one-liner test fakes via Saloon's `MockClient`, with DTO factories for the payloads.
+- `AsSteamId` Eloquent cast, `SteamIdRule` validation rule and one-liner test fakes that mirror the resources — `Steam::fake()->users()->summaries(...)` — with DTO factories for the payloads.
 
 ## Requirements
 
@@ -68,6 +69,9 @@ $playing      = Steam::currentPlayers(appId: 381210);
 $globalStats  = Steam::globalAchievements(gameId: 381210);
 $gameSchema   = Steam::schema(appId: 381210);
 $resolvedId   = Steam::resolveVanityUrl('gabelogannewell');
+$versionCheck = Steam::upToDateCheck(appId: 440, version: $installedVersion);
+$servers      = Steam::serversAtAddress('108.181.62.21');
+$relayNetwork = Steam::sdrConfig(appId: 730);
 ```
 
 Each helper returns a strongly-typed DTO from the underlying SDK — you never touch raw JSON.
@@ -77,7 +81,7 @@ Each helper returns a strongly-typed DTO from the underlying SDK — you never t
 Full documentation lives at **[docs.fkrzski.dev/laravel-steam-api-sdk](https://docs.fkrzski.dev/laravel-steam-api-sdk)**:
 
 - [Guide](https://docs.fkrzski.dev/laravel-steam-api-sdk/guide) — the `SteamId` value object, facade helpers, exceptions, and concurrent requests.
-- [Configuration](https://docs.fkrzski.dev/laravel-steam-api-sdk/configuration) — the config file, your API key, and the cache-backed rate limit.
+- [Configuration](https://docs.fkrzski.dev/laravel-steam-api-sdk/configuration) — the config file, your API key, timeouts and retries, the cache-backed rate limit and queued jobs.
 - [API reference](https://docs.fkrzski.dev/laravel-steam-api-sdk/api-reference) — every facade method, its parameters, return type, and errors.
 - [Eloquent cast](https://docs.fkrzski.dev/laravel-steam-api-sdk/eloquent-cast) — persist a Steam ID on a model with `AsSteamId`.
 - [Route binding](https://docs.fkrzski.dev/laravel-steam-api-sdk/route-binding) — opt in to resolving a `{steamId}` route parameter into a `SteamId` value object.

@@ -18,8 +18,12 @@ JSON. It powers the [player stats](https://deadbystats.eu) on
 
 - **Auto-discovered facade** — the `Steam` facade and its `SteamConnector` binding
   register themselves, scoped per request and safe under Octane.
-- **Shared rate-limit budget** — the daily quota lives in your Laravel cache store,
-  so every process draws on one counter.
+- **Shared rate-limit budget** — the daily quota lives in a Laravel cache store you
+  pick, so every process draws on one counter.
+- **Timeouts and retries** — set in the config file; Steam unreachable or answering a
+  `5xx` is tried again, every other failure is thrown at once.
+- **Queue middleware** — `RespectsSteamRateLimit` releases a job until the daily
+  window resets rather than letting it fail.
 - **First-class request helpers** — `summaries()`, `ownedGames()`,
   `userStats()` and the rest return typed DTOs.
 - **Locale-aware language** — localised payloads follow `app()->getLocale()` through
@@ -32,8 +36,8 @@ JSON. It powers the [player stats](https://deadbystats.eu) on
   maps to, and never with the one Steam sent for a key of yours it rejected.
 - **Validation rule** — [`SteamIdRule`](/laravel-steam-api-sdk/validation) validates
   a submitted ID or profile URL without touching the API.
-- **One-liner fakes** — `Steam::fake()` swaps in Saloon's `MockClient`, with DTO
-  factories and `SteamResponse` builders for the payloads, and `Steam::assertSent()`
+- **One-liner fakes** — `Steam::fake()->users()->summaries()` fakes an endpoint the
+  way your code calls it, with DTO factories for the payloads, and `Steam::assertSent()`
   for the requests that went out.
 
 ## Requirements
