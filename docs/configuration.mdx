@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: Configure the Steam bridge — the published config file, your Steam Web API key, the default language, and the cache-backed rate-limit budget.
+description: Configure the Steam bridge — the config file, your Steam Web API key, the default language, timeouts and retries, and the rate-limit budget.
 ---
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -59,12 +59,30 @@ This writes `config/steam-api.php`:
 return [
 
     // Your Steam Web API key, obtained from https://steamcommunity.com/dev.
-    // Sent as the "key" query parameter on every request to api.steampowered.com.
+    // Sent as the "key" query parameter on every request that needs one.
     'key' => env('STEAM_API_KEY'),
 
     // Steam's own language code, sent on every request whose payload is
     // localised. Unset, it follows the application locale.
     'language' => env('STEAM_API_LANGUAGE'),
+
+    // How long to wait on Steam, in seconds, and how many attempts a request
+    // Steam never answered, or answered with a 5xx, gets in all.
+    'http' => [
+        'connect_timeout' => env('STEAM_API_CONNECT_TIMEOUT'),
+        'request_timeout' => env('STEAM_API_REQUEST_TIMEOUT'),
+
+        'retry' => [
+            'tries' => env('STEAM_API_RETRY_TRIES', 1),
+            'interval' => env('STEAM_API_RETRY_INTERVAL', 0),
+            'exponential_backoff' => env('STEAM_API_RETRY_EXPONENTIAL_BACKOFF', false),
+        ],
+    ],
+
+    // The cache store holding the daily request counter. Unset, the default one.
+    'rate_limit' => [
+        'store' => env('STEAM_API_RATE_LIMIT_STORE'),
+    ],
 
     // Resolve a route parameter into a SteamId value object. Opt-in. See the
     // route binding guide for details.
@@ -85,22 +103,23 @@ return [
 ## The API key
 
 Set the key in `.env`. It is read through `config('steam-api.key')` and appended to
-every request, so you never pass it per call:
+every request that needs one, so you never pass it per call:
 
 ```dotenv title=".env"
 STEAM_API_KEY=your-steam-web-api-key
 ```
 
-Get one from the [Steam Web API dashboard](https://steamcommunity.com/dev). With the
-key unset — or present but blank — a request that needs one raises the base SDK's
-`ApiKeyNotConfiguredException`. Its message says to pass a key to `SteamConfig`, which
-here means setting `STEAM_API_KEY`, or `steam-api.key` directly.
+Get one from the [Steam Web API dashboard](https://steamcommunity.com/dev). The key is
+optional: Steam serves `currentPlayers()`, `globalAchievements()`, `sdrConfig()`,
+`serversAtAddress()` and `upToDateCheck()` anonymously, so those go out without one. With
+the key unset — or present but blank — any other request raises the base SDK's
+`ApiKeyNotConfiguredException`. Its message says to pass a key to `SteamConfig`, which here
+means setting `STEAM_API_KEY`, or `steam-api.key` directly.
 
 <Aside title="The check runs per request, on purpose">
 It fires as a request that needs a key is sent, before it goes out — not at boot, and not
 when the connector is built — so an application boots, caches its config and publishes the
-config file before a key exists. `Steam::currentPlayers()` and `Steam::globalAchievements()`
-never trip it: Steam serves those two anonymously.
+config file before a key exists.
 </Aside>
 
 <Aside type="caution" title="SteamApiKeyMissingException is gone since 0.7.0">
@@ -155,6 +174,43 @@ The connector is scoped, so it reads the locale when it is first built — a lat
 `App::setLocale()` does not reach it. Pass `language:` to the call to switch mid-request.
 </Aside>
 
+## Timeouts and retries
+
+The `http` block sets how long the connector waits on Steam and how many times it tries,
+each option from its own variable:
+
+```dotenv title=".env"
+STEAM_API_CONNECT_TIMEOUT=3
+STEAM_API_REQUEST_TIMEOUT=60
+STEAM_API_RETRY_TRIES=3
+STEAM_API_RETRY_INTERVAL=500
+STEAM_API_RETRY_EXPONENTIAL_BACKOFF=true
+```
+
+| Variable | Unset | Meaning |
+| --- | --- | --- |
+| `STEAM_API_CONNECT_TIMEOUT` | `10`, Saloon's | seconds to connect, `0` waits forever |
+| `STEAM_API_REQUEST_TIMEOUT` | `30`, Saloon's | seconds for the whole request, `0` waits forever |
+| `STEAM_API_RETRY_TRIES` | `1` | attempts in all, so `1` never retries |
+| `STEAM_API_RETRY_INTERVAL` | `0` | milliseconds between attempts |
+| `STEAM_API_RETRY_EXPONENTIAL_BACKOFF` | `false` | doubles the interval after each retry |
+
+Only what can change by the next attempt is retried: Steam unreachable, a timeout, a `5xx`.
+A `4xx` and a spent quota are thrown at once, and so is the `500`
+[`sdrConfig()`](/laravel-steam-api-sdk/api-reference#sdrconfig) answers an unknown app with.
+Once the tries are spent, a request Steam never answered raises `SteamConnectionException`
+and a `5xx` the root `SteamApiException`. Requests sent through
+[`pool()`](/laravel-steam-api-sdk/guide#concurrent-requests) go out once.
+
+<Aside type="caution" title="Every attempt is a request">
+Each retry spends one of the day's 100 000 requests, since the budget counts a `5xx` like
+any other answer.
+</Aside>
+
+A value that is not a number, or is out of range, raises `InvalidSteamHttpOptionException`
+naming the key. Like a rejected language code, it surfaces on your first Steam call and
+renders as a 500.
+
 ## Route binding
 
 The `route_binding` block resolves a route parameter straight into a `SteamId`. It
@@ -169,7 +225,8 @@ down with it. Under [Laravel Octane](https://laravel.com/docs/octane) and betwee
 queue jobs the container outlives the request, and a shared connector would carry
 its API key into the next one.
 
-It resolves lazily, so an application without a key still boots. Reach it through
+It resolves lazily, so a misconfigured option surfaces on your first Steam call rather
+than at boot. Reach it through
 [`Steam::connector()`](/laravel-steam-api-sdk/api-reference#connector) — for the
 current request only.
 
@@ -206,13 +263,18 @@ The counter is keyed by the API key itself — hashed, so the key never lands in
 store — rather than by the connector class. Two keys in one application draw down two
 budgets.
 
-The plugin is pointed at a `LaravelCacheStore` backed by your **default cache
-store**, not per-process memory. With a shared driver (Redis, database, Memcached)
-every FPM worker, queue worker and Octane process draws down one counter:
+The counter lives in a Laravel cache store, not per-process memory, so with a shared driver
+(Redis, database, Memcached) every FPM worker, queue worker and Octane process draws down one
+budget. It is the default store until you name another:
 
 ```dotenv title=".env"
-CACHE_STORE=redis
+STEAM_API_RATE_LIMIT_STORE=redis
 ```
+
+Give it a store of its own: `cache:clear` flushes the default one, resetting the count while
+Steam's own carries on. A store that evicts keys under memory pressure — Redis with an
+eviction policy, Memcached — can drop the counter too. A name `cache.stores` does not define
+raises `InvalidSteamRateLimitStoreException` on your first Steam call, rendered as a 500.
 
 <Aside type="caution" title="The array and file drivers do not share">
 Those two keep the budget per process — fine locally, but pick a shared driver in
@@ -224,6 +286,32 @@ It was keyed by the connector class, so a persistent store reads no count under 
 new key and reports the full 100 000 once. What Steam itself has already counted is
 untouched.
 </Aside>
+
+## Queued jobs
+
+Left alone, a job that hits the spent budget fails like on any other exception.
+`Queue\Middleware\RespectsSteamRateLimit` releases it for what is left of the window instead
+— before it runs once the budget is spent, or when a request inside it raises
+`SteamRateLimitException`:
+
+```php title="app/Jobs/SyncPlayerStats.php"
+use Fkrzski\LaravelSteamApiSdk\Queue\Middleware\RespectsSteamRateLimit;
+
+public function middleware(): array
+{
+    return [new RespectsSteamRateLimit];
+}
+
+public function retryUntil(): DateTime
+{
+    return now()->addDay();
+}
+```
+
+A release counts as an attempt, so a job waiting out a daily window wants `retryUntil()`
+rather than a small `$tries`. The middleware releases through `InteractsWithQueue`, and lets
+a job without it run unguarded. With no key configured nothing is metered, so only a `429`
+from Steam holds a job back.
 
 ## Exception rendering
 
@@ -238,9 +326,9 @@ table. Turn the group off to render it yourself:
 ```
 
 The flag does not reach misconfiguration. A rejected API key, a missing one, a batch over
-100 IDs and a language code Steam does not know are a 500 whatever it is set to: Steam
-answers a bad key with a 400 or a 403, and passing that on would blame the caller for
-something only you can fix.
+100 IDs, and a language code, HTTP option or rate limit store the config cannot use are a
+500 whatever it is set to: Steam answers a bad key with a 400 or a 403, and passing that on
+would blame the caller for something only you can fix.
 
 <Aside title="Your own renderer wins either way">
 Callbacks registered in `bootstrap/app.php` run ahead of the package's, so a
@@ -257,23 +345,33 @@ php artisan about --only=steam_api
 ```
 
 ```text frame="terminal" title="php artisan about --only=steam_api"
-  Steam API ...........................................................
+  Steam API .............................................................
   API Key .................................................. ********4f2a
-  Daily Requests Remaining ........................... 99,412 of 100,000
+  Daily Requests Remaining ............................ 99,412 of 100,000
   Language .......................................... polish (locale: pl)
   Rate Limit Store ................................................ redis
+  Retries ............................. 3 attempts, 500ms apart, doubling
   Route Binding ....................................... enabled (steamId)
+  Timeouts ...................................... connect 3s, request 60s
 ```
 
 - **API Key** — masked to its last four characters, so the output is safe to paste
   into a bug report. `NOT SET` when no key is configured.
-- **Rate Limit Store** — the cache store the counter lives in, i.e. `cache.default`.
+- **Rate Limit Store** — the cache store the counter lives in, marked `(default)` while
+  `steam-api.rate_limit.store` is unset.
 - **Daily Requests Remaining** — what is left of the 100 000, read from that store.
-  `not metered (no API key)` with no key configured, since Steam bills the budget to the key.
+  `not metered (no API key)` with no key configured, since Steam bills the budget to the key,
+  and `UNKNOWN` while another row reads `INVALID`, since the connector cannot be built.
 - **Language** — the code every localised request carries, and which of the two answers it
   is: `polish (config)` or `polish (locale: pl)`. `NOT SET` names its source the same way,
   and `INVALID` stands alone, since only config can carry a rejected code.
 - **Route Binding** — `disabled`, or `enabled` with the parameter name it claims.
+- **Timeouts** — the connect and request timeouts, Saloon's own marked `(default)`, and
+  `unlimited` for `0`.
+- **Retries** — `none (default)` for a single attempt, otherwise the attempts and the pause
+  between them.
+
+The store, timeout and retry rows read `INVALID` for a value the connector does not take.
 
 Nothing here runs on boot: the values are computed when the command renders, and no
 request is sent to Steam.
