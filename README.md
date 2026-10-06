@@ -1,6 +1,9 @@
 # Laravel Steam API SDK
 
-![Banner of Laravel Steam API SDK](art/banner.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="art/banner-dark.svg">
+  <img src="art/banner-light.svg" alt="Laravel Steam API SDK — composer require fkrzski/laravel-steam-api-sdk">
+</picture>
 
 [![License](https://img.shields.io/packagist/l/fkrzski/laravel-steam-api-sdk.svg?style=for-the-badge)](https://packagist.org/packages/fkrzski/laravel-steam-api-sdk)
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/fkrzski/laravel-steam-api-sdk.svg?style=for-the-badge)](https://packagist.org/packages/fkrzski/laravel-steam-api-sdk)
