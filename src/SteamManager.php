@@ -8,6 +8,7 @@ use Closure;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeNotInstalledException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
+use Fkrzski\LaravelSteamApiSdk\Testing\SteamFake;
 use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
 use Fkrzski\SteamApiSdk\Dto\CommunityBadgeQuest;
 use Fkrzski\SteamApiSdk\Dto\Friend;
@@ -319,13 +320,13 @@ final readonly class SteamManager implements SteamManagerContract
      *
      * @throws FakeOutsideTestsException when the application is not running tests
      */
-    public function fake(array $responses = []): MockClient
+    public function fake(array $responses = []): SteamFake
     {
         if (! $this->app->runningUnitTests()) {
             throw new FakeOutsideTestsException;
         }
 
-        $mockClient = new MockClient($responses);
+        $mockClient = new SteamFake($responses);
 
         $connector = $this->connector();
         $connector->withMockClient($mockClient);

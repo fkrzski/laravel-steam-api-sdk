@@ -33,7 +33,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Fkrzski\SteamApiSdk\Dto\AppVersionCheck upToDateCheck(int $appId, int $version)
  * @method static list<\Fkrzski\SteamApiSdk\Dto\GameServer> serversAtAddress(string $address)
  * @method static \Fkrzski\SteamApiSdk\Dto\SdrConfig sdrConfig(int $appId)
- * @method static \Saloon\Http\Faking\MockClient fake(array<array-key, (callable(): mixed)|\Saloon\Http\Faking\Fixture|\Saloon\Http\Faking\MockResponse> $responses = [])
+ * @method static \Fkrzski\LaravelSteamApiSdk\Testing\SteamFake fake(array<array-key, (callable(): mixed)|\Saloon\Http\Faking\Fixture|\Saloon\Http\Faking\MockResponse> $responses = [])
  * @method static void assertSent(string|callable $value)
  * @method static void assertNotSent(string|callable $request)
  * @method static void assertNothingSent()
