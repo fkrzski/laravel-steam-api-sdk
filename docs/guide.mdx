@@ -66,6 +66,9 @@ $playing      = Steam::currentPlayers(appId: 381210);
 $globalStats  = Steam::globalAchievements(gameId: 381210);
 $gameSchema   = Steam::schema(appId: 381210);
 $resolvedId   = Steam::resolveVanityUrl('gabelogannewell');
+$versionCheck = Steam::upToDateCheck(appId: 440, version: $installedVersion);
+$servers      = Steam::serversAtAddress('108.181.62.21');
+$relayNetwork = Steam::sdrConfig(appId: 730);
 ```
 
 The [API reference](/laravel-steam-api-sdk/api-reference) lists which helper returns
@@ -132,31 +135,43 @@ SDK exception, so a non-2xx response never reaches you as a DTO. All of them
 extend `SteamApiException`, so one catch handles the lot:
 
 ```text frame="none"
-SteamApiException                  (root, extends RuntimeException)
-├── InvalidSteamIdException        Malformed SteamID64.
-├── InvalidApiKeyException         Steam rejected the key, or received none.
-├── ApiKeyNotConfiguredException   No key configured for a request that needs one.
-├── SteamUserNotFoundException     Vanity URL unresolved or profile missing.
-├── AppNotFoundException           App ID Steam does not know.
-├── ProfileNotPublicException      Profile, games list, or stats are private.
-├── StatsUnavailableException      No stats for that game, or the profile hides them.
-├── TooManySteamIdsException       More than 100 IDs in a batch request.
-├── SteamRateLimitException        Daily quota reached; exposes the offending Limit.
-├── InvalidSteamLanguageException  Language code Steam does not accept. (Laravel bridge)
-├── FakeNotInstalledException      Facade assertion without Steam::fake(). (Laravel bridge)
-└── FakeOutsideTestsException      Steam::fake() outside tests. (Laravel bridge)
+SteamApiException                        (root, extends RuntimeException)
+├── ApiKeyNotConfiguredException         No key configured for a request that needs one.
+├── AppNotFoundException                 App ID Steam does not know.
+├── AppVersionUnavailableException       No server version to check, or an unknown app.
+├── InvalidApiKeyException               Steam rejected the key, or received none.
+├── InvalidServerAddressException        Address is neither IPv4 nor IPv4:queryport.
+├── InvalidSteamIdException              Malformed SteamID64.
+├── ProfileNotPublicException            Profile, games list, or stats are private.
+├── StatsUnavailableException            No stats for that game, or the profile hides them.
+├── SteamConnectionException             Steam never answered: timeout, DNS, TLS, refused.
+├── SteamRateLimitException              Daily quota reached; exposes the offending Limit.
+├── SteamUserNotFoundException           Vanity URL unresolved or profile missing.
+├── TooManySteamIdsException             More than 100 IDs in a batch request.
+├── FakeNotInstalledException            Facade assertion without Steam::fake(). (Laravel bridge)
+├── FakeOutsideTestsException            Steam::fake() outside tests. (Laravel bridge)
+├── InvalidSteamHttpOptionException      Timeout or retry value the connector rejects. (Laravel bridge)
+├── InvalidSteamLanguageException        Language code Steam does not accept. (Laravel bridge)
+└── InvalidSteamRateLimitStoreException  Store cache.stores does not define. (Laravel bridge)
 ```
 
 Catch the leaf you care about, or the root. The
 [API reference](/laravel-steam-api-sdk/api-reference) notes which helper raises which.
 
-A status no leaf claims — a 5xx from Steam, an unexpected 4xx — arrives as
-`SteamApiException` itself, carrying the response and Steam's status as the code.
+A status no leaf claims — a `5xx` once the
+[retries](/laravel-steam-api-sdk/configuration#timeouts-and-retries) are spent, an
+unexpected `4xx` — arrives as `SteamApiException` itself, carrying the response and Steam's
+status as the code.
 
-The last three are the bridge's own (`Fkrzski\LaravelSteamApiSdk\Exceptions`) and
-signal a misconfiguration, or a test wired up wrong, rather than a failed call — see
-[Configuration](/laravel-steam-api-sdk/configuration#default-language). The rest live in
+The five marked as the bridge's own (`Fkrzski\LaravelSteamApiSdk\Exceptions`) signal a
+misconfiguration, or a test wired up wrong, rather than a failed call — see
+[Configuration](/laravel-steam-api-sdk/configuration). The rest live in
 `Fkrzski\SteamApiSdk\Exceptions`.
+
+<Aside type="caution" title="FatalRequestException no longer reaches you">
+Since 0.7.0 a request Steam never answered raises `SteamConnectionException`, inside the
+hierarchy, rather than Saloon's `FatalRequestException`. Catch the SDK one instead.
+</Aside>
 
 ### Rendering
 
@@ -167,15 +182,18 @@ to, rather than a blanket 500:
 | --- | --- |
 | `SteamUserNotFoundException` | 404 |
 | `AppNotFoundException` | 404 |
+| `AppVersionUnavailableException` | 404 — Steam answers an unknown app and one without server versions alike |
 | `StatsUnavailableException` | 404 — the cause is ambiguous, so the status says nothing about which |
 | `ProfileNotPublicException` | 403 |
+| `InvalidServerAddressException` | 422 — the address is input, typically a route parameter |
 | `SteamRateLimitException` | 429, with `Retry-After` counting down the daily window |
-| `InvalidApiKeyException`, `TooManySteamIdsException`, `ApiKeyNotConfiguredException`, `InvalidSteamLanguageException`, `FakeOutsideTestsException` | 500 |
+| `SteamConnectionException`, and `SteamApiException` for a `5xx` | 503, the body saying only `Service Unavailable` |
+| `InvalidApiKeyException`, `TooManySteamIdsException`, `ApiKeyNotConfiguredException`, `InvalidSteamLanguageException`, `InvalidSteamHttpOptionException`, `InvalidSteamRateLimitStoreException`, `FakeOutsideTestsException` | 500 |
 
 `InvalidSteamIdException` and `FakeNotInstalledException` are left alone: an ID that
 fails to parse is already a 404 from the [route binding](/laravel-steam-api-sdk/route-binding),
 and a missing fake only happens in a test.
 
-The first five are turned off together by
+Every row above the 500 one is turned off together by
 [`steam-api.exceptions.render`](/laravel-steam-api-sdk/configuration#exception-rendering);
 the 500 group is not, and never carries Steam's own status.
