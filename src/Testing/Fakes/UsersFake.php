@@ -47,6 +47,13 @@ final readonly class UsersFake
         return $this->fake;
     }
 
+    public function friendsNotPublic(): SteamFake
+    {
+        $this->fake->addResponse(SteamResponse::profileNotPublic(), GetFriendListRequest::class);
+
+        return $this->fake;
+    }
+
     public function groups(UserGroupFactory ...$groups): SteamFake
     {
         $this->fake->addResponse(SteamResponse::userGroupList(...$groups), GetUserGroupListRequest::class);
@@ -54,9 +61,23 @@ final readonly class UsersFake
         return $this->fake;
     }
 
+    public function groupsNotPublic(): SteamFake
+    {
+        $this->fake->addResponse(SteamResponse::profileNotPublic(), GetUserGroupListRequest::class);
+
+        return $this->fake;
+    }
+
     public function resolveVanityUrl(SteamId $steamId): SteamFake
     {
         $this->fake->addResponse(SteamResponse::vanityUrl($steamId), ResolveVanityUrlRequest::class);
+
+        return $this->fake;
+    }
+
+    public function vanityUrlNotFound(): SteamFake
+    {
+        $this->fake->addResponse(SteamResponse::vanityNotFound(), ResolveVanityUrlRequest::class);
 
         return $this->fake;
     }

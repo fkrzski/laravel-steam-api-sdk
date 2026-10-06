@@ -32,6 +32,17 @@ final readonly class StatsFake
         return $this->fake;
     }
 
+    /**
+     * The same refusal {@see self::achievementsUnavailable()} fakes, which this endpoint
+     * reads as a hidden profile.
+     */
+    public function userStatsNotPublic(): SteamFake
+    {
+        $this->fake->addResponse(SteamResponse::statsRefused(), GetUserStatsForGameRequest::class);
+
+        return $this->fake;
+    }
+
     public function achievements(PlayerAchievementsFactory $achievements): SteamFake
     {
         $this->fake->addResponse(SteamResponse::playerAchievements($achievements), GetPlayerAchievementsRequest::class);
@@ -39,9 +50,27 @@ final readonly class StatsFake
         return $this->fake;
     }
 
+    /**
+     * The same refusal {@see self::userStatsNotPublic()} fakes, which this endpoint
+     * reads as stats it cannot hand out.
+     */
+    public function achievementsUnavailable(): SteamFake
+    {
+        $this->fake->addResponse(SteamResponse::statsRefused(), GetPlayerAchievementsRequest::class);
+
+        return $this->fake;
+    }
+
     public function currentPlayers(int $count): SteamFake
     {
         $this->fake->addResponse(SteamResponse::currentPlayers($count), GetNumberOfCurrentPlayersRequest::class);
+
+        return $this->fake;
+    }
+
+    public function currentPlayersAppNotFound(): SteamFake
+    {
+        $this->fake->addResponse(SteamResponse::appNotFound(), GetNumberOfCurrentPlayersRequest::class);
 
         return $this->fake;
     }
@@ -56,9 +85,26 @@ final readonly class StatsFake
         return $this->fake;
     }
 
+    public function globalAchievementsUnavailable(): SteamFake
+    {
+        $this->fake->addResponse(
+            SteamResponse::globalAchievementsRefused(),
+            GetGlobalAchievementPercentagesForAppRequest::class,
+        );
+
+        return $this->fake;
+    }
+
     public function schema(GameSchemaFactory $schema): SteamFake
     {
         $this->fake->addResponse(SteamResponse::gameSchema($schema), GetSchemaForGameRequest::class);
+
+        return $this->fake;
+    }
+
+    public function schemaAppNotFound(): SteamFake
+    {
+        $this->fake->addResponse(SteamResponse::schemaAppNotFound(), GetSchemaForGameRequest::class);
 
         return $this->fake;
     }

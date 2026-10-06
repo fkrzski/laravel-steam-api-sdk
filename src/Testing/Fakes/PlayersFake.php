@@ -32,9 +32,23 @@ final readonly class PlayersFake
         return $this->fake;
     }
 
+    public function ownedGamesNotPublic(): SteamFake
+    {
+        $this->fake->addResponse(SteamResponse::playerServiceNotPublic(), GetOwnedGamesRequest::class);
+
+        return $this->fake;
+    }
+
     public function recentlyPlayedGames(RecentlyPlayedGamesFactory $games): SteamFake
     {
         $this->fake->addResponse(SteamResponse::recentlyPlayedGames($games), GetRecentlyPlayedGamesRequest::class);
+
+        return $this->fake;
+    }
+
+    public function recentlyPlayedGamesNotPublic(): SteamFake
+    {
+        $this->fake->addResponse(SteamResponse::playerServiceNotPublic(), GetRecentlyPlayedGamesRequest::class);
 
         return $this->fake;
     }
@@ -46,9 +60,23 @@ final readonly class PlayersFake
         return $this->fake;
     }
 
+    public function steamLevelNotPublic(): SteamFake
+    {
+        $this->fake->addResponse(SteamResponse::playerServiceNotPublic(), GetSteamLevelRequest::class);
+
+        return $this->fake;
+    }
+
     public function badges(PlayerBadgesFactory $badges): SteamFake
     {
         $this->fake->addResponse(SteamResponse::badges($badges), GetBadgesRequest::class);
+
+        return $this->fake;
+    }
+
+    public function badgesNotPublic(): SteamFake
+    {
+        $this->fake->addResponse(SteamResponse::playerServiceNotPublic(), GetBadgesRequest::class);
 
         return $this->fake;
     }
@@ -59,6 +87,13 @@ final readonly class PlayersFake
             SteamResponse::communityBadgeProgress(...$quests),
             GetCommunityBadgeProgressRequest::class,
         );
+
+        return $this->fake;
+    }
+
+    public function communityBadgeProgressNotPublic(): SteamFake
+    {
+        $this->fake->addResponse(SteamResponse::playerServiceNotPublic(), GetCommunityBadgeProgressRequest::class);
 
         return $this->fake;
     }

@@ -26,7 +26,24 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\StatsFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\UsersFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
+use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
+use Fkrzski\SteamApiSdk\Dto\GameSchema;
+use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
+use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
+use Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames;
+use Fkrzski\SteamApiSdk\Dto\SdrConfig;
+use Fkrzski\SteamApiSdk\Dto\UserStats;
+use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
+use Fkrzski\SteamApiSdk\Exceptions\AppVersionUnavailableException;
+use Fkrzski\SteamApiSdk\Exceptions\InvalidApiKeyException;
+use Fkrzski\SteamApiSdk\Exceptions\InvalidServerAddressException;
+use Fkrzski\SteamApiSdk\Exceptions\ProfileNotPublicException;
+use Fkrzski\SteamApiSdk\Exceptions\StatsUnavailableException;
+use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
+use Fkrzski\SteamApiSdk\Exceptions\SteamConnectionException;
+use Fkrzski\SteamApiSdk\Exceptions\SteamUserNotFoundException;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
+use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 
 mutates(SteamFake::class, UsersFake::class, PlayersFake::class, StatsFake::class, AppsFake::class);
 
@@ -168,3 +185,120 @@ it('chains from the array form', function (): void {
     expect(Steam::resolveVanityUrl('gabelogannewell')->value)->toBe('76561198000000000')
         ->and(Steam::steamLevel(steamId()))->toBe(42);
 });
+
+it('raises what the base sdk raises for a named failure', function (
+    Closure $fail,
+    Closure $call,
+    string $exception,
+    ?string $message = null,
+): void {
+    $fake = Steam::fake();
+
+    expect($fail($fake))->toBe($fake)
+        ->and($call)->toThrow($exception, $message);
+})->with([
+    'friends not public' => [
+        fn (SteamFake $fake): SteamFake => $fake->users()->friendsNotPublic(),
+        fn (): array => Steam::friends(steamId()),
+        ProfileNotPublicException::class,
+    ],
+    'groups not public' => [
+        fn (SteamFake $fake): SteamFake => $fake->users()->groupsNotPublic(),
+        fn (): array => Steam::groups(steamId()),
+        ProfileNotPublicException::class,
+    ],
+    'vanity url not found' => [
+        fn (SteamFake $fake): SteamFake => $fake->users()->vanityUrlNotFound(),
+        fn (): SteamId => Steam::resolveVanityUrl('nobody'),
+        SteamUserNotFoundException::class,
+    ],
+    'owned games not public' => [
+        fn (SteamFake $fake): SteamFake => $fake->players()->ownedGamesNotPublic(),
+        fn (): array => Steam::ownedGames(steamId()),
+        ProfileNotPublicException::class,
+    ],
+    'recently played games not public' => [
+        fn (SteamFake $fake): SteamFake => $fake->players()->recentlyPlayedGamesNotPublic(),
+        fn (): RecentlyPlayedGames => Steam::recentlyPlayedGames(steamId()),
+        ProfileNotPublicException::class,
+    ],
+    'steam level not public' => [
+        fn (SteamFake $fake): SteamFake => $fake->players()->steamLevelNotPublic(),
+        fn (): int => Steam::steamLevel(steamId()),
+        ProfileNotPublicException::class,
+    ],
+    'badges not public' => [
+        fn (SteamFake $fake): SteamFake => $fake->players()->badgesNotPublic(),
+        fn (): PlayerBadges => Steam::badges(steamId()),
+        ProfileNotPublicException::class,
+    ],
+    'community badge progress not public' => [
+        fn (SteamFake $fake): SteamFake => $fake->players()->communityBadgeProgressNotPublic(),
+        fn (): array => Steam::communityBadgeProgress(steamId()),
+        ProfileNotPublicException::class,
+    ],
+    'user stats not public' => [
+        fn (SteamFake $fake): SteamFake => $fake->stats()->userStatsNotPublic(),
+        fn (): UserStats => Steam::userStats(steamId(), appId: 381210),
+        ProfileNotPublicException::class,
+    ],
+    'achievements unavailable' => [
+        fn (SteamFake $fake): SteamFake => $fake->stats()->achievementsUnavailable(),
+        fn (): PlayerAchievements => Steam::achievements(steamId(), appId: 381210),
+        StatsUnavailableException::class,
+    ],
+    'current players app not found' => [
+        fn (SteamFake $fake): SteamFake => $fake->stats()->currentPlayersAppNotFound(),
+        fn (): int => Steam::currentPlayers(appId: 1),
+        AppNotFoundException::class,
+    ],
+    'global achievements unavailable' => [
+        fn (SteamFake $fake): SteamFake => $fake->stats()->globalAchievementsUnavailable(),
+        fn (): array => Steam::globalAchievements(gameId: 381210),
+        StatsUnavailableException::class,
+    ],
+    'schema app not found' => [
+        fn (SteamFake $fake): SteamFake => $fake->stats()->schemaAppNotFound(),
+        fn (): GameSchema => Steam::schema(appId: 1),
+        AppNotFoundException::class,
+    ],
+    'up to date check unavailable' => [
+        fn (SteamFake $fake): SteamFake => $fake->apps()->upToDateCheckUnavailable(),
+        fn (): AppVersionCheck => Steam::upToDateCheck(appId: 999999999, version: 1),
+        AppVersionUnavailableException::class,
+    ],
+    'servers at address invalid' => [
+        fn (SteamFake $fake): SteamFake => $fake->apps()->serversAtAddressInvalid(),
+        fn (): array => Steam::serversAtAddress('not-an-ip'),
+        InvalidServerAddressException::class,
+    ],
+    // InvalidServerAddressException is a SteamApiException too, so the message tells them apart.
+    'servers at address refused' => [
+        fn (SteamFake $fake): SteamFake => $fake->apps()->serversAtAddressRefused(),
+        fn (): array => Steam::serversAtAddress('127.0.0.1'),
+        SteamApiException::class,
+        'once per minute for a given IP',
+    ],
+    'sdr config app not found' => [
+        fn (SteamFake $fake): SteamFake => $fake->apps()->sdrConfigAppNotFound(),
+        fn (): SdrConfig => Steam::sdrConfig(appId: 999999999),
+        AppNotFoundException::class,
+    ],
+]);
+
+it('fails every request without its own response', function (Closure $fail, string $exception): void {
+    $fake = Steam::fake()->players()->steamLevel(42);
+
+    expect($fail($fake))->toBe($fake)
+        ->and(Steam::steamLevel(steamId()))->toBe(42)
+        ->and(fn (): array => Steam::summaries([steamId()]))->toThrow($exception);
+})->with([
+    'invalid api key' => [
+        fn (SteamFake $fake): SteamFake => $fake->invalidApiKey(),
+        InvalidApiKeyException::class,
+    ],
+    'connection failed' => [
+        fn (SteamFake $fake): SteamFake => $fake->connectionFailed(),
+        SteamConnectionException::class,
+    ],
+]);

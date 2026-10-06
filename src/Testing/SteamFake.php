@@ -8,6 +8,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\AppsFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\PlayersFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\StatsFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\UsersFake;
+use Fkrzski\SteamApiSdk\SteamConnector;
 use Saloon\Http\Faking\MockClient;
 
 /**
@@ -38,5 +39,25 @@ final class SteamFake extends MockClient
     public function apps(): AppsFake
     {
         return new AppsFake($this);
+    }
+
+    /**
+     * Answers every request that has no response of its own with a rejected key.
+     */
+    public function invalidApiKey(): self
+    {
+        $this->addResponse(SteamResponse::invalidApiKey(), SteamConnector::class);
+
+        return $this;
+    }
+
+    /**
+     * Fails every request that has no response of its own before it reaches Steam.
+     */
+    public function connectionFailed(): self
+    {
+        $this->addResponse(SteamResponse::connectionFailed(), SteamConnector::class);
+
+        return $this;
     }
 }
