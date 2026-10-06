@@ -7,6 +7,7 @@ namespace Fkrzski\LaravelSteamApiSdk\Contracts;
 use Closure;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeNotInstalledException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
+use Fkrzski\LaravelSteamApiSdk\Testing\SteamFake;
 use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
 use Fkrzski\SteamApiSdk\Dto\CommunityBadgeQuest;
 use Fkrzski\SteamApiSdk\Dto\Friend;
@@ -31,7 +32,6 @@ use Fkrzski\SteamApiSdk\Http\Resources\UsersResource;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Saloon\Http\Faking\Fixture;
-use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\Pool;
 use Saloon\Http\Request;
@@ -225,7 +225,7 @@ interface SteamManager
      *
      * @throws FakeOutsideTestsException when the application is not running tests
      */
-    public function fake(array $responses = []): MockClient;
+    public function fake(array $responses = []): SteamFake;
 
     /**
      * Assert that a request matching the class name, URL pattern or closure was sent.
