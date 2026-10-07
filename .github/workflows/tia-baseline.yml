@@ -21,7 +21,7 @@ jobs:
     steps:
 
     - name: Checkout
-      uses: actions/checkout@v7.0.1
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         # TIA anchors the graph to the commit it was recorded at and diffs
         # against it later; a shallow clone has nothing to diff.
@@ -29,21 +29,21 @@ jobs:
 
     - name: Setup extension cache
       id: extcache
-      uses: shivammathur/cache-extensions@v1
+      uses: shivammathur/cache-extensions@22e24453af1bf3851994136f122ce065ab828a74 # 1.15.2
       with:
         php-version: 8.5
         extensions: dom, mbstring, zip, fileinfo, pcov
         key: php-extensions-v1
 
     - name: Cache extensions
-      uses: actions/cache@v6
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.extcache.outputs.dir }}
         key: ${{ steps.extcache.outputs.key }}
         restore-keys: ${{ steps.extcache.outputs.key }}
 
     - name: Setup PHP
-      uses: shivammathur/setup-php@2.37.2
+      uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
       with:
         php-version: 8.5
         extensions: dom, mbstring, zip, fileinfo
@@ -55,7 +55,7 @@ jobs:
       run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
     - name: Cache dependencies
-      uses: actions/cache@v6
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.composer-cache.outputs.dir }}
         key: dependencies-php-8.5-os-ubuntu-latest-version-prefer-stable-composer-${{ hashFiles('composer.json') }}
@@ -82,7 +82,7 @@ jobs:
 
     # Artifact name and asset names are the contract pest --baselined looks for.
     - name: Publish baseline
-      uses: actions/upload-artifact@v7.0.1
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: pest-tia-baseline
         path: |
