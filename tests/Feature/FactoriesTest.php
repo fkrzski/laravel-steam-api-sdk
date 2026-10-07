@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppNewsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppVersionCheckFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
@@ -9,6 +10,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameSchemaFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameServerFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\NewsItemFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
@@ -35,6 +37,7 @@ use Fkrzski\SteamApiSdk\Enums\ServerRegion;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 
 mutates(
+    AppNewsFactory::class,
     AppVersionCheckFactory::class,
     BadgeFactory::class,
     CommunityBadgeQuestFactory::class,
@@ -42,6 +45,7 @@ mutates(
     GameSchemaFactory::class,
     GameServerFactory::class,
     GlobalAchievementFactory::class,
+    NewsItemFactory::class,
     OwnedGameFactory::class,
     PlayerAchievementFactory::class,
     PlayerAchievementsFactory::class,
@@ -1261,4 +1265,155 @@ it('overrides the sdr config revision', function (): void {
 
 it('overrides arbitrary sdr config keys through state', function (): void {
     expect(SdrConfigFactory::new()->state(['pops' => []])->make()->pointsOfPresence)->toBeEmpty();
+});
+
+// NewsItemFactory
+
+it('builds a news item payload', function (): void {
+    expect(NewsItemFactory::new()->toArray())->toBe([
+        'gid' => '1838407329261909',
+        'title' => 'Valve is still working on the Mann vs Machine update',
+        'url' => 'https://steamstore-a.akamaihd.net/news/externalpost/PC Gamer/1838407329261909',
+        'is_external_url' => true,
+        'author' => 'Rick Lane',
+        'contents' => '<p>Valve says the Mann vs Machine update it announced last year is still in the works.</p>',
+        'feedlabel' => 'PC Gamer',
+        'date' => 1784381770,
+        'feedname' => 'PC Gamer',
+        'feed_type' => 0,
+        'appid' => 440,
+    ]);
+});
+
+it('maps a news item payload onto the dto', function (): void {
+    $item = NewsItemFactory::new()->make();
+
+    expect($item->id)->toBe('1838407329261909')
+        ->and($item->title)->toBe('Valve is still working on the Mann vs Machine update')
+        ->and($item->url)->toBe('https://steamstore-a.akamaihd.net/news/externalpost/PC Gamer/1838407329261909')
+        ->and($item->isExternalUrl)->toBeTrue()
+        ->and($item->author)->toBe('Rick Lane')
+        ->and($item->contents)->toBe('<p>Valve says the Mann vs Machine update it announced last year is still in the works.</p>')
+        ->and($item->feedLabel)->toBe('PC Gamer')
+        ->and($item->feedName)->toBe('PC Gamer')
+        ->and($item->isCommunityAnnouncement)->toBeFalse()
+        ->and($item->publishedAt->getTimestamp())->toBe(1784381770)
+        ->and($item->appId)->toBe(440)
+        ->and($item->tags)->toBeEmpty();
+});
+
+it('overrides the news item id, title and app id', function (): void {
+    $item = NewsItemFactory::new()->id('1845383656394827')->title('Team Fortress 2 Update Released')->appId(1245620)->make();
+
+    expect($item->id)->toBe('1845383656394827')
+        ->and($item->title)->toBe('Team Fortress 2 Update Released')
+        ->and($item->appId)->toBe(1245620);
+});
+
+it('writes the publication date as a unix timestamp', function (): void {
+    $item = NewsItemFactory::new()->publishedAt(new DateTimeImmutable('2026-10-01 12:00:00 UTC'));
+
+    expect($item->toArray()['date'])->toBe(1790856000)
+        ->and($item->make()->publishedAt->getTimestamp())->toBe(1790856000);
+});
+
+it('files a news item under the community announcements feed', function (): void {
+    $item = NewsItemFactory::new()->communityAnnouncement();
+
+    expect($item->toArray())->toMatchArray([
+        'feedlabel' => 'Community Announcements',
+        'feedname' => 'steam_community_announcements',
+        'feed_type' => 1,
+    ])
+        ->and($item->make()->isCommunityAnnouncement)->toBeTrue();
+});
+
+it('links a news item to the steam store', function (): void {
+    $item = NewsItemFactory::new()->internalUrl()->make();
+
+    expect($item->url)->toBe('https://store.steampowered.com/news/285564/')
+        ->and($item->isExternalUrl)->toBeFalse();
+});
+
+it('links a news item to a given steam store page', function (): void {
+    expect(NewsItemFactory::new()->internalUrl('https://store.steampowered.com/news/285419/')->make()->url)
+        ->toBe('https://store.steampowered.com/news/285419/');
+});
+
+it('reads an empty author as no author at all', function (): void {
+    $item = NewsItemFactory::new()->withoutAuthor();
+
+    expect($item->toArray()['author'])->toBe('')
+        ->and($item->make()->author)->toBeNull();
+});
+
+it('tags a news item', function (): void {
+    $item = NewsItemFactory::new()->tags('patchnotes', 'workshop');
+
+    expect($item->toArray()['tags'])->toBe(['patchnotes', 'workshop'])
+        ->and($item->make()->tags)->toBe(['patchnotes', 'workshop']);
+});
+
+it('overrides arbitrary news item keys through state', function (): void {
+    expect(NewsItemFactory::new()->state(['feedname' => 'tf2_blog'])->make()->feedName)->toBe('tf2_blog');
+});
+
+// AppNewsFactory
+
+it('builds an app news payload around a single item', function (): void {
+    expect(AppNewsFactory::new()->toArray())->toBe([
+        'appid' => 440,
+        'newsitems' => [NewsItemFactory::new()->toArray()],
+        'count' => 1,
+    ]);
+});
+
+it('maps an app news payload onto the dto', function (): void {
+    $news = AppNewsFactory::new()->make();
+
+    expect($news->appId)->toBe(440)
+        ->and($news->items)->toHaveCount(1)
+        ->and($news->items[0]->id)->toBe('1838407329261909')
+        ->and($news->total)->toBe(1);
+});
+
+it('counts the news items it replaces', function (): void {
+    $news = AppNewsFactory::new()
+        ->items(
+            NewsItemFactory::new(),
+            NewsItemFactory::new()->id('1838407329261910'),
+        )
+        ->make();
+
+    expect($news->total)->toBe(2)
+        ->and($news->items)->toHaveCount(2)
+        ->and($news->items[1]->id)->toBe('1838407329261910');
+});
+
+it('keeps the news total apart from the items listed', function (): void {
+    $news = AppNewsFactory::new()
+        ->items(NewsItemFactory::new())
+        ->total(3939)
+        ->make();
+
+    expect($news->total)->toBe(3939)
+        ->and($news->items)->toHaveCount(1);
+});
+
+it('lists no news as an empty list counted zero', function (): void {
+    $news = AppNewsFactory::new()->items();
+
+    expect($news->toArray())->toBe(['appid' => 440, 'newsitems' => [], 'count' => 0])
+        ->and($news->make()->items)->toBeEmpty();
+});
+
+it('overrides the app news app id', function (): void {
+    $news = AppNewsFactory::new()->appId(2778580)->items(NewsItemFactory::new()->appId(1245620))->make();
+
+    expect($news->appId)->toBe(2778580)
+        ->and($news->items[0]->appId)->toBe(1245620);
+});
+
+it('overrides arbitrary app news keys through state', function (): void {
+    expect(AppNewsFactory::new()->state(['count' => 7])->make()->total)->toBe(7);
 });

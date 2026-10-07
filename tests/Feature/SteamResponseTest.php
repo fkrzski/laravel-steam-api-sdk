@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppNewsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppVersionCheckFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
@@ -10,6 +11,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameSchemaFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameServerFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\NewsItemFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
@@ -265,6 +267,18 @@ it('puts the sdr config at the top level beside a success flag', function (): vo
     ]);
 });
 
+it('nests app news under the appnews key', function (): void {
+    expect(bodyOf(SteamResponse::appNews(
+        AppNewsFactory::new()->items(NewsItemFactory::new())->total(3939),
+    )))->toBe([
+        'appnews' => [
+            'appid' => 440,
+            'newsitems' => [NewsItemFactory::new()->toArray()],
+            'count' => 3939,
+        ],
+    ]);
+});
+
 it('refuses a request outright with a 401', function (): void {
     expect(SteamResponse::profileNotPublic()->status())->toBe(401)
         ->and(bodyOf(SteamResponse::profileNotPublic()))->toBe(['message' => 'Access is denied.']);
@@ -341,6 +355,11 @@ it('reports an app the sdr config does not know with a 500', function (): void {
             'success' => false,
             'message' => 'Failed to get appinfo',
         ]);
+});
+
+it('refuses app news with a 403 carrying an empty json object', function (): void {
+    expect(SteamResponse::appNewsUnavailable()->status())->toBe(403)
+        ->and(bodyOf(SteamResponse::appNewsUnavailable()))->toBe('{}');
 });
 
 it('answers a rejected key with a 403 echoing the key parameter', function (): void {

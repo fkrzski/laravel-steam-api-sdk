@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Fkrzski\LaravelSteamApiSdk\Testing;
 
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppNewsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppVersionCheckFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
@@ -241,6 +242,17 @@ final class SteamResponse
     }
 
     /**
+     * `count` is Steam's own total for the filter, so it is independent of how
+     * many items the payload lists — see {@see AppNewsFactory::total()}.
+     */
+    public static function appNews(AppNewsFactory $news): MockResponse
+    {
+        return MockResponse::make([
+            'appnews' => $news->toArray(),
+        ]);
+    }
+
+    /**
      * A profile that refuses the request outright, raising `ProfileNotPublicException`
      * from `GetFriendList`, `GetUserGroupList` and `GetPlayerSummaries`.
      */
@@ -371,6 +383,17 @@ final class SteamResponse
             'success' => false,
             'message' => 'Failed to get appinfo',
         ], 500);
+    }
+
+    /**
+     * `GetNewsForApp` answers 403 with an empty JSON object for an app ID it does
+     * not know and for some apps that exist, such as Spacewar, raising
+     * `AppNewsUnavailableException` either way. The request claims this status
+     * before the connector can read it as a rejected key or a hidden profile.
+     */
+    public static function appNewsUnavailable(): MockResponse
+    {
+        return MockResponse::make('{}', 403);
     }
 
     /**
