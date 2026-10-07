@@ -55,8 +55,9 @@ final readonly class SteamExceptionRenderer
     private const string SERVER_ERROR = 'Server Error';
 
     /**
-     * What a 503 says instead of the exception message: base 0.7.0 quotes
-     * Guzzle's reason for a failed connection, request URI and API key included.
+     * What a 503 says instead of the exception message: the base SDK quotes
+     * Guzzle's reason for a failed connection and the request URI, masking only
+     * the API key in it.
      */
     private const string SERVICE_UNAVAILABLE = 'Service Unavailable';
 

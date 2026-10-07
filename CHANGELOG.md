@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BC break.** `fkrzski/php-steam-api-sdk` `^0.8` is required, and every message built from a Steam response opens with the Steam method, rendered bodies included, so an unknown app's 404 reads `GetNumberOfCurrentPlayers: No Steam app found for app ID 1.` A client matching on `message` has to match the new text, while the 429, 500 and 503 bodies stay as they were ([#104](https://github.com/fkrzski/laravel-steam-api-sdk/issues/104)).
+- **BC break.** `Steam::send()` and `Steam::pool()` raise the failure Steam reports in a 200 payload inside the call, so `Steam::send(new GetOwnedGamesRequest(...))` for a private profile throws there rather than on `->dto()`, and a pool rejects where it used to fulfil. The helpers and the resources throw what they did before ([#104](https://github.com/fkrzski/laravel-steam-api-sdk/issues/104)).
+- **BC break.** `getPrevious()` is null on `SteamConnectionException` and on a `SteamApiException` raised from a 4xx or 5xx, so a `report()` callback walking the chain for Saloon's exception finds nothing. Read the status from `getCode()` and the payload from `response` instead ([#104](https://github.com/fkrzski/laravel-steam-api-sdk/issues/104)).
+- **BC break.** `ProfileNotPublicException::forSteamId()`, `ProfileNotPublicException::forPrivateOrMissing()` and `SteamUserNotFoundException::forVanity()` require the Saloon `Response`, so code building them by hand has to pass one ([#104](https://github.com/fkrzski/laravel-steam-api-sdk/issues/104)).
+
+### Fixed
+
+- `Steam::connector()->debug()` and `SteamConnectionException` mask the API key as `key=***`, and `Steam::pool()` counts a 4xx or 5xx against the daily budget and raises a 429 as `SteamRateLimitException`, the same as a helper call ([#104](https://github.com/fkrzski/laravel-steam-api-sdk/issues/104)).
+
 ## [0.7.0] - 2026-10-06
 
 ### Added

@@ -68,7 +68,7 @@ it('renders an unresolved vanity name as a 404', function (): void {
 
     $this->getJson('steam/vanity')
         ->assertNotFound()
-        ->assertJsonPath('message', 'No Steam user found for vanity name "nobody".');
+        ->assertJsonPath('message', 'ResolveVanityURL: No Steam user found for vanity name "nobody".');
 });
 
 it('renders unavailable stats as a 404', function (): void {
@@ -86,7 +86,7 @@ it('renders an app id steam does not know as a 404', function (): void {
 
     $this->getJson('steam/players')
         ->assertNotFound()
-        ->assertJsonPath('message', 'No Steam app found for app ID 1.');
+        ->assertJsonPath('message', 'GetNumberOfCurrentPlayers: No Steam app found for app ID 1.');
 });
 
 it('renders an app steam cannot check for updates as a 404', function (): void {
@@ -98,7 +98,7 @@ it('renders an app steam cannot check for updates as a 404', function (): void {
         ->assertNotFound()
         ->assertJsonPath(
             'message',
-            'Steam cannot check app 999999999 for updates: no app has that ID, or it publishes no server version.',
+            'UpToDateCheck: Steam cannot check app 999999999 for updates: no app has that ID, or it publishes no server version.',
         );
 });
 
@@ -119,7 +119,7 @@ it('renders a rejected server address as a 422', function (): void {
         ->assertUnprocessable()
         ->assertJsonPath(
             'message',
-            'Steam rejected "not-an-ip" as a server address: it takes an IPv4 address, optionally with a query port.',
+            'GetServersAtAddress: Steam rejected "not-an-ip" as a server address: it takes an IPv4 address, optionally with a query port.',
         );
 });
 
