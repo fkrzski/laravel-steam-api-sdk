@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Steam::news()` — the base SDK's `NewsResource`, handed back the same way as `players()`, `users()`, `stats()` and `apps()`. Steam serves its one endpoint anonymously, so it needs no `STEAM_API_KEY` ([#105](https://github.com/fkrzski/laravel-steam-api-sdk/issues/105)).
+- `Steam::appNews()` — wraps `GetNewsForAppRequest` and returns `AppNews`, an app's posts newest first, whose `total` counts every post the filter matches rather than the page. An app ID Steam does not know and some apps it does, such as Spacewar, both raise `AppNewsUnavailableException`, because Steam answers the two alike ([#105](https://github.com/fkrzski/laravel-steam-api-sdk/issues/105)).
+- `AppNewsFactory` and `NewsItemFactory`, with `SteamResponse::appNews()` for the `appnews` envelope. `->total()` keeps Steam's count apart from the items listed, so a test can fake page one of many, and `->withoutAuthor()` sends the `''` Steam sends for a post without a byline, which the DTO reads back as `null` ([#105](https://github.com/fkrzski/laravel-steam-api-sdk/issues/105)).
+- `SteamResponse::appNewsUnavailable()` — the 403 with an empty JSON object that `GetNewsForAppRequest` raises as `AppNewsUnavailableException`, faked fluently as `->news()->appNewsUnavailable()` beside `->news()->appNews()` on `SteamFake` ([#105](https://github.com/fkrzski/laravel-steam-api-sdk/issues/105)).
+
 ### Changed
 
 - **BC break.** `fkrzski/php-steam-api-sdk` `^0.8` is required, and every message built from a Steam response opens with the Steam method, rendered bodies included, so an unknown app's 404 reads `GetNumberOfCurrentPlayers: No Steam app found for app ID 1.` A client matching on `message` has to match the new text, while the 429, 500 and 503 bodies stay as they were ([#104](https://github.com/fkrzski/laravel-steam-api-sdk/issues/104)).
