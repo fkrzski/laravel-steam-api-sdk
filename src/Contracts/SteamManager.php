@@ -16,6 +16,7 @@ use Fkrzski\SteamApiSdk\Dto\Friend;
 use Fkrzski\SteamApiSdk\Dto\GameSchema;
 use Fkrzski\SteamApiSdk\Dto\GameServer;
 use Fkrzski\SteamApiSdk\Dto\GlobalAchievement;
+use Fkrzski\SteamApiSdk\Dto\NewsItem;
 use Fkrzski\SteamApiSdk\Dto\OwnedGame;
 use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
 use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
@@ -34,8 +35,11 @@ use Fkrzski\SteamApiSdk\Http\Resources\StatsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\UsersResource;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use Illuminate\Support\LazyCollection;
+use InvalidArgumentException;
 use Saloon\Http\Faking\Fixture;
 use Saloon\Http\Faking\MockResponse;
+use Saloon\Http\PendingRequest;
 use Saloon\Http\Pool;
 use Saloon\Http\Request;
 use Saloon\Http\Response;
@@ -244,11 +248,34 @@ interface SteamManager
     ): AppNews;
 
     /**
+     * Walk an app's news lazily, newest first, one request per page.
+     *
+     * Each page asks for news up to the last item's date, which Steam counts
+     * inclusively, so items already yielded are skipped by ID. The feed ends on a
+     * page holding all that remains or bringing nothing new, which is also where
+     * it stops when `perPage` or more items share one second.
+     *
+     * @param  list<string>  $feeds
+     * @param  list<string>  $tags
+     * @return LazyCollection<int, NewsItem>
+     *
+     * @throws InvalidArgumentException when `perPage` is below 2
+     */
+    public function newsFeed(
+        int $appId,
+        int $perPage = 20,
+        ?int $maxLength = null,
+        ?DateTimeInterface $endDate = null,
+        array $feeds = [],
+        array $tags = [],
+    ): LazyCollection;
+
+    /**
      * Swap the connector's HTTP client for a Saloon mock, returning it for assertions.
      *
      * A faked retry keeps its tries but not the pause between them.
      *
-     * @param  array<array-key, (callable(): mixed)|Fixture|MockResponse>  $responses
+     * @param  array<array-key, (callable(PendingRequest): mixed)|Fixture|MockResponse>  $responses
      *
      * @throws FakeOutsideTestsException when the application is not running tests
      */

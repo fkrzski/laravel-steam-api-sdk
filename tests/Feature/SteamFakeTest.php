@@ -88,6 +88,7 @@ it('hands the same mock back from every endpoint', function (Closure $fakeEndpoi
     'servers at address' => [fn (SteamFake $fake): SteamFake => $fake->apps()->serversAtAddress()],
     'sdr config' => [fn (SteamFake $fake): SteamFake => $fake->apps()->sdrConfig(SdrConfigFactory::new())],
     'app news' => [fn (SteamFake $fake): SteamFake => $fake->news()->appNews(AppNewsFactory::new())],
+    'news feed' => [fn (SteamFake $fake): SteamFake => $fake->news()->newsFeed(NewsItemFactory::new())],
 ]);
 
 it('fakes every users endpoint through the chain', function (): void {
@@ -197,6 +198,14 @@ it('fakes the news endpoint through the chain', function (): void {
         ->and($news->items[1]->isCommunityAnnouncement)->toBeTrue();
 
     Steam::assertSentCount(1);
+});
+
+it('fakes a whole news feed through the chain', function (): void {
+    Steam::fake()->news()->newsFeed(...newsFeedItems(3));
+
+    expect(Steam::newsFeed(appId: 440, perPage: 2)->pluck('id')->all())->toBe(['1', '2', '3']);
+
+    Steam::assertSentCount(2);
 });
 
 it('chains from the array form', function (): void {

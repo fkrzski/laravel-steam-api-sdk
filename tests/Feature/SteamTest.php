@@ -36,6 +36,7 @@ use Fkrzski\SteamApiSdk\Enums\EconomyBan;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
+use Fkrzski\SteamApiSdk\Exceptions\AppNewsUnavailableException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetBadgesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetCommunityBadgeProgressRequest;
@@ -58,6 +59,7 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetSchemaForGameRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use Illuminate\Support\LazyCollection;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\Response;
@@ -176,6 +178,10 @@ it('sends an anonymous request with no key configured', function (Closure $call,
     ],
     'app news' => [
         fn (): AppNews => Steam::appNews(appId: 440),
+        GetNewsForAppRequest::class,
+    ],
+    'news feed' => [
+        fn (): array => Steam::newsFeed(appId: 440)->all(),
         GetNewsForAppRequest::class,
     ],
 ]);
@@ -788,6 +794,137 @@ it("fetches an app's news", function (): void {
             && $request->feeds === ['tf2_blog']
             && $request->tags === ['patchnotes'],
     );
+});
+
+it("walks an app's news a page at a time", function (): void {
+    $items = newsFeedItems(5);
+
+    Steam::fake([GetNewsForAppRequest::class => SteamResponse::newsFeed(...$items)]);
+
+    expect(Steam::newsFeed(appId: 440, perPage: 2)->pluck('id')->all())->toBe(['1', '2', '3', '4', '5']);
+
+    $page = static fn (?DateTimeInterface $endDate): Closure => static fn (GetNewsForAppRequest $request): bool => $request->count === 2
+        && $request->endDate?->getTimestamp() === $endDate?->getTimestamp();
+
+    Steam::assertSentInOrder([
+        $page(null),
+        $page($items[1]->make()->publishedAt),
+        $page($items[2]->make()->publishedAt),
+        $page($items[3]->make()->publishedAt),
+    ]);
+});
+
+it('passes the filters and the starting date to every page', function (): void {
+    $items = newsFeedItems(3);
+
+    Steam::fake([GetNewsForAppRequest::class => SteamResponse::newsFeed(...$items)]);
+
+    $endDate = new DateTimeImmutable('2026-10-01 12:00:00 UTC');
+
+    Steam::newsFeed(
+        appId: 440,
+        perPage: 2,
+        maxLength: 100,
+        endDate: $endDate,
+        feeds: ['tf2_blog'],
+        tags: ['patchnotes'],
+    )->all();
+
+    $filtered = static fn (GetNewsForAppRequest $request): bool => $request->appId === 440
+        && $request->count === 2
+        && $request->maxLength === 100
+        && $request->feeds === ['tf2_blog']
+        && $request->tags === ['patchnotes'];
+
+    Steam::assertSentInOrder([
+        static fn (GetNewsForAppRequest $request): bool => $filtered($request) && $request->endDate === $endDate,
+        static fn (GetNewsForAppRequest $request): bool => $filtered($request)
+            && $request->endDate?->getTimestamp() === $items[1]->make()->publishedAt->getTimestamp(),
+    ]);
+});
+
+it('keeps every item sharing a second with the page boundary', function (): void {
+    $second = new DateTimeImmutable('2026-10-01 10:00:00 UTC');
+
+    Steam::fake([GetNewsForAppRequest::class => SteamResponse::newsFeed(
+        NewsItemFactory::new()->id('c')->publishedAt($second->modify('+1 hour')),
+        NewsItemFactory::new()->id('b')->publishedAt($second),
+        NewsItemFactory::new()->id('a')->publishedAt($second),
+        NewsItemFactory::new()->id('z')->publishedAt($second->modify('-1 hour')),
+    )]);
+
+    expect(Steam::newsFeed(appId: 440, perPage: 3)->pluck('id')->all())->toBe(['c', 'b', 'a', 'z']);
+
+    Steam::assertSentCount(2);
+});
+
+it('stops sending once the collection has enough', function (): void {
+    Steam::fake([GetNewsForAppRequest::class => SteamResponse::newsFeed(...newsFeedItems(5))]);
+
+    expect(Steam::newsFeed(appId: 440, perPage: 2)->take(3)->pluck('id')->all())->toBe(['1', '2', '3']);
+
+    Steam::assertSentCount(2);
+});
+
+it('sends nothing until the feed is walked', function (): void {
+    Steam::fake([GetNewsForAppRequest::class => SteamResponse::newsFeed(...newsFeedItems(3))]);
+
+    $feed = Steam::newsFeed(appId: 440);
+
+    Steam::assertNothingSent();
+
+    expect($feed->count())->toBe(3);
+});
+
+it('ends on a page holding everything left', function (): void {
+    Steam::fake([GetNewsForAppRequest::class => SteamResponse::newsFeed(...newsFeedItems(2))]);
+
+    expect(Steam::newsFeed(appId: 440)->pluck('id')->all())->toBe(['1', '2']);
+
+    Steam::assertSentInOrder([
+        static fn (GetNewsForAppRequest $request): bool => $request->count === 20,
+    ]);
+});
+
+// Steam pages past a second only when one page holds every item in it.
+it('ends on a page that brings nothing new', function (): void {
+    Steam::fake([GetNewsForAppRequest::class => SteamResponse::newsFeed(
+        NewsItemFactory::new()->id('1'),
+        NewsItemFactory::new()->id('2'),
+        NewsItemFactory::new()->id('3'),
+    )]);
+
+    expect(Steam::newsFeed(appId: 440, perPage: 2)->pluck('id')->all())->toBe(['1', '2']);
+
+    Steam::assertSentCount(2);
+});
+
+it('yields nothing for an app without news', function (): void {
+    Steam::fake([GetNewsForAppRequest::class => SteamResponse::newsFeed()]);
+
+    expect(Steam::newsFeed(appId: 440)->all())->toBeEmpty();
+
+    Steam::assertSentCount(1);
+});
+
+it('refuses a page smaller than two items', function (): void {
+    Steam::fake();
+
+    expect(fn (): LazyCollection => Steam::newsFeed(appId: 440, perPage: 1))->toThrow(
+        InvalidArgumentException::class,
+        'newsFeed() needs a page of at least 2 items: every page after the first opens with the last item of the one before.',
+    );
+
+    Steam::assertNothingSent();
+});
+
+it('raises unavailable news once the feed is walked', function (): void {
+    Steam::fake([GetNewsForAppRequest::class => SteamResponse::appNewsUnavailable()]);
+
+    $feed = Steam::newsFeed(appId: 480);
+
+    expect(fn (): array => $feed->all())
+        ->toThrow(AppNewsUnavailableException::class, 'GetNewsForApp: Steam returned no news for app 480');
 });
 
 // The connector strips the key while booting the pending request, so the request

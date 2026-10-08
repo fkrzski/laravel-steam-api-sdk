@@ -17,6 +17,7 @@ use Fkrzski\SteamApiSdk\Dto\Friend;
 use Fkrzski\SteamApiSdk\Dto\GameSchema;
 use Fkrzski\SteamApiSdk\Dto\GameServer;
 use Fkrzski\SteamApiSdk\Dto\GlobalAchievement;
+use Fkrzski\SteamApiSdk\Dto\NewsItem;
 use Fkrzski\SteamApiSdk\Dto\OwnedGame;
 use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
 use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
@@ -35,10 +36,14 @@ use Fkrzski\SteamApiSdk\Http\Resources\StatsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\UsersResource;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use Generator;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Support\LazyCollection;
+use InvalidArgumentException;
 use Saloon\Http\Faking\Fixture;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
+use Saloon\Http\PendingRequest;
 use Saloon\Http\Pool;
 use Saloon\Http\Request;
 use Saloon\Http\Response;
@@ -343,12 +348,62 @@ final readonly class SteamManager implements SteamManagerContract
     }
 
     /**
+     * Walk an app's news lazily, newest first, one request per page.
+     *
+     * Each page asks for news up to the last item's date, which Steam counts
+     * inclusively, so items already yielded are skipped by ID. The feed ends on a
+     * page holding all that remains or bringing nothing new, which is also where
+     * it stops when `perPage` or more items share one second.
+     *
+     * @param  list<string>  $feeds
+     * @param  list<string>  $tags
+     * @return LazyCollection<int, NewsItem>
+     *
+     * @throws InvalidArgumentException when `perPage` is below 2
+     */
+    public function newsFeed(
+        int $appId,
+        int $perPage = 20,
+        ?int $maxLength = null,
+        ?DateTimeInterface $endDate = null,
+        array $feeds = [],
+        array $tags = [],
+    ): LazyCollection {
+        if ($perPage < 2) {
+            throw new InvalidArgumentException(
+                'newsFeed() needs a page of at least 2 items: every page after the first opens with the last item of the one before.',
+            );
+        }
+
+        return LazyCollection::make(function () use ($appId, $perPage, $maxLength, $endDate, $feeds, $tags): Generator {
+            $seen = [];
+
+            do {
+                $page = $this->appNews($appId, $perPage, $maxLength, $endDate, $feeds, $tags);
+                $fresh = false;
+
+                foreach ($page->items as $item) {
+                    if ($seen[$item->id] ?? false) {
+                        continue;
+                    }
+
+                    $seen[$item->id] = true;
+                    $fresh = true;
+                    $endDate = $item->publishedAt;
+
+                    yield $item;
+                }
+            } while ($fresh && count($page->items) < $page->total);
+        });
+    }
+
+    /**
      * Swap the connector's HTTP client for a Saloon mock, returning it for assertions.
      *
      * Nothing detaches the mock, so faking is refused outside tests. A faked
      * retry keeps its tries but not the pause between them.
      *
-     * @param  array<array-key, (callable(): mixed)|Fixture|MockResponse>  $responses
+     * @param  array<array-key, (callable(PendingRequest): mixed)|Fixture|MockResponse>  $responses
      *
      * @throws FakeOutsideTestsException when the application is not running tests
      */

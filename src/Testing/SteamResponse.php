@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Fkrzski\LaravelSteamApiSdk\Testing;
 
+use Closure;
+use DateTimeInterface;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppNewsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppVersionCheckFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
@@ -11,6 +13,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameSchemaFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameServerFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\NewsItemFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBadgesFactory;
@@ -20,8 +23,10 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrConfigFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamNews\GetNewsForAppRequest;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use GuzzleHttp\Exception\ConnectException;
+use LogicException;
 use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\PendingRequest;
@@ -250,6 +255,38 @@ final class SteamResponse
         return MockResponse::make([
             'appnews' => $news->toArray(),
         ]);
+    }
+
+    /**
+     * A whole feed, paged the way Steam pages it: up to `count` items, 20 when the
+     * request sends none, dated on or before `enddate`, under a `count` of how many
+     * remain. Pass them newest first with their own `id()`; `feeds`, `tags` and
+     * `maxlength` are not applied.
+     *
+     * @return Closure(PendingRequest): MockResponse
+     */
+    public static function newsFeed(NewsItemFactory ...$items): Closure
+    {
+        return static function (PendingRequest $pendingRequest) use ($items): MockResponse {
+            $request = $pendingRequest->getRequest();
+
+            if (! $request instanceof GetNewsForAppRequest) {
+                throw new LogicException('A faked news feed answers GetNewsForAppRequest only.');
+            }
+
+            $remaining = array_filter(
+                $items,
+                static fn (NewsItemFactory $item): bool => ! $request->endDate instanceof DateTimeInterface
+                    || $item->make()->publishedAt->getTimestamp() <= $request->endDate->getTimestamp(),
+            );
+
+            return self::appNews(
+                AppNewsFactory::new()
+                    ->appId($request->appId)
+                    ->items(...array_slice($remaining, 0, $request->count ?? 20))
+                    ->total(count($remaining)),
+            );
+        };
     }
 
     /**
