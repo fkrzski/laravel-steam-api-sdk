@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Steam::appNews()` — wraps `GetNewsForAppRequest` and returns `AppNews`, an app's posts newest first, whose `total` counts every post the filter matches rather than the page. An app ID Steam does not know and some apps it does, such as Spacewar, both raise `AppNewsUnavailableException`, because Steam answers the two alike ([#105](https://github.com/fkrzski/laravel-steam-api-sdk/issues/105)).
 - `AppNewsFactory` and `NewsItemFactory`, with `SteamResponse::appNews()` for the `appnews` envelope. `->total()` keeps Steam's count apart from the items listed, so a test can fake page one of many, and `->withoutAuthor()` sends the `''` Steam sends for a post without a byline, which the DTO reads back as `null` ([#105](https://github.com/fkrzski/laravel-steam-api-sdk/issues/105)).
 - `SteamResponse::appNewsUnavailable()` — the 403 with an empty JSON object that `GetNewsForAppRequest` raises as `AppNewsUnavailableException`, faked fluently as `->news()->appNewsUnavailable()` beside `->news()->appNews()` on `SteamFake` ([#105](https://github.com/fkrzski/laravel-steam-api-sdk/issues/105)).
+- `Steam::newsFeed()` — an app's news as a `LazyCollection` of `NewsItem`, one `GetNewsForAppRequest` per page of `perPage` (20), skipping by ID the items each inclusive `enddate` repeats, so `->take(30)` stops sending once it has enough. It ends on a page holding all that remains or bringing nothing new, which cuts it short when `perPage` or more items share one second, and a `perPage` below 2 raises `InvalidArgumentException` ([#109](https://github.com/fkrzski/laravel-steam-api-sdk/issues/109)).
+- `SteamResponse::newsFeed()` — a whole feed of `NewsItemFactory` items, answering each `GetNewsForAppRequest` with the page Steam would send for its `count` and `enddate`, faked fluently as `->news()->newsFeed()` on `SteamFake`. `feeds`, `tags` and `maxlength` are not applied ([#109](https://github.com/fkrzski/laravel-steam-api-sdk/issues/109)).
 
 ### Changed
 
@@ -25,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `Steam::connector()->debug()` and `SteamConnectionException` mask the API key as `key=***`, and `Steam::pool()` counts a 4xx or 5xx against the daily budget and raises a 429 as `SteamRateLimitException`, the same as a helper call ([#104](https://github.com/fkrzski/laravel-steam-api-sdk/issues/104)).
+- `Steam::fake()` types a callable response as taking the `PendingRequest` Saloon passes it, so a closure reading the request no longer fails static analysis ([#109](https://github.com/fkrzski/laravel-steam-api-sdk/issues/109)).
 
 ## [0.7.0] - 2026-10-06
 
