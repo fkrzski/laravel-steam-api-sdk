@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BC break.** `Steam::send()` and `Steam::pool()` raise the failure Steam reports in a 200 payload inside the call, so `Steam::send(new GetOwnedGamesRequest(...))` for a private profile throws there rather than on `->dto()`, and a pool rejects where it used to fulfil. The helpers and the resources throw what they did before ([#104](https://github.com/fkrzski/laravel-steam-api-sdk/issues/104)).
 - **BC break.** `getPrevious()` is null on `SteamConnectionException` and on a `SteamApiException` raised from a 4xx or 5xx, so a `report()` callback walking the chain for Saloon's exception finds nothing. Read the status from `getCode()` and the payload from `response` instead ([#104](https://github.com/fkrzski/laravel-steam-api-sdk/issues/104)).
 - **BC break.** `ProfileNotPublicException::forSteamId()`, `ProfileNotPublicException::forPrivateOrMissing()` and `SteamUserNotFoundException::forVanity()` require the Saloon `Response`, so code building them by hand has to pass one ([#104](https://github.com/fkrzski/laravel-steam-api-sdk/issues/104)).
+- `AppNewsUnavailableException` renders as a 404 rather than a blanket 500, and not as the 403 Steam answered with, since the client asked for nothing forbidden. It joins the client-facing group under `steam-api.exceptions.render`, so an application rendering it itself is unaffected ([#106](https://github.com/fkrzski/laravel-steam-api-sdk/issues/106)).
 
 ### Fixed
 
