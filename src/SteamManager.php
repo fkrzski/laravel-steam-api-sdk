@@ -39,6 +39,7 @@ use Illuminate\Contracts\Foundation\Application;
 use Saloon\Http\Faking\Fixture;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
+use Saloon\Http\PendingRequest;
 use Saloon\Http\Pool;
 use Saloon\Http\Request;
 use Saloon\Http\Response;
@@ -348,7 +349,7 @@ final readonly class SteamManager implements SteamManagerContract
      * Nothing detaches the mock, so faking is refused outside tests. A faked
      * retry keeps its tries but not the pause between them.
      *
-     * @param  array<array-key, (callable(): mixed)|Fixture|MockResponse>  $responses
+     * @param  array<array-key, (callable(PendingRequest): mixed)|Fixture|MockResponse>  $responses
      *
      * @throws FakeOutsideTestsException when the application is not running tests
      */

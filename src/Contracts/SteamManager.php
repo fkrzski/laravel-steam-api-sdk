@@ -36,6 +36,7 @@ use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Saloon\Http\Faking\Fixture;
 use Saloon\Http\Faking\MockResponse;
+use Saloon\Http\PendingRequest;
 use Saloon\Http\Pool;
 use Saloon\Http\Request;
 use Saloon\Http\Response;
@@ -248,7 +249,7 @@ interface SteamManager
      *
      * A faked retry keeps its tries but not the pause between them.
      *
-     * @param  array<array-key, (callable(): mixed)|Fixture|MockResponse>  $responses
+     * @param  array<array-key, (callable(PendingRequest): mixed)|Fixture|MockResponse>  $responses
      *
      * @throws FakeOutsideTestsException when the application is not running tests
      */

@@ -35,7 +35,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static list<\Fkrzski\SteamApiSdk\Dto\GameServer> serversAtAddress(string $address)
  * @method static \Fkrzski\SteamApiSdk\Dto\SdrConfig sdrConfig(int $appId)
  * @method static \Fkrzski\SteamApiSdk\Dto\AppNews appNews(int $appId, ?int $count = null, ?int $maxLength = null, ?\DateTimeInterface $endDate = null, list<string> $feeds = [], list<string> $tags = [])
- * @method static \Fkrzski\LaravelSteamApiSdk\Testing\SteamFake fake(array<array-key, (callable(): mixed)|\Saloon\Http\Faking\Fixture|\Saloon\Http\Faking\MockResponse> $responses = [])
+ * @method static \Fkrzski\LaravelSteamApiSdk\Testing\SteamFake fake(array<array-key, (callable(\Saloon\Http\PendingRequest): mixed)|\Saloon\Http\Faking\Fixture|\Saloon\Http\Faking\MockResponse> $responses = [])
  * @method static void assertSent(string|callable $value)
  * @method static void assertNotSent(string|callable $request)
  * @method static void assertNothingSent()
