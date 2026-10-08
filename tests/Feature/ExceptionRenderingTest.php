@@ -102,6 +102,19 @@ it('renders an app steam cannot check for updates as a 404', function (): void {
         );
 });
 
+it('renders an app with no news as a 404', function (): void {
+    Steam::fake()->news()->appNewsUnavailable();
+
+    Route::get('steam/news', fn (): int => Steam::appNews(480)->total);
+
+    $this->getJson('steam/news')
+        ->assertNotFound()
+        ->assertJsonPath(
+            'message',
+            'GetNewsForApp: Steam returned no news for app 480: no app has that ID, or Steam does not publish its news.',
+        );
+});
+
 it('renders a private profile as a 403', function (): void {
     Steam::fake([GetUserGroupListRequest::class => SteamResponse::profileNotPublic()]);
 
