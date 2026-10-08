@@ -60,6 +60,7 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersR
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetSchemaForGameRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
+use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Saloon\Http\Faking\MockResponse;
 
@@ -602,6 +603,46 @@ it('feeds app news back through the facade', function (): void {
         ->and($news->items[0]->tags)->toBe(['patchnotes'])
         ->and($news->items[1]->author)->toBeNull()
         ->and($news->items[1]->tags)->toBeEmpty();
+});
+
+it('pages a news feed the way steam does', function (): void {
+    $items = newsFeedItems(3);
+
+    Steam::fake([GetNewsForAppRequest::class => SteamResponse::newsFeed(...$items)]);
+
+    $first = Steam::appNews(appId: 570, count: 2);
+    $next = Steam::appNews(appId: 570, count: 2, endDate: $items[1]->make()->publishedAt);
+
+    expect($first->appId)->toBe(570)
+        ->and(array_column($first->items, 'id'))->toBe(['1', '2'])
+        ->and($first->total)->toBe(3)
+        ->and(array_column($next->items, 'id'))->toBe(['2', '3'])
+        ->and($next->total)->toBe(2);
+});
+
+it('answers a news feed request without a count with twenty items', function (): void {
+    Steam::fake([GetNewsForAppRequest::class => SteamResponse::newsFeed(...newsFeedItems(21))]);
+
+    $news = Steam::appNews(appId: 440);
+
+    expect($news->items)->toHaveCount(20)
+        ->and($news->total)->toBe(21);
+});
+
+it('answers an empty news feed with no news', function (): void {
+    Steam::fake([GetNewsForAppRequest::class => SteamResponse::newsFeed()]);
+
+    $news = Steam::appNews(appId: 440);
+
+    expect($news->items)->toBeEmpty()
+        ->and($news->total)->toBe(0);
+});
+
+it('refuses to answer anything but the news endpoint from a news feed', function (): void {
+    Steam::fake([SteamConnector::class => SteamResponse::newsFeed()]);
+
+    expect(fn (): int => Steam::currentPlayers(appId: 440))
+        ->toThrow(LogicException::class, 'A faked news feed answers GetNewsForAppRequest only.');
 });
 
 // Failures — these pin the contract with the base SDK's exception mapping
