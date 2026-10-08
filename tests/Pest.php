@@ -9,6 +9,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use Saloon\RateLimitPlugin\Limit;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)->in('Feature');
@@ -33,6 +34,22 @@ function newsFeedItems(int $count): array
             ->publishedAt(new DateTimeImmutable('2026-10-01 12:00:00 UTC')->sub(new DateInterval(sprintf('PT%dH', $id)))),
         range(1, $count),
     );
+}
+
+/**
+ * Write a spent daily budget into the store the connector reads, as a day of
+ * traffic would.
+ */
+function spendDailyBudget(): void
+{
+    $connector = Steam::connector();
+
+    $limit = array_find(
+        $connector->getLimits(),
+        static fn (Limit $limit): bool => ! $limit->usesResponse(),
+    );
+
+    $limit?->hit(100_000)->save($connector->rateLimitStore());
 }
 
 function fakeSteamEndpoints(): void

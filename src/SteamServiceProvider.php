@@ -9,6 +9,9 @@ use Fkrzski\LaravelSteamApiSdk\Console\InstallCommand;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamIdBinder;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
+use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestFailed;
+use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestSending;
+use Fkrzski\LaravelSteamApiSdk\Events\SteamResponseReceived;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
 use Fkrzski\LaravelSteamApiSdk\Localization\LocaleLanguageResolver;
@@ -16,10 +19,13 @@ use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
 use Fkrzski\SteamApiSdk\Enums\Language;
+use Fkrzski\SteamApiSdk\Hooks\RequestSending;
+use Fkrzski\SteamApiSdk\Hooks\ResponseReceived;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Console\AboutCommand;
 use Illuminate\Foundation\Exceptions\Handler;
@@ -27,6 +33,7 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\ServiceProvider;
 use Saloon\RateLimitPlugin\Stores\LaravelCacheStore;
+use Throwable;
 
 final class SteamServiceProvider extends ServiceProvider
 {
@@ -38,7 +45,7 @@ final class SteamServiceProvider extends ServiceProvider
             $http = $app->make(HttpOptions::class);
             $rateLimit = $app->make(RateLimitOptions::class);
 
-            return new SteamConnector(new SteamConfig(
+            return $this->dispatchEvents(new SteamConnector(new SteamConfig(
                 apiKey: $this->steamApiKey(),
                 rateLimitStore: new LaravelCacheStore(Cache::store($rateLimit->store())),
                 language: $this->steamLanguage(),
@@ -47,7 +54,7 @@ final class SteamServiceProvider extends ServiceProvider
                 tries: $http->tries(),
                 retryInterval: $http->retryInterval(),
                 exponentialBackoff: $http->exponentialBackoff(),
-            ));
+            )), $app);
         });
 
         $this->app->scoped(
@@ -90,6 +97,37 @@ final class SteamServiceProvider extends ServiceProvider
 
         $this->registerRouteBinding();
         $this->registerExceptionRenderers();
+    }
+
+    /**
+     * Turn the connector's hooks into events.
+     *
+     * A hook added on the scoped connector dies with the scope; a listener on the
+     * dispatcher does not. The dispatcher is resolved per event, so one faked after
+     * the connector was built still hears it.
+     */
+    private function dispatchEvents(SteamConnector $connector, Application $app): SteamConnector
+    {
+        return $connector
+            ->onRequest(static function (RequestSending $sending) use ($app): void {
+                $app->make(Dispatcher::class)->dispatch(new SteamRequestSending(
+                    $sending->method,
+                    $sending->query,
+                    $sending->attempt,
+                ));
+            })
+            ->onResponse(static function (ResponseReceived $received) use ($app): void {
+                $app->make(Dispatcher::class)->dispatch(new SteamResponseReceived(
+                    $received->method,
+                    $received->query,
+                    $received->attempt,
+                    $received->status,
+                    $received->duration,
+                ));
+            })
+            ->onFailure(static function (Throwable $exception) use ($app): void {
+                $app->make(Dispatcher::class)->dispatch(new SteamRequestFailed($exception));
+            });
     }
 
     /**

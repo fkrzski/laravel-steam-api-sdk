@@ -41,22 +41,6 @@ function releaseDelay(QueuedSteamJob $job): int
     return $job->job->releaseDelay;
 }
 
-/**
- * Write a spent daily budget into the store the connector reads, as a day of
- * traffic would.
- */
-function spendDailyBudget(): void
-{
-    $connector = Steam::connector();
-
-    $limit = array_find(
-        $connector->getLimits(),
-        static fn (Limit $limit): bool => ! $limit->usesResponse(),
-    );
-
-    $limit?->hit(100_000)->save($connector->rateLimitStore());
-}
-
 function throttleCurrentPlayers(): void
 {
     Steam::fake([
