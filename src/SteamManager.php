@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk;
 
 use Closure;
+use DateTimeInterface;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeNotInstalledException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamFake;
+use Fkrzski\SteamApiSdk\Dto\AppNews;
 use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
 use Fkrzski\SteamApiSdk\Dto\CommunityBadgeQuest;
 use Fkrzski\SteamApiSdk\Dto\Friend;
@@ -27,6 +29,7 @@ use Fkrzski\SteamApiSdk\Dto\UserStats;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\Http\Resources\AppsResource;
+use Fkrzski\SteamApiSdk\Http\Resources\NewsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\PlayersResource;
 use Fkrzski\SteamApiSdk\Http\Resources\StatsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\UsersResource;
@@ -120,6 +123,14 @@ final readonly class SteamManager implements SteamManagerContract
     public function apps(): AppsResource
     {
         return $this->connector()->apps();
+    }
+
+    /**
+     * The ISteamNews endpoint, reached fluently.
+     */
+    public function news(): NewsResource
+    {
+        return $this->connector()->news();
     }
 
     /**
@@ -308,6 +319,27 @@ final readonly class SteamManager implements SteamManagerContract
     public function sdrConfig(int $appId): SdrConfig
     {
         return $this->apps()->sdrConfig($appId);
+    }
+
+    /**
+     * Fetch an app's news, newest first.
+     *
+     * `count` caps how many items come back, while `total` on the result is what
+     * Steam counted for the filter. An app ID Steam does not know, and some apps
+     * it does, raise `AppNewsUnavailableException`.
+     *
+     * @param  list<string>  $feeds
+     * @param  list<string>  $tags
+     */
+    public function appNews(
+        int $appId,
+        ?int $count = null,
+        ?int $maxLength = null,
+        ?DateTimeInterface $endDate = null,
+        array $feeds = [],
+        array $tags = [],
+    ): AppNews {
+        return $this->news()->appNews($appId, $count, $maxLength, $endDate, $feeds, $tags);
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk\Testing;
 
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\AppsFake;
+use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\NewsFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\PlayersFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\StatsFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\UsersFake;
@@ -39,6 +40,11 @@ final class SteamFake extends MockClient
     public function apps(): AppsFake
     {
         return new AppsFake($this);
+    }
+
+    public function news(): NewsFake
+    {
+        return new NewsFake($this);
     }
 
     /**

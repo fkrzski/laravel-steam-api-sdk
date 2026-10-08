@@ -3,12 +3,14 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppNewsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppVersionCheckFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameSchemaFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameServerFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\NewsItemFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
@@ -21,11 +23,13 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrConfigFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\AppsFake;
+use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\NewsFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\PlayersFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\StatsFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\UsersFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
+use Fkrzski\SteamApiSdk\Dto\AppNews;
 use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
 use Fkrzski\SteamApiSdk\Dto\GameSchema;
 use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
@@ -33,6 +37,7 @@ use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
 use Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames;
 use Fkrzski\SteamApiSdk\Dto\SdrConfig;
 use Fkrzski\SteamApiSdk\Dto\UserStats;
+use Fkrzski\SteamApiSdk\Exceptions\AppNewsUnavailableException;
 use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
 use Fkrzski\SteamApiSdk\Exceptions\AppVersionUnavailableException;
 use Fkrzski\SteamApiSdk\Exceptions\InvalidApiKeyException;
@@ -45,7 +50,7 @@ use Fkrzski\SteamApiSdk\Exceptions\SteamUserNotFoundException;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 
-mutates(SteamFake::class, UsersFake::class, PlayersFake::class, StatsFake::class, AppsFake::class);
+mutates(SteamFake::class, UsersFake::class, PlayersFake::class, StatsFake::class, AppsFake::class, NewsFake::class);
 
 it('attaches the steam fake it returns', function (): void {
     $fake = Steam::fake();
@@ -82,6 +87,7 @@ it('hands the same mock back from every endpoint', function (Closure $fakeEndpoi
     ],
     'servers at address' => [fn (SteamFake $fake): SteamFake => $fake->apps()->serversAtAddress()],
     'sdr config' => [fn (SteamFake $fake): SteamFake => $fake->apps()->sdrConfig(SdrConfigFactory::new())],
+    'app news' => [fn (SteamFake $fake): SteamFake => $fake->news()->appNews(AppNewsFactory::new())],
 ]);
 
 it('fakes every users endpoint through the chain', function (): void {
@@ -175,6 +181,22 @@ it('fakes every apps endpoint through the chain', function (): void {
         ->and(Steam::sdrConfig(appId: 730)->revision)->toBe(42);
 
     Steam::assertSentCount(3);
+});
+
+it('fakes the news endpoint through the chain', function (): void {
+    Steam::fake()
+        ->news()->appNews(AppNewsFactory::new()->items(
+            NewsItemFactory::new(),
+            NewsItemFactory::new()->communityAnnouncement(),
+        )->total(3939));
+
+    $news = Steam::appNews(appId: 440, count: 2);
+
+    expect($news->total)->toBe(3939)
+        ->and($news->items)->toHaveCount(2)
+        ->and($news->items[1]->isCommunityAnnouncement)->toBeTrue();
+
+    Steam::assertSentCount(1);
 });
 
 it('chains from the array form', function (): void {
@@ -283,6 +305,11 @@ it('raises what the base sdk raises for a named failure', function (
         fn (SteamFake $fake): SteamFake => $fake->apps()->sdrConfigAppNotFound(),
         fn (): SdrConfig => Steam::sdrConfig(appId: 999999999),
         AppNotFoundException::class,
+    ],
+    'app news unavailable' => [
+        fn (SteamFake $fake): SteamFake => $fake->news()->appNewsUnavailable(),
+        fn (): AppNews => Steam::appNews(appId: 480),
+        AppNewsUnavailableException::class,
     ],
 ]);
 

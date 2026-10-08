@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk\Contracts;
 
 use Closure;
+use DateTimeInterface;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeNotInstalledException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamFake;
+use Fkrzski\SteamApiSdk\Dto\AppNews;
 use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
 use Fkrzski\SteamApiSdk\Dto\CommunityBadgeQuest;
 use Fkrzski\SteamApiSdk\Dto\Friend;
@@ -26,6 +28,7 @@ use Fkrzski\SteamApiSdk\Dto\UserStats;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\Http\Resources\AppsResource;
+use Fkrzski\SteamApiSdk\Http\Resources\NewsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\PlayersResource;
 use Fkrzski\SteamApiSdk\Http\Resources\StatsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\UsersResource;
@@ -87,6 +90,11 @@ interface SteamManager
      * The ISteamApps endpoints, reached fluently.
      */
     public function apps(): AppsResource;
+
+    /**
+     * The ISteamNews endpoint, reached fluently.
+     */
+    public function news(): NewsResource;
 
     /**
      * Fetch player summaries for up to 100 Steam IDs.
@@ -215,6 +223,25 @@ interface SteamManager
      * An app ID Steam does not know raises `AppNotFoundException`.
      */
     public function sdrConfig(int $appId): SdrConfig;
+
+    /**
+     * Fetch an app's news, newest first.
+     *
+     * `count` caps how many items come back, while `total` on the result is what
+     * Steam counted for the filter. An app ID Steam does not know, and some apps
+     * it does, raise `AppNewsUnavailableException`.
+     *
+     * @param  list<string>  $feeds
+     * @param  list<string>  $tags
+     */
+    public function appNews(
+        int $appId,
+        ?int $count = null,
+        ?int $maxLength = null,
+        ?DateTimeInterface $endDate = null,
+        array $feeds = [],
+        array $tags = [],
+    ): AppNews;
 
     /**
      * Swap the connector's HTTP client for a Saloon mock, returning it for assertions.

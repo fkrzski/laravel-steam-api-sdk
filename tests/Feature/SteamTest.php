@@ -8,6 +8,7 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppNewsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppVersionCheckFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
@@ -15,6 +16,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameSchemaFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameServerFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\NewsItemFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBadgesFactory;
@@ -27,6 +29,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrPointOfPresenceFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
+use Fkrzski\SteamApiSdk\Dto\AppNews;
 use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
 use Fkrzski\SteamApiSdk\Dto\SdrConfig;
 use Fkrzski\SteamApiSdk\Enums\EconomyBan;
@@ -42,6 +45,7 @@ use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetSteamLevelRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\GetSdrConfigRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\GetServersAtAddressRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\UpToDateCheckRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamNews\GetNewsForAppRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerBansRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
@@ -141,6 +145,7 @@ it('sends an anonymous request with no key configured', function (Closure $call,
         UpToDateCheckRequest::class => SteamResponse::upToDateCheck(AppVersionCheckFactory::new()),
         GetServersAtAddressRequest::class => SteamResponse::serversAtAddress(GameServerFactory::new()),
         GetSdrConfigRequest::class => SteamResponse::sdrConfig(SdrConfigFactory::new()),
+        GetNewsForAppRequest::class => SteamResponse::appNews(AppNewsFactory::new()),
     ]);
 
     $call();
@@ -168,6 +173,10 @@ it('sends an anonymous request with no key configured', function (Closure $call,
     'sdr config' => [
         fn (): SdrConfig => Steam::sdrConfig(appId: 730),
         GetSdrConfigRequest::class,
+    ],
+    'app news' => [
+        fn (): AppNews => Steam::appNews(appId: 440),
+        GetNewsForAppRequest::class,
     ],
 ]);
 
@@ -745,6 +754,40 @@ it('fetches the sdr config', function (): void {
     expect(array_keys(Steam::sdrConfig(appId: 730)->pointsOfPresence))->toBe(['ams', 'waw']);
 
     $mock->assertSent(fn (GetSdrConfigRequest $request): bool => $request->appId === 730);
+});
+
+it("fetches an app's news", function (): void {
+    $mock = Steam::fake([
+        GetNewsForAppRequest::class => SteamResponse::appNews(
+            AppNewsFactory::new()
+                ->items(NewsItemFactory::new(), NewsItemFactory::new()->id('1838407329261910'))
+                ->total(3939),
+        ),
+    ]);
+
+    $endDate = new DateTimeImmutable('2026-10-01 12:00:00 UTC');
+
+    $news = Steam::appNews(
+        appId: 440,
+        count: 2,
+        maxLength: 100,
+        endDate: $endDate,
+        feeds: ['tf2_blog'],
+        tags: ['patchnotes'],
+    );
+
+    expect($news->total)->toBe(3939)
+        ->and($news->items)->toHaveCount(2)
+        ->and($news->items[1]->id)->toBe('1838407329261910');
+
+    $mock->assertSent(
+        fn (GetNewsForAppRequest $request): bool => $request->appId === 440
+            && $request->count === 2
+            && $request->maxLength === 100
+            && $request->endDate === $endDate
+            && $request->feeds === ['tf2_blog']
+            && $request->tags === ['patchnotes'],
+    );
 });
 
 // The connector strips the key while booting the pending request, so the request
