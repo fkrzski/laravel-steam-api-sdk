@@ -10,6 +10,7 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitStoreException;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
 use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
+use Fkrzski\SteamApiSdk\Exceptions\AppNewsUnavailableException;
 use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
 use Fkrzski\SteamApiSdk\Exceptions\AppVersionUnavailableException;
 use Fkrzski\SteamApiSdk\Exceptions\InvalidApiKeyException;
@@ -67,14 +68,18 @@ final readonly class SteamExceptionRenderer
     ) {}
 
     /**
-     * No such user, no such app, no stats for that game, or no server version.
+     * No such user, no such app, no stats for that game, no server version, or
+     * no news for that app.
      *
      * Stats are ambiguous — the game exposes none, or the profile hides them —
-     * and so is a version check — no such app, or one publishing no server
-     * version — so all of them answer 404 and none says which.
+     * and so are a version check and a news lookup — no such app, or one that
+     * publishes no server version or no news — so all of them answer 404 and
+     * none says which. Steam refuses the news with a 403, but the client was
+     * not forbidden anything.
      */
     public function notFound(
-        SteamUserNotFoundException|StatsUnavailableException|AppNotFoundException|AppVersionUnavailableException $e,
+        SteamUserNotFoundException|StatsUnavailableException|AppNotFoundException
+        |AppVersionUnavailableException|AppNewsUnavailableException $e,
         Request $request,
     ): Response {
         return $this->handler->render($request, new NotFoundHttpException($e->getMessage(), $e));
