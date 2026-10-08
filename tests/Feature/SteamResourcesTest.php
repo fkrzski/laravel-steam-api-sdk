@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppNewsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppVersionCheckFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetSteamLevelRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\UpToDateCheckRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamNews\GetNewsForAppRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
 
@@ -25,14 +27,16 @@ it('sends through the connector the fake sits on', function (): void {
             UserStatsFactory::new()->gameName('Dead by Daylight'),
         ),
         UpToDateCheckRequest::class => SteamResponse::upToDateCheck(AppVersionCheckFactory::new()),
+        GetNewsForAppRequest::class => SteamResponse::appNews(AppNewsFactory::new()->total(3939)),
     ]);
 
     expect(Steam::players()->steamLevel(steamId()))->toBe(42)
         ->and(Steam::users()->summaries([steamId()])[0]->personaName)->toBe('Gabe')
         ->and(Steam::stats()->userStats(steamId(), appId: 381210)->gameName)->toBe('Dead by Daylight')
-        ->and(Steam::apps()->upToDateCheck(appId: 440, version: 10828683)->isUpToDate)->toBeTrue();
+        ->and(Steam::apps()->upToDateCheck(appId: 440, version: 10828683)->isUpToDate)->toBeTrue()
+        ->and(Steam::news()->appNews(appId: 440)->total)->toBe(3939);
 
-    Steam::assertSentCount(4);
+    Steam::assertSentCount(5);
 });
 
 // A resource holds the connector it was built from, so one reached before the fake

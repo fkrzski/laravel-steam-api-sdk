@@ -25,11 +25,13 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrPointOfPresenceFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
+use Fkrzski\SteamApiSdk\Dto\AppNews;
 use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
 use Fkrzski\SteamApiSdk\Dto\GameSchema;
 use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
 use Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames;
 use Fkrzski\SteamApiSdk\Dto\SdrConfig;
+use Fkrzski\SteamApiSdk\Exceptions\AppNewsUnavailableException;
 use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
 use Fkrzski\SteamApiSdk\Exceptions\AppVersionUnavailableException;
 use Fkrzski\SteamApiSdk\Exceptions\InvalidApiKeyException;
@@ -47,6 +49,7 @@ use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetSteamLevelRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\GetSdrConfigRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\GetServersAtAddressRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\UpToDateCheckRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamNews\GetNewsForAppRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetFriendListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerBansRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
@@ -579,6 +582,28 @@ it('feeds an sdr config back through the facade', function (): void {
         ->and($pointsOfPresence['eat']->relays)->toBeEmpty();
 });
 
+it('feeds app news back through the facade', function (): void {
+    Steam::fake([
+        GetNewsForAppRequest::class => SteamResponse::appNews(
+            AppNewsFactory::new()
+                ->items(
+                    NewsItemFactory::new()->communityAnnouncement()->tags('patchnotes'),
+                    NewsItemFactory::new()->withoutAuthor(),
+                )
+                ->total(3939),
+        ),
+    ]);
+
+    $news = Steam::appNews(appId: 440, count: 2);
+
+    expect($news->total)->toBe(3939)
+        ->and($news->items)->toHaveCount(2)
+        ->and($news->items[0]->isCommunityAnnouncement)->toBeTrue()
+        ->and($news->items[0]->tags)->toBe(['patchnotes'])
+        ->and($news->items[1]->author)->toBeNull()
+        ->and($news->items[1]->tags)->toBeEmpty();
+});
+
 // Failures — these pin the contract with the base SDK's exception mapping
 
 it('raises a not public profile from a refused friend list', function (): void {
@@ -704,6 +729,15 @@ it('raises a missing app from an app id the sdr config does not know', function 
 
     expect(fn (): SdrConfig => Steam::sdrConfig(appId: 999999999))
         ->toThrow(AppNotFoundException::class, 'No Steam app found for app ID 999999999.');
+});
+
+// Like global achievements, the request claims this 403 before the connector can
+// read it as a rejected key or a hidden profile.
+it('raises unavailable news from a 403 on the news endpoint', function (): void {
+    Steam::fake([GetNewsForAppRequest::class => SteamResponse::appNewsUnavailable()]);
+
+    expect(fn (): AppNews => Steam::appNews(appId: 480))
+        ->toThrow(AppNewsUnavailableException::class, 'GetNewsForApp: Steam returned no news for app 480');
 });
 
 it('claims an app the sdr config does not know before the retry loop', function (): void {
