@@ -382,6 +382,12 @@ it('reports an unknown budget when the rate limit store is not defined', functio
     expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
 });
 
+it('reports an unknown budget when the log channel is not defined', function (): void {
+    config()->set('steam-api.logging.channel', 'papertrail-x');
+
+    expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
+});
+
 it('does not resolve the connector while booting', function (): void {
     config()->set(['steam-api.key' => null]);
 

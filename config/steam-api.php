@@ -114,4 +114,21 @@ return [
         'render' => true,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Logging
+    |--------------------------------------------------------------------------
+    |
+    | Name a channel from config/logging.php to log every failed Steam call to
+    | it as a warning; left unset, nothing is logged. Turn on `responses` to log
+    | every response Steam sends as well, at debug. The API key never reaches
+    | the log, but a logged query does carry the Steam IDs it asked about.
+    |
+    */
+
+    'logging' => [
+        'channel' => env('STEAM_API_LOG_CHANNEL'),
+        'responses' => env('STEAM_API_LOG_RESPONSES', false),
+    ],
+
 ];

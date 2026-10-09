@@ -15,6 +15,8 @@ use Fkrzski\LaravelSteamApiSdk\Events\SteamResponseReceived;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
 use Fkrzski\LaravelSteamApiSdk\Localization\LocaleLanguageResolver;
+use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
+use Fkrzski\LaravelSteamApiSdk\Logging\SteamTrafficLogger;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
@@ -44,6 +46,7 @@ final class SteamServiceProvider extends ServiceProvider
         $this->app->scoped(SteamConnector::class, function (Application $app): SteamConnector {
             $http = $app->make(HttpOptions::class);
             $rateLimit = $app->make(RateLimitOptions::class);
+            $app->make(LoggingOptions::class)->validate();
 
             return $this->dispatchEvents(new SteamConnector(new SteamConfig(
                 apiKey: $this->steamApiKey(),
@@ -97,6 +100,7 @@ final class SteamServiceProvider extends ServiceProvider
 
         $this->registerRouteBinding();
         $this->registerExceptionRenderers();
+        $this->registerLogging();
     }
 
     /**
@@ -128,6 +132,18 @@ final class SteamServiceProvider extends ServiceProvider
             ->onFailure(static function (Throwable $exception) use ($app): void {
                 $app->make(Dispatcher::class)->dispatch(new SteamRequestFailed($exception));
             });
+    }
+
+    /**
+     * Log Steam traffic through listeners on its events rather than hooks on the
+     * connector, so `Event::fake()` silences the logging along with the events.
+     */
+    private function registerLogging(): void
+    {
+        $events = $this->app->make(Dispatcher::class);
+
+        $events->listen(SteamRequestFailed::class, [SteamTrafficLogger::class, 'logFailure']);
+        $events->listen(SteamResponseReceived::class, [SteamTrafficLogger::class, 'logResponse']);
     }
 
     /**

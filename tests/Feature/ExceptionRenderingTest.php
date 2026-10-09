@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLoggingOptionException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitStoreException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
@@ -288,6 +289,14 @@ it('renders a rejected rate limit store as a 500', function (): void {
     config()->set('app.debug', false);
 
     $response = renderer()->misconfigured(new InvalidSteamRateLimitStoreException('redis-x'), request());
+
+    expect($response?->getStatusCode())->toBe(500);
+});
+
+it('renders a rejected logging option as a 500', function (): void {
+    config()->set('app.debug', false);
+
+    $response = renderer()->misconfigured(new InvalidSteamLoggingOptionException('channel', 'papertrail-x'), request());
 
     expect($response?->getStatusCode())->toBe(500);
 });
