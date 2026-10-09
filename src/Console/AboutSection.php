@@ -11,6 +11,7 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLoggingOptionException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitStoreException;
 use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
+use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\SteamConnector;
@@ -63,6 +64,7 @@ final readonly class AboutSection
         private ConfigRepository $config,
         private HttpOptions $http,
         private RateLimitOptions $rateLimit,
+        private LoggingOptions $logging,
     ) {}
 
     /**
@@ -78,6 +80,7 @@ final readonly class AboutSection
             'Language' => $this->language(...),
             'Timeouts' => $this->timeouts(...),
             'Retries' => $this->retries(...),
+            'Logging' => $this->logging(...),
         ];
     }
 
@@ -194,6 +197,28 @@ final readonly class AboutSection
             $backoff => sprintf('%dms apart, doubling', $interval),
             default => sprintf('%dms apart', $interval),
         });
+    }
+
+    /**
+     * The channel Steam traffic is logged to, and whether responses go there too.
+     *
+     * Read through the {@see LoggingOptions} the listeners log through, so the row
+     * cannot name a channel the traffic does not reach.
+     */
+    private function logging(): string
+    {
+        try {
+            $channel = $this->logging->channel();
+            $responses = $this->logging->responses();
+        } catch (InvalidSteamLoggingOptionException) {
+            return self::INVALID;
+        }
+
+        if ($channel === null) {
+            return self::DISABLED;
+        }
+
+        return $responses ? $channel.' (+ responses)' : $channel;
     }
 
     /**
