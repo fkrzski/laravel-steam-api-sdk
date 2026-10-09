@@ -8,8 +8,10 @@ use Closure;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLoggingOptionException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitStoreException;
 use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
+use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\SteamConnector;
@@ -62,6 +64,7 @@ final readonly class AboutSection
         private ConfigRepository $config,
         private HttpOptions $http,
         private RateLimitOptions $rateLimit,
+        private LoggingOptions $logging,
     ) {}
 
     /**
@@ -77,6 +80,7 @@ final readonly class AboutSection
             'Language' => $this->language(...),
             'Timeouts' => $this->timeouts(...),
             'Retries' => $this->retries(...),
+            'Logging' => $this->logging(...),
         ];
     }
 
@@ -196,6 +200,28 @@ final readonly class AboutSection
     }
 
     /**
+     * The channel Steam traffic is logged to, and whether responses go there too.
+     *
+     * Read through the {@see LoggingOptions} the listeners log through, so the row
+     * cannot name a channel the traffic does not reach.
+     */
+    private function logging(): string
+    {
+        try {
+            $channel = $this->logging->channel();
+            $responses = $this->logging->responses();
+        } catch (InvalidSteamLoggingOptionException) {
+            return self::INVALID;
+        }
+
+        if ($channel === null) {
+            return self::DISABLED;
+        }
+
+        return $responses ? $channel.' (+ responses)' : $channel;
+    }
+
+    /**
      * The configured API key with everything but its last few characters hidden.
      *
      * The full key is never rendered: `about` output is routinely pasted into
@@ -304,7 +330,7 @@ final readonly class AboutSection
             return $limit?->update($connector->rateLimitStore());
         } catch (
             InvalidSteamLanguageException|InvalidSteamHttpOptionException|InvalidSteamRateLimitStoreException
-            |LimitException|JsonException
+            |InvalidSteamLoggingOptionException|LimitException|JsonException
         ) {
             return null;
         }

@@ -48,6 +48,7 @@ it('registers the Steam API section on the about command', function (): void {
         'language',
         'timeouts',
         'retries',
+        'logging',
     ]);
 });
 
@@ -63,6 +64,7 @@ it('renders the section under its own heading', function (): void {
         ->toContain('Language')
         ->toContain('Timeouts')
         ->toContain('Retries')
+        ->toContain('Logging')
         ->not->toContain('Application Name');
 });
 
@@ -378,6 +380,46 @@ it('reports an unknown budget when an http option is rejected', function (): voi
 
 it('reports an unknown budget when the rate limit store is not defined', function (): void {
     config()->set('steam-api.rate_limit.store', 'redis-x');
+
+    expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
+});
+
+it('reports logging as disabled until a channel is set', function (): void {
+    expect(steamAboutSection()['logging'])->toBe('disabled');
+});
+
+it('names the log channel', function (): void {
+    config()->set('steam-api.logging.channel', 'stack');
+
+    expect(steamAboutSection()['logging'])->toBe('stack');
+});
+
+it('says responses are logged too', function (): void {
+    config()->set([
+        'steam-api.logging.channel' => 'stack',
+        'steam-api.logging.responses' => true,
+    ]);
+
+    expect(steamAboutSection()['logging'])->toBe('stack (+ responses)');
+});
+
+it('reports logging as disabled when responses are on without a channel', function (): void {
+    config()->set('steam-api.logging.responses', true);
+
+    expect(steamAboutSection()['logging'])->toBe('disabled');
+});
+
+it('reports a rejected logging option as invalid', function (string $option, mixed $value): void {
+    config()->set('steam-api.logging.'.$option, $value);
+
+    expect(steamAboutSection()['logging'])->toBe('INVALID');
+})->with([
+    'channel' => ['channel', 'papertrail-x'],
+    'responses' => ['responses', 'maybe'],
+]);
+
+it('reports an unknown budget when the log channel is not defined', function (): void {
+    config()->set('steam-api.logging.channel', 'papertrail-x');
 
     expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
 });
