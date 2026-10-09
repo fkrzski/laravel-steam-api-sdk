@@ -1,6 +1,6 @@
 ---
 title: API reference
-description: Every method on the Steam facade — its signature, the value object or DTO it returns, and the exceptions it can raise, each with a runnable example.
+description: Every method on the Steam facade and every event it dispatches — signatures, what each method returns and raises, with a runnable example.
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
@@ -15,8 +15,8 @@ identify a user and return readonly DTOs from the underlying SDK, documented in
 `ApiKeyNotConfiguredException` (no key configured), `InvalidApiKeyException` (Steam
 rejected it), `SteamRateLimitException` (daily quota spent) and `SteamConnectionException`
 (Steam never answered, once the [retries](/laravel-steam-api-sdk/configuration#timeouts-and-retries)
-are spent). The first one skips `currentPlayers()`, `globalAchievements()` and the three
-ISteamApps helpers, which Steam serves without a key. They are listed per method only where
+are spent). The first one skips `appNews()`, `currentPlayers()`, `globalAchievements()`,
+`newsFeed()` and the three ISteamApps helpers, which Steam serves without a key. They are listed per method only where
 a helper raises them on its own, and every exception below extends `SteamApiException`.
 </Aside>
 
@@ -51,6 +51,42 @@ foreach ($result->achievements as $achievement) {
     echo $achievement->apiName, ' — ', $achievement->achieved ? 'unlocked' : 'locked', PHP_EOL;
 }
 ```
+
+### `appNews()`
+
+```text frame="none"
+Steam::appNews(
+    int $appId,
+    ?int $count = null,
+    ?int $maxLength = null,
+    ?DateTimeInterface $endDate = null,
+    list<string> $feeds = [],
+    list<string> $tags = [],
+): AppNews
+```
+
+<Badge text="throws AppNewsUnavailableException" variant="danger" size="small" />
+
+Returns an app's news, newest first: Steam's own announcements beside the blog and press feeds
+it collects. `count` caps the page, 20 when omitted, while `total` counts every post the filter
+matches. `feeds` and `tags` filter by feed name and tag, and no key goes out. An app ID Steam
+does not know raises, and so do some it does, such as Spacewar, because Steam answers the two
+alike.
+
+```php
+$news = Steam::appNews(appId: 440, count: 5, feeds: ['steam_community_announcements']);
+
+foreach ($news->items as $item) {
+    echo $item->publishedAt->format('Y-m-d'), ' — ', $item->title, PHP_EOL;
+}
+```
+
+<Aside type="caution" title="What Steam does with the arguments">
+Without `maxLength`, or with `0`, each body comes in its feed's own markup, BBCode included;
+any positive value flattens it, even when it fits, and cuts a longer one to an excerpt. An
+unknown feed name is ignored, so a misspelt one returns every feed. `endDate` is inclusive, so
+paging by the last post's date repeats it — [`newsFeed()`](#newsfeed) handles that.
+</Aside>
 
 ### `badges()`
 
@@ -196,6 +232,38 @@ foreach ($groups as $group) {
     echo $group->gid, PHP_EOL;
 }
 ```
+
+### `newsFeed()`
+
+```text frame="none"
+Steam::newsFeed(
+    int $appId,
+    int $perPage = 20,
+    ?int $maxLength = null,
+    ?DateTimeInterface $endDate = null,
+    list<string> $feeds = [],
+    list<string> $tags = [],
+): LazyCollection<int, NewsItem>
+```
+
+<p><Badge text="throws AppNewsUnavailableException" variant="danger" size="small" />{' '}<Badge text="throws InvalidArgumentException" variant="danger" size="small" /></p>
+
+Walks an app's news lazily, newest first, sending one `appNews()` request per page of
+`perPage` only as the collection is read, so `->take(30)` stops once it has 30. Every page
+after the first asks for posts up to the last one's date and skips by ID what it already yielded.
+A `perPage` below 2 raises `InvalidArgumentException`.
+
+```php
+foreach (Steam::newsFeed(appId: 440)->take(30) as $item) {
+    echo $item->title, PHP_EOL;
+}
+```
+
+<Aside type="caution" title="Posts sharing a second end the feed">
+The feed ends on a page holding all that remains or bringing nothing new. A page can bring
+nothing new when `perPage` or more posts share one second, so raise `perPage` for an app that
+publishes in bursts.
+</Aside>
 
 ### `ownedGames()`
 
@@ -402,18 +470,20 @@ foreach ($stats->stats as $stat) {
 ## Resources
 
 The base SDK groups its endpoints into one resource per Steam interface, and the facade
-hands each back as the connector builds it — `AppsResource`, `PlayersResource`,
-`StatsResource` and `UsersResource` from `Fkrzski\SteamApiSdk\Http\Resources`.
+hands each back as the connector builds it — `AppsResource`, `NewsResource`,
+`PlayersResource`, `StatsResource` and `UsersResource` from
+`Fkrzski\SteamApiSdk\Http\Resources`.
 
 ```text frame="none"
 Steam::apps(): AppsResource
+Steam::news(): NewsResource
 Steam::players(): PlayersResource
 Steam::stats(): StatsResource
 Steam::users(): UsersResource
 ```
 
-Every request helper above is a shortcut for the resource method of the same name, with
-the same signature, DTO and exceptions:
+Every request helper above but `newsFeed()`, which the bridge builds on `appNews()`, is a
+shortcut for the resource method of the same name, with the same signature, DTO and exceptions:
 
 ```php
 Steam::summaries([$steamId]);           // the helper
@@ -423,6 +493,7 @@ Steam::users()->summaries([$steamId]);  // the resource behind it
 | Resource | Steam interface | Methods |
 | --- | --- | --- |
 | `Steam::apps()` | `ISteamApps` | `sdrConfig()`, `serversAtAddress()`, `upToDateCheck()` |
+| `Steam::news()` | `ISteamNews` | `appNews()` |
 | `Steam::players()` | `IPlayerService` | `badges()`, `communityBadgeProgress()`, `ownedGames()`, `recentlyPlayedGames()`, `steamLevel()` |
 | `Steam::stats()` | `ISteamUserStats` | `achievements()`, `currentPlayers()`, `globalAchievements()`, `schema()`, `userStats()` |
 | `Steam::users()` | `ISteamUser` | `bans()`, `friends()`, `groups()`, `resolveVanityUrl()`, `summaries()` |
@@ -455,8 +526,8 @@ Steam::fake(array<class-string, mixed> $responses = []): SteamFake
 <Badge text="throws FakeOutsideTestsException" variant="danger" size="small" />
 
 Attaches `Testing\SteamFake`, a Saloon `MockClient`, to the connector and returns it.
-Refused unless the application environment is `testing`. Its `apps()`, `players()`,
-`stats()` and `users()` fake each endpoint by name and hand the mock back — see
+Refused unless the application environment is `testing`. Its `apps()`, `news()`,
+`players()`, `stats()` and `users()` fake each endpoint by name and hand the mock back — see
 [Faking responses](/laravel-steam-api-sdk/testing#faking-responses). The assertions and
 readers sit on the facade too, under [Test assertions](#test-assertions) and
 [Recorded traffic](#recorded-traffic).
@@ -484,6 +555,44 @@ Steam::send(Saloon\Http\Request $request): Saloon\Http\Response
 Sends any Saloon `Request` through the shared connector and returns the raw
 `Response` — the escape hatch for requests the helpers don't cover. Decode it with
 `->dto()` yourself; whatever the request raises reaches you unchanged.
+
+## Events
+
+The bridge dispatches three events for Steam traffic, from `Fkrzski\LaravelSteamApiSdk\Events`,
+each with public readonly properties. [Events](/laravel-steam-api-sdk/events) covers when each
+fires.
+
+### `SteamRequestFailed`
+
+```text frame="none"
+SteamRequestFailed(Throwable $exception)
+```
+
+The exception the caller gets: an SDK one after the retries, or whatever a listener threw.
+
+### `SteamRequestSending`
+
+```text frame="none"
+SteamRequestSending(string $method, array<string, mixed> $query, int $attempt)
+```
+
+`method` is the Steam path, such as `ISteamUser/GetPlayerSummaries/v2`, and `query` what Steam
+receives, without the API key. `attempt` is `1`, then `2` for the first retry.
+
+### `SteamResponseReceived`
+
+```text frame="none"
+SteamResponseReceived(
+    string $method,
+    array<string, mixed> $query,
+    int $attempt,
+    int $status,
+    float $duration,
+)
+```
+
+The same three as `SteamRequestSending`, plus the HTTP `status` and the `duration` in seconds
+from sending to Steam's answer.
 
 ## Test assertions
 
