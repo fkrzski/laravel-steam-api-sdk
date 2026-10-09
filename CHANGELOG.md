@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-09
+
 ### Added
 
 - `Steam::news()` — the base SDK's `NewsResource`, handed back the same way as `players()`, `users()`, `stats()` and `apps()`. Steam serves its one endpoint anonymously, so it needs no `STEAM_API_KEY` ([#105](https://github.com/fkrzski/laravel-steam-api-sdk/issues/105)).
@@ -176,7 +178,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Steam` facade for static access to the manager.
 - `Steam::fake()` — attaches a Saloon `MockClient` to the singleton connector and returns it for assertions, removing per-test connector wiring.
 
-[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.7.0...HEAD
+[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.8.0...HEAD
+[0.8.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.7.0...0.8.0
 [0.7.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.4.0...0.5.0
