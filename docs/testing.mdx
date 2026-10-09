@@ -96,6 +96,8 @@ is public at all. Hand-written envelopes get this wrong quietly.
 | `->apps()->upToDateCheck()` | `SteamResponse::upToDateCheck()` | `UpToDateCheckRequest` |
 | `->apps()->serversAtAddress()` | `SteamResponse::serversAtAddress()` | `GetServersAtAddressRequest` |
 | `->apps()->sdrConfig()` | `SteamResponse::sdrConfig()` | `GetSdrConfigRequest` |
+| `->news()->appNews()` | `SteamResponse::appNews()` | `GetNewsForAppRequest` |
+| `->news()->newsFeed()` | `SteamResponse::newsFeed()` | `GetNewsForAppRequest` |
 
 ## DTO factories
 
@@ -129,6 +131,7 @@ GameSchemaFactory::new()->empty();
 AppVersionCheckFactory::new()->outOfDate(requiredVersion: 10828683);
 GameServerFactory::new()->insecure()->withoutSpectatorPort();
 SdrPointOfPresenceFactory::new()->withoutRelays();
+NewsItemFactory::new()->communityAnnouncement()->internalUrl()->withoutAuthor();
 ```
 
 `private()` withholds everything Steam does on a hidden profile, the creation date
@@ -140,7 +143,8 @@ Steam drops every key, so the DTO comes back with a null `gameName` and two empt
 name as the empty string Steam really sends, which the DTO reads back as null.
 
 `withoutSpectatorPort()` sends the `0` Steam sends for a server without SourceTV, which the
-DTO reads back as null, and `withoutRelays()` drops the key the way Steam does.
+DTO reads back as null, and `withoutAuthor()` does the same with the `''` of a post without a
+byline. `withoutRelays()` drops the key the way Steam does.
 
 `state()` covers the rest — raw payload keys merged over the defaults:
 
@@ -187,6 +191,16 @@ RecentlyPlayedGamesFactory::new()->games(
 )->totalCount(12);
 ```
 
+`AppNewsFactory` does the same with `total()`, so a test can fake page one of many:
+
+```php
+Steam::fake()->news()->appNews(
+    AppNewsFactory::new()->items(
+        NewsItemFactory::new()->title('Patch notes'),
+    )->total(250),
+);
+```
+
 Available factories: `PlayerSummaryFactory`, `PlayerBanFactory`, `FriendFactory`,
 `UserGroupFactory`, `OwnedGameFactory`, `RecentlyPlayedGameFactory`,
 `RecentlyPlayedGamesFactory`, `BadgeFactory`, `PlayerBadgesFactory`,
@@ -194,8 +208,32 @@ Available factories: `PlayerSummaryFactory`, `PlayerBanFactory`, `FriendFactory`
 `UserStatsFactory`, `PlayerAchievementFactory`, `PlayerAchievementsFactory`,
 `GlobalAchievementFactory`, `GameSchemaFactory`, `SchemaStatFactory`,
 `SchemaAchievementFactory`, `AppVersionCheckFactory`, `GameServerFactory`,
-`SdrConfigFactory`, `SdrPointOfPresenceFactory` and `SdrRelayFactory`, all under
+`SdrConfigFactory`, `SdrPointOfPresenceFactory`, `SdrRelayFactory`, `AppNewsFactory` and
+`NewsItemFactory`, all under
 `Fkrzski\LaravelSteamApiSdk\Testing\Factories`.
+
+## Faking a news feed
+
+`->news()->newsFeed()` takes a whole feed rather than one page: the items newest first, each
+with its own `id()`. It answers every `GetNewsForAppRequest` with the page Steam would send for
+its `count` and `enddate`, so [`Steam::newsFeed()`](/laravel-steam-api-sdk/api-reference#newsfeed)
+walks it the way it walks Steam:
+
+```php
+$items = array_map(
+    fn (int $n): NewsItemFactory => NewsItemFactory::new()
+        ->id((string) $n)
+        ->publishedAt(now()->subHours($n)),
+    range(1, 45),
+);
+
+Steam::fake()->news()->newsFeed(...$items);
+
+Steam::newsFeed(appId: 440)->count();  // 45, over three requests
+```
+
+`feeds`, `tags` and `maxlength` are not applied, so pass only the items a filtered feed would
+hold. `SteamResponse::newsFeed()` returns the closure behind it, which the array form takes too.
 
 ## Faking failures
 
@@ -216,6 +254,7 @@ exception the base SDK raises for that endpoint:
 | `->apps()->serversAtAddressInvalid()` | `SteamResponse::invalidServerAddress()` | `InvalidServerAddressException` |
 | `->apps()->serversAtAddressRefused()` | `SteamResponse::serversAtAddressRefused()` | `SteamApiException` |
 | `->apps()->sdrConfigAppNotFound()` | `SteamResponse::sdrConfigAppNotFound()` | `AppNotFoundException` |
+| `->news()->appNewsUnavailable()` | `SteamResponse::appNewsUnavailable()` | `AppNewsUnavailableException` |
 | `->invalidApiKey()` | `SteamResponse::invalidApiKey()` | `InvalidApiKeyException` |
 | — | `SteamResponse::apiKeyUnauthorized()` | `InvalidApiKeyException` |
 | — | `SteamResponse::apiKeyMissing()` | `InvalidApiKeyException` |
@@ -263,7 +302,8 @@ a `403` with an empty JSON object — that one covers a game with no achievement
 game ID Steam does not know alike — and `sdrConfigAppNotFound()` a `500` carrying
 `Failed to get appinfo`, raised before the connector can retry it. `schemaAppNotFound()`
 returns byte for byte what `statsRefused()` does and keeps its own name because nothing but
-the endpoint says which failure a test is faking.
+the endpoint says which failure a test is faking. `appNewsUnavailable()` is the empty `403`
+again, which `GetNewsForApp` answers an unknown app and one whose news it does not publish with.
 
 `UpToDateCheck` and `GetServersAtAddress` refuse with a `200` and `success: false`.
 `appVersionUnavailable()` covers an unknown app and one without server versions alike, and
@@ -325,8 +365,8 @@ is configured. No request leaves your machine, so the value is irrelevant:
 </phpunit>
 ```
 
-A suite covering only `currentPlayers()`, `globalAchievements()` and the three ISteamApps
-helpers needs no key at all — Steam serves those anonymously, and the connector sends them
+A suite covering only `appNews()`, `newsFeed()`, `currentPlayers()`, `globalAchievements()`
+and the three ISteamApps helpers needs no key at all — Steam serves those anonymously, and the connector sends them
 without one.
 
 ## Asserting
@@ -400,6 +440,27 @@ an empty history is not a failure here, that is what `assertNothingSent()` is fo
 Reading the traffic without a fake raises `FakeNotInstalledException`, same as the
 assertions. There is no history to read, and an empty one would say the opposite.
 </Aside>
+
+## Events
+
+The [events](/laravel-steam-api-sdk/events) come from the connector, not from the HTTP client
+the fake swaps, so a faked call dispatches them and `Event::fake()` records them, whichever of
+the two is faked first:
+
+```php
+use Fkrzski\LaravelSteamApiSdk\Events\SteamResponseReceived;
+use Illuminate\Support\Facades\Event;
+
+Event::fake([SteamResponseReceived::class]);
+Steam::fake()->users()->summaries(PlayerSummaryFactory::new());
+
+Steam::summaries([$steamId]);
+
+Event::assertDispatched(
+    SteamResponseReceived::class,
+    fn (SteamResponseReceived $event): bool => $event->status === 200,
+);
+```
 
 ## A complete example
 
