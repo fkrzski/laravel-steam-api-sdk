@@ -69,11 +69,14 @@ $resolvedId   = Steam::resolveVanityUrl('gabelogannewell');
 $versionCheck = Steam::upToDateCheck(appId: 440, version: $installedVersion);
 $servers      = Steam::serversAtAddress('108.181.62.21');
 $relayNetwork = Steam::sdrConfig(appId: 730);
+$news         = Steam::appNews(appId: 440);
+$newsFeed     = Steam::newsFeed(appId: 440);
 ```
 
 The [API reference](/laravel-steam-api-sdk/api-reference) lists which helper returns
 what; the DTO properties and enums live in
-[Data objects](/php-steam-api-sdk/dto-reference). Each helper is a shortcut for the
+[Data objects](/php-steam-api-sdk/dto-reference). Each helper but `newsFeed()`, a lazy
+collection paging through `appNews()`, is a shortcut for the
 [resource](/laravel-steam-api-sdk/api-reference#resources) method of the same name, so
 `Steam::users()->summaries([$id])` sends the same request.
 
@@ -104,7 +107,8 @@ Steam::pool(
 ```
 
 Pools work with raw Saloon requests, so you decode each `Response` yourself with
-`->dto()` inside the handler.
+`->dto()` inside the handler. A failed request goes to `exceptionHandler` instead, one Steam
+reports in a `200` payload included, such as a hidden games list.
 
 <Aside title="Pooled requests still cost quota">
 Every request in a pool draws on the same daily budget as a helper call — see
@@ -122,6 +126,12 @@ $connector = Steam::connector();     // the underlying SteamConnector
 $response  = Steam::send($request);  // send any Saloon Request, get the raw Response
 ```
 
+`send()` raises what the helpers raise, inside the call: a `GetOwnedGamesRequest` for a hidden
+profile throws there, though Steam answers it with a `200`. `Steam::connector()->debug()` dumps
+every request after it with the key masked as `key=***` — see
+[Debugging](/php-steam-api-sdk/guide#debugging). A hook added on the connector dies with it, so
+listen to the [events](/laravel-steam-api-sdk/events) instead.
+
 <Aside type="caution">
 The connector binding is **scoped** — one instance per request. Do not hold it
 past the request that resolved it; on a long-lived worker it would carry its API
@@ -137,6 +147,7 @@ extend `SteamApiException`, so one catch handles the lot:
 ```text frame="none"
 SteamApiException                        (root, extends RuntimeException)
 ├── ApiKeyNotConfiguredException         No key configured for a request that needs one.
+├── AppNewsUnavailableException          App whose news Steam does not publish, or an unknown app.
 ├── AppNotFoundException                 App ID Steam does not know.
 ├── AppVersionUnavailableException       No server version to check, or an unknown app.
 ├── InvalidApiKeyException               Steam rejected the key, or received none.
@@ -152,18 +163,24 @@ SteamApiException                        (root, extends RuntimeException)
 ├── FakeOutsideTestsException            Steam::fake() outside tests. (Laravel bridge)
 ├── InvalidSteamHttpOptionException      Timeout or retry value the connector rejects. (Laravel bridge)
 ├── InvalidSteamLanguageException        Language code Steam does not accept. (Laravel bridge)
+├── InvalidSteamLoggingOptionException   Log channel or flag the config cannot use. (Laravel bridge)
 └── InvalidSteamRateLimitStoreException  Store cache.stores does not define. (Laravel bridge)
 ```
 
 Catch the leaf you care about, or the root. The
 [API reference](/laravel-steam-api-sdk/api-reference) notes which helper raises which.
 
+A message built from a Steam response opens with the Steam method:
+`GetNumberOfCurrentPlayers: No Steam app found for app ID 1.` Such an exception, and
+`SteamConnectionException`, carries no previous one, so a `report()` callback finds no Saloon
+exception in the chain — read Steam's status from `getCode()` and the payload from `response`.
+
 A status no leaf claims — a `5xx` once the
 [retries](/laravel-steam-api-sdk/configuration#timeouts-and-retries) are spent, an
 unexpected `4xx` — arrives as `SteamApiException` itself, carrying the response and Steam's
 status as the code.
 
-The five marked as the bridge's own (`Fkrzski\LaravelSteamApiSdk\Exceptions`) signal a
+The six marked as the bridge's own (`Fkrzski\LaravelSteamApiSdk\Exceptions`) signal a
 misconfiguration, or a test wired up wrong, rather than a failed call — see
 [Configuration](/laravel-steam-api-sdk/configuration). The rest live in
 `Fkrzski\SteamApiSdk\Exceptions`.
@@ -182,13 +199,16 @@ to, rather than a blanket 500:
 | --- | --- |
 | `SteamUserNotFoundException` | 404 |
 | `AppNotFoundException` | 404 |
+| `AppNewsUnavailableException` | 404 — Steam answers a 403, though the client asked for nothing forbidden |
 | `AppVersionUnavailableException` | 404 — Steam answers an unknown app and one without server versions alike |
 | `StatsUnavailableException` | 404 — the cause is ambiguous, so the status says nothing about which |
 | `ProfileNotPublicException` | 403 |
 | `InvalidServerAddressException` | 422 — the address is input, typically a route parameter |
 | `SteamRateLimitException` | 429, with `Retry-After` counting down the daily window |
 | `SteamConnectionException`, and `SteamApiException` for a `5xx` | 503, the body saying only `Service Unavailable` |
-| `InvalidApiKeyException`, `TooManySteamIdsException`, `ApiKeyNotConfiguredException`, `InvalidSteamLanguageException`, `InvalidSteamHttpOptionException`, `InvalidSteamRateLimitStoreException`, `FakeOutsideTestsException` | 500 |
+| `InvalidApiKeyException`, `TooManySteamIdsException`, `ApiKeyNotConfiguredException`, `InvalidSteamLanguageException`, `InvalidSteamHttpOptionException`, `InvalidSteamRateLimitStoreException`, `InvalidSteamLoggingOptionException`, `FakeOutsideTestsException` | 500 |
+
+The 404, 403 and 422 bodies carry the exception's message, which opens with the Steam method.
 
 `InvalidSteamIdException` and `FakeNotInstalledException` are left alone: an ID that
 fails to parse is already a 404 from the [route binding](/laravel-steam-api-sdk/route-binding),

@@ -18,7 +18,8 @@ It powers the [player stats](https://deadbystats.eu) on
 - Auto-discovered `SteamConnector` binding, scoped per request and safe under Octane.
 - Rate-limit budget shared across processes through a Laravel cache store of your choosing.
 - Timeouts and retries from the config file, and queue middleware that holds a job back once the daily budget is spent.
-- Fluent `Steam` facade with first-class request helpers.
+- Fluent `Steam` facade with first-class request helpers, a lazy news feed among them.
+- Laravel events for every Steam request, response and failure, and a log channel built on them.
 - Localised payloads follow your application locale, or the language you pin in config.
 - `AsSteamId` Eloquent cast, `SteamIdRule` validation rule and one-liner test fakes that mirror the resources — `Steam::fake()->users()->summaries(...)` — with DTO factories for the payloads.
 
@@ -89,6 +90,8 @@ Full documentation lives at **[docs.fkrzski.dev/laravel-steam-api-sdk](https://d
 - [Eloquent cast](https://docs.fkrzski.dev/laravel-steam-api-sdk/eloquent-cast) — persist a Steam ID on a model with `AsSteamId`.
 - [Route binding](https://docs.fkrzski.dev/laravel-steam-api-sdk/route-binding) — opt in to resolving a `{steamId}` route parameter into a `SteamId` value object.
 - [Validation rule](https://docs.fkrzski.dev/laravel-steam-api-sdk/validation) — validate submitted Steam IDs with `SteamIdRule`.
+- [Events](https://docs.fkrzski.dev/laravel-steam-api-sdk/events) — listen to Steam requests, responses and failures through Laravel events.
+- [Logging](https://docs.fkrzski.dev/laravel-steam-api-sdk/logging) — log failed Steam calls, and every response if you ask, to a channel of yours.
 - [Testing](https://docs.fkrzski.dev/laravel-steam-api-sdk/testing) — fake the Steam Web API with `Steam::fake()`.
 
 ## License

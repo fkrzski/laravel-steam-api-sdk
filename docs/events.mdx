@@ -1,0 +1,93 @@
+---
+title: Events
+description: Listen to Steam traffic through Laravel events — a request going out, a response coming back, a failed call — on a dispatcher that outlives the connector.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The base SDK reports its traffic through
+[hooks on the connector](/php-steam-api-sdk/guide#request-and-response-hooks), but the
+bridge's connector is [scoped](/laravel-steam-api-sdk/configuration#the-connector-binding): a
+hook added through `Steam::connector()` is gone once the request, queued job or test that
+built it ends. The bridge hooks every connector it builds instead, and dispatches each hook as
+an event on Laravel's dispatcher, where a listener stays registered.
+
+## Listening
+
+Register a listener the way you would for any other event:
+
+```php title="app/Providers/AppServiceProvider.php"
+use Fkrzski\LaravelSteamApiSdk\Events\SteamResponseReceived;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
+
+public function boot(): void
+{
+    Event::listen(function (SteamResponseReceived $event): void {
+        if ($event->duration > 2.0) {
+            Log::warning("Slow Steam call: {$event->method}", $event->query);
+        }
+    });
+}
+```
+
+The [API reference](/laravel-steam-api-sdk/api-reference#events) lists what each event
+carries. None of them carries the API key.
+
+## When each fires
+
+| Event | Dispatched |
+| --- | --- |
+| `SteamRequestSending` | before every attempt, retries included |
+| `SteamResponseReceived` | for every response Steam sends, a `4xx`, `5xx` or `429` included |
+| `SteamRequestFailed` | once per failed call, after the retries, with the exception the caller gets |
+
+A `429` is received before it fails as `SteamRateLimitException`. A call refused before it goes
+out, for a missing API key or a spent daily budget, dispatches `SteamRequestFailed` alone, and
+an attempt Steam never answers is not received. Requests in a
+[pool](/laravel-steam-api-sdk/guide#concurrent-requests) go out once, so `attempt` is always `1`
+there.
+
+## Queued listeners
+
+`SteamRequestSending` and `SteamResponseReceived` carry strings, numbers and arrays, so a
+listener implementing `ShouldQueue` gets them on the queue. `SteamRequestFailed` is sync-only:
+its exception does not serialize, so a listener reads what it needs and hands that to a job:
+
+```php title="app/Providers/AppServiceProvider.php"
+use App\Jobs\ReportSteamFailure;
+use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestFailed;
+
+Event::listen(function (SteamRequestFailed $event): void {
+    ReportSteamFailure::dispatch(
+        $event->exception::class,
+        $event->exception->getCode(),
+        $event->exception->getMessage(),
+    );
+});
+```
+
+<Aside type="caution" title="A queued failure listener never runs">
+Serializing the exception fails while the listener is being queued, and the base SDK drops
+whatever a failure hook throws. No job is pushed, and nothing reports it.
+</Aside>
+
+## In tests
+
+The events come from the connector, not from the HTTP client `Steam::fake()` swaps, so a faked
+call dispatches them too and `Event::fake()` records them —
+[Testing](/laravel-steam-api-sdk/testing#events) has an example.
+
+## A throwing listener
+
+What an exception thrown in a listener does depends on the event:
+
+- **`SteamRequestSending`** — the request is not sent. The call fails with that exception, and
+  `SteamRequestFailed` carries it.
+- **`SteamResponseReceived`** — the call fails with that exception in place of Steam's result,
+  ending the retries, and `SteamRequestFailed` carries it.
+- **`SteamRequestFailed`** — the exception is dropped and the caller still gets the Steam
+  failure, but the listeners registered after it on that event do not run.
+
+The [log channel](/laravel-steam-api-sdk/logging) listens as the package boots, so it runs
+ahead of the listeners your own providers register.

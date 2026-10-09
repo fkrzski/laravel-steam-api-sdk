@@ -25,13 +25,17 @@ JSON. It powers the [player stats](https://deadbystats.eu) on
 - **Queue middleware** — `RespectsSteamRateLimit` releases a job until the daily
   window resets rather than letting it fail.
 - **First-class request helpers** — `summaries()`, `ownedGames()`,
-  `userStats()` and the rest return typed DTOs.
+  `userStats()` and the rest return typed DTOs, and `newsFeed()` pages an app's news
+  lazily.
 - **Locale-aware language** — localised payloads follow `app()->getLocale()` through
   Steam's own language codes, or the one you pin in the config file.
 - **Eloquent cast** — [`AsSteamId`](/laravel-steam-api-sdk/eloquent-cast) stores a
   Steam ID on a model and reads it back as a `SteamId` value object.
 - **Route binding** — opt in and a `{steamId}` route parameter arrives as a
   `SteamId`, with a 404 on unresolvable input.
+- **Events and logging** — every Steam request, response and failure is a Laravel
+  [event](/laravel-steam-api-sdk/events), and a [log channel](/laravel-steam-api-sdk/logging)
+  you name records the failures.
 - **Renderable exceptions** — an unhandled Steam failure answers with the status it
   maps to, and never with the one Steam sent for a key of yours it rejected.
 - **Validation rule** — [`SteamIdRule`](/laravel-steam-api-sdk/validation) validates

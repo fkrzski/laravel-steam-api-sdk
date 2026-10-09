@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: Configure the Steam bridge — the config file, your Steam Web API key, the default language, timeouts and retries, and the rate-limit budget.
+description: Configure the Steam bridge — the config file, your Steam Web API key, the default language, timeouts and retries, the rate-limit budget and logging.
 ---
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -97,6 +97,13 @@ return [
         'render' => true,
     ],
 
+    // The channel from config/logging.php failed Steam calls are logged to, and
+    // whether every response is too. Unset, nothing is logged.
+    'logging' => [
+        'channel' => env('STEAM_API_LOG_CHANNEL'),
+        'responses' => env('STEAM_API_LOG_RESPONSES', false),
+    ],
+
 ];
 ```
 
@@ -110,8 +117,9 @@ STEAM_API_KEY=your-steam-web-api-key
 ```
 
 Get one from the [Steam Web API dashboard](https://steamcommunity.com/dev). The key is
-optional: Steam serves `currentPlayers()`, `globalAchievements()`, `sdrConfig()`,
-`serversAtAddress()` and `upToDateCheck()` anonymously, so those go out without one. With
+optional: Steam serves `appNews()`, `currentPlayers()`, `globalAchievements()`, `newsFeed()`,
+`sdrConfig()`, `serversAtAddress()` and `upToDateCheck()` anonymously, so those go out without
+one. With
 the key unset — or present but blank — any other request raises the base SDK's
 `ApiKeyNotConfiguredException`. Its message says to pass a key to `SteamConfig`, which here
 means setting `STEAM_API_KEY`, or `steam-api.key` directly.
@@ -326,8 +334,8 @@ table. Turn the group off to render it yourself:
 ```
 
 The flag does not reach misconfiguration. A rejected API key, a missing one, a batch over
-100 IDs, and a language code, HTTP option or rate limit store the config cannot use are a
-500 whatever it is set to: Steam answers a bad key with a 400 or a 403, and passing that on
+100 IDs, and a language code, HTTP option, rate limit store or logging option the config cannot
+use are a 500 whatever it is set to: Steam answers a bad key with a 400 or a 403, and passing that on
 would blame the caller for something only you can fix.
 
 <Aside title="Your own renderer wins either way">
@@ -335,6 +343,12 @@ Callbacks registered in `bootstrap/app.php` run ahead of the package's, so a
 `renderable()` of your own takes the exception first. Reach for the flag only to turn
 the whole group off.
 </Aside>
+
+## Logging
+
+The `logging` block logs Steam traffic to a channel of yours. It is **off by default** — set
+`STEAM_API_LOG_CHANNEL` to opt in, and `STEAM_API_LOG_RESPONSES` to log every response too;
+[Logging](/laravel-steam-api-sdk/logging) has the full guide.
 
 ## Checking your setup
 
@@ -349,6 +363,7 @@ php artisan about --only=steam_api
   API Key .................................................. ********4f2a
   Daily Requests Remaining ............................ 99,412 of 100,000
   Language .......................................... polish (locale: pl)
+  Logging ........................................... steam (+ responses)
   Rate Limit Store ................................................ redis
   Retries ............................. 3 attempts, 500ms apart, doubling
   Route Binding ....................................... enabled (steamId)
@@ -365,13 +380,16 @@ php artisan about --only=steam_api
 - **Language** — the code every localised request carries, and which of the two answers it
   is: `polish (config)` or `polish (locale: pl)`. `NOT SET` names its source the same way,
   and `INVALID` stands alone, since only config can carry a rejected code.
+- **Logging** — `disabled` until a channel is set, then its name, with `(+ responses)` once
+  every response is logged too.
 - **Route Binding** — `disabled`, or `enabled` with the parameter name it claims.
 - **Timeouts** — the connect and request timeouts, Saloon's own marked `(default)`, and
   `unlimited` for `0`.
 - **Retries** — `none (default)` for a single attempt, otherwise the attempts and the pause
   between them.
 
-The store, timeout and retry rows read `INVALID` for a value the connector does not take.
+The store, timeout, retry and logging rows read `INVALID` for a value the connector does not
+take.
 
 Nothing here runs on boot: the values are computed when the command renders, and no
 request is sent to Steam.

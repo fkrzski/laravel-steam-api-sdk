@@ -1,0 +1,85 @@
+---
+title: Logging
+description: Log Steam traffic to a channel of your own — every failed call as a warning, every response at debug when you ask for it, and never the API key.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Logging is off until you name a channel. The bridge then logs every failed Steam call to it,
+through two listeners on the [traffic events](/laravel-steam-api-sdk/events).
+
+## Turning it on
+
+Set the channel, and turn on `responses` to log every response as well:
+
+```dotenv title=".env"
+STEAM_API_LOG_CHANNEL=steam
+STEAM_API_LOG_RESPONSES=true
+```
+
+The name is a channel `config/logging.php` defines. Give Steam one of its own, so its lines
+rotate and expire apart from the application's:
+
+```php title="config/logging.php"
+'channels' => [
+    'steam' => [
+        'driver' => 'daily',
+        'path' => storage_path('logs/steam.log'),
+        'level' => 'debug',
+        'days' => 14,
+    ],
+],
+```
+
+## What gets logged
+
+A failed call is a `warning`: the exception's message, which opens with the Steam method, with
+its class and code in context. It is not an `error` because the application may well catch the
+failure, and one it does not still reaches the exception handler:
+
+```text title="storage/logs/steam-2026-10-09.log"
+[2026-10-09 14:02:56] production.WARNING: GetPlayerSummaries: Steam API request failed with HTTP 500. {"exception":"Fkrzski\\SteamApiSdk\\Exceptions\\SteamApiException","code":500}
+```
+
+With `responses` on, every response is a `debug` line too, one per attempt, with the query Steam
+received in context. A `429` is logged before the failure it raises:
+
+```text title="storage/logs/steam-2026-10-09.log"
+[2026-10-09 14:02:56] production.DEBUG: ISteamUser/GetFriendList/v1: HTTP 401 in 187ms, attempt 1 {"query":{"steamid":"76561198000000000"}}
+[2026-10-09 14:02:56] production.WARNING: GetFriendList: Steam profile is not public. {"exception":"Fkrzski\\SteamApiSdk\\Exceptions\\ProfileNotPublicException","code":401}
+```
+
+A call refused before it goes out, for a missing API key or a spent daily budget, logs the
+warning alone.
+
+<Aside type="caution" title="The channel's level filters these too">
+A channel at `error` drops the warnings, and one at `info` drops the responses. Laravel's own
+channels read `LOG_LEVEL`, which production often raises, so give the Steam channel a `level`
+of its own.
+</Aside>
+
+## Steam IDs in the log
+
+The API key never reaches the log, but what identifies a player does. A response line carries
+the Steam IDs in its query, and some failures name the profile —
+`GetOwnedGames: Steam profile 76561198000000000 is not public.` — or the vanity name a lookup
+missed. Keep the channel's retention to what you would keep for any other personal data.
+
+## In tests
+
+The logger listens on the events, so `Event::fake()` silences it along with them, whether it
+fakes every event or only `SteamRequestFailed` and `SteamResponseReceived`. A test asserting
+what got logged leaves those two unfaked.
+
+## A rejected option
+
+A channel `logging.channels` does not define, or a `responses` that is not a boolean, raises
+`InvalidSteamLoggingOptionException` naming the key and the variable to set. It surfaces on your
+first Steam call and renders as a 500, and `php artisan about` reads `INVALID` in its
+[Logging row](/laravel-steam-api-sdk/configuration#checking-your-setup).
+
+<Aside title="Why not fall back">
+Laravel answers a channel it cannot build with its emergency logger, writing to `laravel.log`
+instead. A misspelt name would send Steam's lines where nobody looks for them, so the bridge
+checks both options while it builds the connector.
+</Aside>
