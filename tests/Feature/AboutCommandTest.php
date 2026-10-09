@@ -9,11 +9,17 @@ use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Fkrzski\SteamApiSdk\SteamConnector;
+use Illuminate\Support\Composer;
 use Illuminate\Support\Facades\Artisan;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\RateLimitPlugin\Limit;
 
 mutates(AboutSection::class);
+
+// `about` shells out to `composer -V` on every call, ~80 ms a test.
+beforeEach(function (): void {
+    app()->instance('composer', Mockery::mock(Composer::class, ['getVersion' => '2.8.0']));
+});
 
 /**
  * Run `php artisan about --json` and return the "Steam API" section.

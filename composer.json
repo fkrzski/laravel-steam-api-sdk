@@ -68,7 +68,7 @@
             "rector --dry-run"
         ],
         "test:unit": "pest --parallel --coverage --exactly=100",
-        "test:mutate": "pest --mutate --parallel --covered-only --min=100",
+        "test:mutate": "pest --mutate --parallel --covered-only --min=100 --enforce-time-limit --default-time-limit=1 --fail-on-risky --stop-on-risky",
         "test:types": "phpstan",
         "test:profanity": "pest --profanity",
         "test": [
