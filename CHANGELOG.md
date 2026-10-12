@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BC break.** `fkrzski/php-steam-api-sdk` `^0.9` is required, and `Steam::connector()->sender()` returns its `SteamSender`, which wraps the sender in use, so `addMiddleware()`, `getHandlerStack()` and `getGuzzleClient()` are gone from it. Code calling them has to drop the call, and middleware added that way never outlived the scoped connector anyway ([#124](https://github.com/fkrzski/laravel-steam-api-sdk/issues/124)).
 
+### Removed
+
+- **BC break.** The 19 endpoint helpers that only forwarded to a resource, `Steam::summaries()` through `Steam::appNews()`, are gone from the facade, `SteamManager` and its contract, while `Steam::newsFeed()` stays. Each call moves to its resource with the same arguments and return type, so `Steam::groups($id)` becomes `Steam::users()->groups($id)` ([#130](https://github.com/fkrzski/laravel-steam-api-sdk/issues/130)).
+
 ### Fixed
 
 - The daily budget resets at 00:00 UTC instead of 24 hours after the first request of its window, and `RespectsSteamRateLimit` releases a job until then. The limit is now named `100000_every_utc_midnight`, so a counter kept in the rate limit cache store, which outlives a deploy, restarts from zero once, as on the upgrade to 0.4.0 ([#124](https://github.com/fkrzski/laravel-steam-api-sdk/issues/124)).
