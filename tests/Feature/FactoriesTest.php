@@ -136,6 +136,25 @@ it('maps a hidden profile onto the dto', function (): void {
         ->and($summary->cityId)->toBeNull();
 });
 
+it('drops the details steam withholds on a friends-only profile', function (): void {
+    $payload = PlayerSummaryFactory::new()->friendsOnly()->toArray();
+
+    expect($payload)->not->toHaveKeys(['realname', 'primaryclanid', 'timecreated', 'loccountrycode', 'locstatecode', 'loccityid'])
+        ->and($payload['communityvisibilitystate'])->toBe(2);
+});
+
+it('maps a friends-only profile onto the dto', function (): void {
+    $summary = PlayerSummaryFactory::new()->friendsOnly()->make();
+
+    expect($summary->communityVisibility)->toBe(CommunityVisibility::FriendsOnly)
+        ->and($summary->realName)->toBeNull()
+        ->and($summary->primaryClanId)->toBeNull()
+        ->and($summary->timeCreated)->toBeNull()
+        ->and($summary->countryCode)->toBeNull()
+        ->and($summary->stateCode)->toBeNull()
+        ->and($summary->cityId)->toBeNull();
+});
+
 it('marks a player summary as online', function (): void {
     expect(PlayerSummaryFactory::new()->online()->toArray()['personastate'])->toBe(1)
         ->and(PlayerSummaryFactory::new()->online()->make()->personaState)->toBe(PersonaState::Online);
