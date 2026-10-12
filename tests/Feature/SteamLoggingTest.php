@@ -74,7 +74,7 @@ it('logs nothing until a channel is set', function (): void {
     config()->set('steam-api.logging.responses', true);
     Steam::fake([MockResponse::make('', 500)]);
 
-    expect(fn (): array => Steam::summaries([steamId()]))->toThrow(SteamApiException::class)
+    expect(fn (): array => Steam::users()->summaries([steamId()]))->toThrow(SteamApiException::class)
         ->and($logged->getArrayCopy())->toBeEmpty();
 });
 
@@ -82,7 +82,7 @@ it('logs a failed call as a warning naming the exception and its code', function
     $handler = logSteamTraffic();
     Steam::fake([MockResponse::make('', 500)]);
 
-    expect(fn (): array => Steam::summaries([steamId()]))->toThrow(SteamApiException::class)
+    expect(fn (): array => Steam::users()->summaries([steamId()]))->toThrow(SteamApiException::class)
         ->and(steamLogRecords($handler))->toBe([
             [
                 'WARNING',
@@ -98,7 +98,7 @@ it('logs a call that never leaves as a warning alone', function (): void {
     fakeSteamEndpoints();
 
     try {
-        Steam::summaries([steamId()]);
+        Steam::users()->summaries([steamId()]);
     } catch (ApiKeyNotConfiguredException $apiKeyNotConfiguredException) {
         expect(steamLogRecords($handler))->toBe([
             [
@@ -118,7 +118,7 @@ it('leaves responses out of the log until told otherwise', function (): void {
     $handler = logSteamTraffic();
     fakeSteamEndpoints();
 
-    Steam::summaries([steamId()]);
+    Steam::users()->summaries([steamId()]);
 
     expect($handler->getRecords())->toBeEmpty();
 });
@@ -131,7 +131,7 @@ it('logs every response at debug with the key-free query in context', function (
         SteamResponse::playerSummaries(PlayerSummaryFactory::new()),
     ]);
 
-    Steam::summaries([steamId()]);
+    Steam::users()->summaries([steamId()]);
 
     expect(steamLogRecords($handler))->toBe([
         ['DEBUG', 'ISteamUser/GetPlayerSummaries/v2: HTTP 500 in Nms, attempt 1', ['query' => ['steamids' => '76561198000000000']]],
@@ -144,7 +144,7 @@ it('logs a 429 before the rate limit failure it raises', function (): void {
     Steam::fake([MockResponse::make('', 429)]);
 
     try {
-        Steam::summaries([steamId()]);
+        Steam::users()->summaries([steamId()]);
     } catch (SteamRateLimitException $steamRateLimitException) {
         expect(steamLogRecords($handler))->toBe([
             ['DEBUG', 'ISteamUser/GetPlayerSummaries/v2: HTTP 429 in Nms, attempt 1', ['query' => ['steamids' => '76561198000000000']]],
@@ -175,7 +175,7 @@ it('is silenced along with the events by Event::fake()', function (array $events
     Event::fake($events);
     Steam::fake([MockResponse::make('', 500)]);
 
-    expect(fn (): array => Steam::summaries([steamId()]))->toThrow(SteamApiException::class)
+    expect(fn (): array => Steam::users()->summaries([steamId()]))->toThrow(SteamApiException::class)
         ->and($handler->getRecords())->toBeEmpty();
 })->with([
     'every event' => [[]],

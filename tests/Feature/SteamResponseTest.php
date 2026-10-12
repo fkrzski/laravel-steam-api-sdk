@@ -390,7 +390,7 @@ it('feeds player summaries back through the facade', function (): void {
         ),
     ]);
 
-    $summaries = Steam::summaries([fakedId()]);
+    $summaries = Steam::users()->summaries([fakedId()]);
 
     expect($summaries)->toHaveCount(1)
         ->and($summaries[0]->personaName)->toBe('Gabe');
@@ -401,7 +401,7 @@ it('feeds ban records back through the facade', function (): void {
         GetPlayerBansRequest::class => SteamResponse::playerBans(PlayerBanFactory::new()->vacBanned(2)),
     ]);
 
-    expect(Steam::bans([fakedId()])[0]->numberOfVacBans)->toBe(2);
+    expect(Steam::users()->bans([fakedId()])[0]->numberOfVacBans)->toBe(2);
 });
 
 it('feeds a friend list back through the facade', function (): void {
@@ -409,7 +409,7 @@ it('feeds a friend list back through the facade', function (): void {
         GetFriendListRequest::class => SteamResponse::friendList(FriendFactory::new(), FriendFactory::new()),
     ]);
 
-    expect(Steam::friends(fakedId()))->toHaveCount(2);
+    expect(Steam::users()->friends(fakedId()))->toHaveCount(2);
 });
 
 it('feeds a group list back through the facade', function (): void {
@@ -417,7 +417,7 @@ it('feeds a group list back through the facade', function (): void {
         GetUserGroupListRequest::class => SteamResponse::userGroupList(UserGroupFactory::new()->gid('103582791429521413')),
     ]);
 
-    expect(Steam::groups(fakedId())[0]->gid)->toBe('103582791429521413');
+    expect(Steam::users()->groups(fakedId())[0]->gid)->toBe('103582791429521413');
 });
 
 it('feeds owned games back through the facade', function (): void {
@@ -425,7 +425,7 @@ it('feeds owned games back through the facade', function (): void {
         GetOwnedGamesRequest::class => SteamResponse::ownedGames(OwnedGameFactory::new()->withAppInfo()),
     ]);
 
-    expect(Steam::ownedGames(fakedId())[0]->name)->toBe('Dead by Daylight');
+    expect(Steam::players()->ownedGames(fakedId())[0]->name)->toBe('Dead by Daylight');
 });
 
 it('feeds recently played games back through the facade', function (): void {
@@ -437,13 +437,13 @@ it('feeds recently played games back through the facade', function (): void {
         ),
     ]);
 
-    expect(Steam::recentlyPlayedGames(fakedId())->games[0]->name)->toBe('Counter-Strike 2');
+    expect(Steam::players()->recentlyPlayedGames(fakedId())->games[0]->name)->toBe('Counter-Strike 2');
 });
 
 it('feeds the steam level back through the facade', function (): void {
     Steam::fake([GetSteamLevelRequest::class => SteamResponse::steamLevel(42)]);
 
-    expect(Steam::steamLevel(fakedId()))->toBe(42);
+    expect(Steam::players()->steamLevel(fakedId()))->toBe(42);
 });
 
 it('feeds badges back through the facade', function (): void {
@@ -453,7 +453,7 @@ it('feeds badges back through the facade', function (): void {
         ),
     ]);
 
-    $badges = Steam::badges(fakedId());
+    $badges = Steam::players()->badges(fakedId());
 
     expect($badges->playerLevel)->toBe(12)
         ->and($badges->badges[0]->communityItemId)->toBe('2101234567890123456');
@@ -467,7 +467,7 @@ it('feeds community badge progress back through the facade', function (): void {
         ),
     ]);
 
-    $quests = Steam::communityBadgeProgress(fakedId());
+    $quests = Steam::players()->communityBadgeProgress(fakedId());
 
     expect($quests)->toHaveCount(2)
         ->and($quests[1]->questId)->toBe(202)
@@ -479,7 +479,7 @@ it('feeds user stats back through the facade', function (): void {
         GetUserStatsForGameRequest::class => SteamResponse::userStats(UserStatsFactory::new()),
     ]);
 
-    expect(Steam::userStats(fakedId(), appId: 381210)->stats)->toHaveCount(1);
+    expect(Steam::stats()->userStats(fakedId(), appId: 381210)->stats)->toHaveCount(1);
 });
 
 it('feeds player achievements back through the facade', function (): void {
@@ -492,7 +492,7 @@ it('feeds player achievements back through the facade', function (): void {
         ),
     ]);
 
-    expect(Steam::achievements(fakedId(), appId: 381210)->achievements)->toHaveCount(2);
+    expect(Steam::stats()->achievements(fakedId(), appId: 381210)->achievements)->toHaveCount(2);
 });
 
 it('feeds the player count back through the facade', function (): void {
@@ -500,7 +500,7 @@ it('feeds the player count back through the facade', function (): void {
         GetNumberOfCurrentPlayersRequest::class => SteamResponse::currentPlayers(12_345),
     ]);
 
-    expect(Steam::currentPlayers(appId: 381210))->toBe(12_345);
+    expect(Steam::stats()->currentPlayers(appId: 381210))->toBe(12_345);
 });
 
 it('feeds global achievements back through the facade', function (): void {
@@ -511,7 +511,7 @@ it('feeds global achievements back through the facade', function (): void {
         ),
     ]);
 
-    $achievements = Steam::globalAchievements(gameId: 381210);
+    $achievements = Steam::stats()->globalAchievements(gameId: 381210);
 
     expect($achievements)->toHaveCount(2)
         ->and($achievements[1]->apiName)->toBe('ACH_ESCAPE')
@@ -525,7 +525,7 @@ it('feeds the game schema back through the facade', function (): void {
         ),
     ]);
 
-    $schema = Steam::schema(appId: 620);
+    $schema = Steam::stats()->schema(appId: 620);
 
     expect($schema->gameName)->toBe('Portal 2')
         ->and($schema->stats)->toHaveCount(1)
@@ -537,7 +537,7 @@ it('feeds a resolved vanity url back through the facade', function (): void {
         ResolveVanityUrlRequest::class => SteamResponse::vanityUrl(fakedId()),
     ]);
 
-    expect(Steam::resolveVanityUrl('gabelogannewell')->value)->toBe('76561198000000000');
+    expect(Steam::users()->resolveVanityUrl('gabelogannewell')->value)->toBe('76561198000000000');
 });
 
 it('feeds a version check back through the facade', function (): void {
@@ -545,7 +545,7 @@ it('feeds a version check back through the facade', function (): void {
         UpToDateCheckRequest::class => SteamResponse::upToDateCheck(AppVersionCheckFactory::new()->outOfDate()),
     ]);
 
-    $check = Steam::upToDateCheck(appId: 440, version: 1);
+    $check = Steam::apps()->upToDateCheck(appId: 440, version: 1);
 
     expect($check->isUpToDate)->toBeFalse()
         ->and($check->requiredVersion)->toBe(10828683)
@@ -559,7 +559,7 @@ it('feeds a server list back through the facade', function (): void {
         ),
     ]);
 
-    $servers = Steam::serversAtAddress('108.181.62.21');
+    $servers = Steam::apps()->serversAtAddress('108.181.62.21');
 
     expect($servers)->toHaveCount(1)
         ->and($servers[0]->address)->toBe('108.181.62.21:27015')
@@ -574,7 +574,7 @@ it('feeds an sdr config back through the facade', function (): void {
         )),
     ]);
 
-    $pointsOfPresence = Steam::sdrConfig(appId: 730)->pointsOfPresence;
+    $pointsOfPresence = Steam::apps()->sdrConfig(appId: 730)->pointsOfPresence;
 
     expect(array_keys($pointsOfPresence))->toBe(['waw', 'eat'])
         ->and($pointsOfPresence['waw']->latitude)->toBe(52.22)
@@ -595,7 +595,7 @@ it('feeds app news back through the facade', function (): void {
         ),
     ]);
 
-    $news = Steam::appNews(appId: 440, count: 2);
+    $news = Steam::news()->appNews(appId: 440, count: 2);
 
     expect($news->total)->toBe(3939)
         ->and($news->items)->toHaveCount(2)
@@ -610,8 +610,8 @@ it('pages a news feed the way steam does', function (): void {
 
     Steam::fake([GetNewsForAppRequest::class => SteamResponse::newsFeed(...$items)]);
 
-    $first = Steam::appNews(appId: 570, count: 2);
-    $next = Steam::appNews(appId: 570, count: 2, endDate: $items[1]->make()->publishedAt);
+    $first = Steam::news()->appNews(appId: 570, count: 2);
+    $next = Steam::news()->appNews(appId: 570, count: 2, endDate: $items[1]->make()->publishedAt);
 
     expect($first->appId)->toBe(570)
         ->and(array_column($first->items, 'id'))->toBe(['1', '2'])
@@ -623,7 +623,7 @@ it('pages a news feed the way steam does', function (): void {
 it('answers a news feed request without a count with twenty items', function (): void {
     Steam::fake([GetNewsForAppRequest::class => SteamResponse::newsFeed(...newsFeedItems(21))]);
 
-    $news = Steam::appNews(appId: 440);
+    $news = Steam::news()->appNews(appId: 440);
 
     expect($news->items)->toHaveCount(20)
         ->and($news->total)->toBe(21);
@@ -632,7 +632,7 @@ it('answers a news feed request without a count with twenty items', function ():
 it('answers an empty news feed with no news', function (): void {
     Steam::fake([GetNewsForAppRequest::class => SteamResponse::newsFeed()]);
 
-    $news = Steam::appNews(appId: 440);
+    $news = Steam::news()->appNews(appId: 440);
 
     expect($news->items)->toBeEmpty()
         ->and($news->total)->toBe(0);
@@ -641,7 +641,7 @@ it('answers an empty news feed with no news', function (): void {
 it('refuses to answer anything but the news endpoint from a news feed', function (): void {
     Steam::fake([SteamConnector::class => SteamResponse::newsFeed()]);
 
-    expect(fn (): int => Steam::currentPlayers(appId: 440))
+    expect(fn (): int => Steam::stats()->currentPlayers(appId: 440))
         ->toThrow(LogicException::class, 'A faked news feed answers GetNewsForAppRequest only.');
 });
 
@@ -650,70 +650,70 @@ it('refuses to answer anything but the news endpoint from a news feed', function
 it('raises a not public profile from a refused friend list', function (): void {
     Steam::fake([GetFriendListRequest::class => SteamResponse::profileNotPublic()]);
 
-    expect(fn (): array => Steam::friends(fakedId()))
+    expect(fn (): array => Steam::users()->friends(fakedId()))
         ->toThrow(ProfileNotPublicException::class);
 });
 
 it('raises a not public profile from a refused group list', function (): void {
     Steam::fake([GetUserGroupListRequest::class => SteamResponse::profileNotPublic()]);
 
-    expect(fn (): array => Steam::groups(fakedId()))
+    expect(fn (): array => Steam::users()->groups(fakedId()))
         ->toThrow(ProfileNotPublicException::class);
 });
 
 it('raises a not public profile from owned games without a game count', function (): void {
     Steam::fake([GetOwnedGamesRequest::class => SteamResponse::playerServiceNotPublic()]);
 
-    expect(fn (): array => Steam::ownedGames(fakedId()))
+    expect(fn (): array => Steam::players()->ownedGames(fakedId()))
         ->toThrow(ProfileNotPublicException::class);
 });
 
 it('raises a not public profile from recently played games without a total count', function (): void {
     Steam::fake([GetRecentlyPlayedGamesRequest::class => SteamResponse::playerServiceNotPublic()]);
 
-    expect(fn (): RecentlyPlayedGames => Steam::recentlyPlayedGames(fakedId()))
+    expect(fn (): RecentlyPlayedGames => Steam::players()->recentlyPlayedGames(fakedId()))
         ->toThrow(ProfileNotPublicException::class);
 });
 
 it('raises a not public profile from a steam level without a player level', function (): void {
     Steam::fake([GetSteamLevelRequest::class => SteamResponse::playerServiceNotPublic()]);
 
-    expect(fn (): int => Steam::steamLevel(fakedId()))
+    expect(fn (): int => Steam::players()->steamLevel(fakedId()))
         ->toThrow(ProfileNotPublicException::class);
 });
 
 it('raises a not public profile from badges without a player level', function (): void {
     Steam::fake([GetBadgesRequest::class => SteamResponse::playerServiceNotPublic()]);
 
-    expect(fn (): PlayerBadges => Steam::badges(fakedId()))
+    expect(fn (): PlayerBadges => Steam::players()->badges(fakedId()))
         ->toThrow(ProfileNotPublicException::class);
 });
 
 it('raises a not public profile from community badge progress without quests', function (): void {
     Steam::fake([GetCommunityBadgeProgressRequest::class => SteamResponse::playerServiceNotPublic()]);
 
-    expect(fn (): array => Steam::communityBadgeProgress(fakedId()))
+    expect(fn (): array => Steam::players()->communityBadgeProgress(fakedId()))
         ->toThrow(ProfileNotPublicException::class);
 });
 
 it('raises a not public profile from refused user stats', function (): void {
     Steam::fake([GetUserStatsForGameRequest::class => SteamResponse::statsRefused()]);
 
-    expect(fn () => Steam::userStats(fakedId(), appId: 381210))
+    expect(fn () => Steam::stats()->userStats(fakedId(), appId: 381210))
         ->toThrow(ProfileNotPublicException::class);
 });
 
 it('raises unavailable stats from refused player achievements', function (): void {
     Steam::fake([GetPlayerAchievementsRequest::class => SteamResponse::statsRefused()]);
 
-    expect(fn () => Steam::achievements(fakedId(), appId: 381210))
+    expect(fn () => Steam::stats()->achievements(fakedId(), appId: 381210))
         ->toThrow(StatsUnavailableException::class);
 });
 
 it('raises a missing app from an unknown app id', function (): void {
     Steam::fake([GetNumberOfCurrentPlayersRequest::class => SteamResponse::appNotFound()]);
 
-    expect(fn (): int => Steam::currentPlayers(appId: 1))
+    expect(fn (): int => Steam::stats()->currentPlayers(appId: 1))
         ->toThrow(AppNotFoundException::class);
 });
 
@@ -724,35 +724,35 @@ it('raises unavailable stats from refused global achievements', function (): voi
         GetGlobalAchievementPercentagesForAppRequest::class => SteamResponse::globalAchievementsRefused(),
     ]);
 
-    expect(fn (): array => Steam::globalAchievements(gameId: 381210))
+    expect(fn (): array => Steam::stats()->globalAchievements(gameId: 381210))
         ->toThrow(StatsUnavailableException::class);
 });
 
 it('raises a missing app from an app id the schema endpoint does not know', function (): void {
     Steam::fake([GetSchemaForGameRequest::class => SteamResponse::schemaAppNotFound()]);
 
-    expect(fn (): GameSchema => Steam::schema(appId: 1))
+    expect(fn (): GameSchema => Steam::stats()->schema(appId: 1))
         ->toThrow(AppNotFoundException::class);
 });
 
 it('raises a missing user from an unclaimed vanity url', function (): void {
     Steam::fake([ResolveVanityUrlRequest::class => SteamResponse::vanityNotFound()]);
 
-    expect(fn (): SteamId => Steam::resolveVanityUrl('nobody'))
+    expect(fn (): SteamId => Steam::users()->resolveVanityUrl('nobody'))
         ->toThrow(SteamUserNotFoundException::class);
 });
 
 it('raises an unavailable app version from an unsuccessful version check', function (): void {
     Steam::fake([UpToDateCheckRequest::class => SteamResponse::appVersionUnavailable()]);
 
-    expect(fn (): AppVersionCheck => Steam::upToDateCheck(appId: 999999999, version: 1))
+    expect(fn (): AppVersionCheck => Steam::apps()->upToDateCheck(appId: 999999999, version: 1))
         ->toThrow(AppVersionUnavailableException::class);
 });
 
 it('raises an invalid server address from a rejected address', function (): void {
     Steam::fake([GetServersAtAddressRequest::class => SteamResponse::invalidServerAddress()]);
 
-    expect(fn (): array => Steam::serversAtAddress('not-an-ip'))
+    expect(fn (): array => Steam::apps()->serversAtAddress('not-an-ip'))
         ->toThrow(InvalidServerAddressException::class);
 });
 
@@ -761,14 +761,14 @@ it('raises an invalid server address from a rejected address', function (): void
 it('raises the root exception from a refused server lookup', function (): void {
     Steam::fake([GetServersAtAddressRequest::class => SteamResponse::serversAtAddressRefused()]);
 
-    expect(fn (): array => Steam::serversAtAddress('127.0.0.1'))
+    expect(fn (): array => Steam::apps()->serversAtAddress('127.0.0.1'))
         ->toThrow(SteamApiException::class, 'once per minute for a given IP');
 });
 
 it('raises a missing app from an app id the sdr config does not know', function (): void {
     Steam::fake([GetSdrConfigRequest::class => SteamResponse::sdrConfigAppNotFound()]);
 
-    expect(fn (): SdrConfig => Steam::sdrConfig(appId: 999999999))
+    expect(fn (): SdrConfig => Steam::apps()->sdrConfig(appId: 999999999))
         ->toThrow(AppNotFoundException::class, 'No Steam app found for app ID 999999999.');
 });
 
@@ -777,7 +777,7 @@ it('raises a missing app from an app id the sdr config does not know', function 
 it('raises unavailable news from a 403 on the news endpoint', function (): void {
     Steam::fake([GetNewsForAppRequest::class => SteamResponse::appNewsUnavailable()]);
 
-    expect(fn (): AppNews => Steam::appNews(appId: 480))
+    expect(fn (): AppNews => Steam::news()->appNews(appId: 480))
         ->toThrow(AppNewsUnavailableException::class, 'GetNewsForApp: Steam returned no news for app 480');
 });
 
@@ -786,7 +786,7 @@ it('claims an app the sdr config does not know before the retry loop', function 
 
     Steam::fake([GetSdrConfigRequest::class => SteamResponse::sdrConfigAppNotFound()]);
 
-    expect(fn (): SdrConfig => Steam::sdrConfig(appId: 999999999))
+    expect(fn (): SdrConfig => Steam::apps()->sdrConfig(appId: 999999999))
         ->toThrow(AppNotFoundException::class);
 
     Steam::assertSentCount(1);
@@ -795,28 +795,28 @@ it('claims an app the sdr config does not know before the retry loop', function 
 it('raises an invalid api key from a rejected key', function (): void {
     Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::invalidApiKey()]);
 
-    expect(fn (): array => Steam::summaries([fakedId()]))
+    expect(fn (): array => Steam::users()->summaries([fakedId()]))
         ->toThrow(InvalidApiKeyException::class);
 });
 
 it('raises an invalid api key from a key rejected with a 401', function (): void {
     Steam::fake([GetCommunityBadgeProgressRequest::class => SteamResponse::apiKeyUnauthorized()]);
 
-    expect(fn (): array => Steam::communityBadgeProgress(fakedId()))
+    expect(fn (): array => Steam::players()->communityBadgeProgress(fakedId()))
         ->toThrow(InvalidApiKeyException::class);
 });
 
 it('raises an invalid api key from a request sent without one', function (): void {
     Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::apiKeyMissing()]);
 
-    expect(fn (): array => Steam::summaries([fakedId()]))
+    expect(fn (): array => Steam::users()->summaries([fakedId()]))
         ->toThrow(InvalidApiKeyException::class);
 });
 
 it('raises a connection failure from a request that never reaches steam', function (): void {
     Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::connectionFailed()]);
 
-    expect(fn (): array => Steam::summaries([fakedId()]))->toThrow(
+    expect(fn (): array => Steam::users()->summaries([fakedId()]))->toThrow(
         SteamConnectionException::class,
         'Could not reach the Steam Web API: cURL error 28: Operation timed out after 10000 milliseconds',
     );
@@ -835,7 +835,7 @@ it('retries a connection failure without recording any attempt', function (): vo
         },
     ]);
 
-    expect(fn (): array => Steam::summaries([fakedId()]))->toThrow(SteamConnectionException::class)
+    expect(fn (): array => Steam::users()->summaries([fakedId()]))->toThrow(SteamConnectionException::class)
         ->and($attempts)->toBe(3)
         ->and(Steam::recorded())->toBeEmpty();
 });

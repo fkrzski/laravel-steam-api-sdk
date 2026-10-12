@@ -24,7 +24,7 @@ function sendCountedRequest(): string
 {
     fakeSteamEndpoints();
 
-    Steam::resolveVanityUrl('gabelogannewell');
+    Steam::users()->resolveVanityUrl('gabelogannewell');
 
     $limit = array_find(Steam::connector()->getLimits(), static fn (Limit $limit): bool => ! $limit->usesResponse());
 

@@ -53,7 +53,7 @@ it('runs the job while the budget has room', function (): void {
 
     $job = queuedJob();
 
-    $result = new RespectsSteamRateLimit()->handle($job, fn (): string => Steam::resolveVanityUrl('gabe')->value);
+    $result = new RespectsSteamRateLimit()->handle($job, fn (): string => Steam::users()->resolveVanityUrl('gabe')->value);
 
     expect($result)->toBe(steamId()->value);
 
@@ -73,7 +73,7 @@ it('releases the job for what is left of a spent daily budget, sending nothing',
     new RespectsSteamRateLimit()->handle($job, function () use (&$ran): void {
         $ran = true;
 
-        Steam::summaries([steamId()]);
+        Steam::users()->summaries([steamId()]);
     });
 
     // The base takes midnight from a native DateTimeImmutable, which travelTo() does not reach.
@@ -92,7 +92,7 @@ it('releases the job for the window a 429 names', function (?string $key): void 
 
     $job = queuedJob();
 
-    new RespectsSteamRateLimit()->handle($job, fn (): int => Steam::currentPlayers(440));
+    new RespectsSteamRateLimit()->handle($job, fn (): int => Steam::stats()->currentPlayers(440));
 
     expect(releaseDelay($job))->toBeGreaterThanOrEqual(119)->toBeLessThanOrEqual(120);
 })->with([
@@ -105,7 +105,7 @@ it('holds the next job back for the rest of a 429 window', function (?string $ke
 
     throttleCurrentPlayers();
 
-    new RespectsSteamRateLimit()->handle(queuedJob(), fn (): int => Steam::currentPlayers(440));
+    new RespectsSteamRateLimit()->handle(queuedJob(), fn (): int => Steam::stats()->currentPlayers(440));
 
     $job = queuedJob();
     $ran = false;
@@ -113,7 +113,7 @@ it('holds the next job back for the rest of a 429 window', function (?string $ke
     new RespectsSteamRateLimit()->handle($job, function () use (&$ran): void {
         $ran = true;
 
-        Steam::currentPlayers(440);
+        Steam::stats()->currentPlayers(440);
     });
 
     expect($ran)->toBeFalse()
@@ -142,7 +142,7 @@ it('lets every other steam failure through', function (): void {
 
     $job = queuedJob();
 
-    expect(fn (): mixed => new RespectsSteamRateLimit()->handle($job, fn (): array => Steam::groups(steamId())))
+    expect(fn (): mixed => new RespectsSteamRateLimit()->handle($job, fn (): array => Steam::users()->groups(steamId())))
         ->toThrow(ProfileNotPublicException::class);
 
     $job->assertNotReleased();
@@ -160,7 +160,7 @@ it('leaves a job it cannot release to fail as it would without the middleware', 
     $next = function () use (&$ran): array {
         $ran = true;
 
-        return Steam::summaries([steamId()]);
+        return Steam::users()->summaries([steamId()]);
     };
 
     expect(fn (): mixed => new RespectsSteamRateLimit()->handle(new stdClass, $next))

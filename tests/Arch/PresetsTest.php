@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamIdBinder;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Localization\LocaleLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
+use Fkrzski\LaravelSteamApiSdk\SteamManager;
 use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 
 arch('laravel preset')->preset()->laravel();
@@ -37,6 +39,18 @@ arch('package exceptions extend the base sdk exception')
 arch('contracts are interfaces')
     ->expect('Fkrzski\\LaravelSteamApiSdk\\Contracts')
     ->toBeInterfaces();
+
+// Endpoints go through their resources; only bridge features like newsFeed() sit here.
+arch('the manager forwards no endpoint of its own')
+    ->expect([SteamManagerContract::class, SteamManager::class])
+    ->not->toHavePublicMethodsBesides([
+        '__construct',
+        'connector', 'send', 'pool',
+        'players', 'users', 'stats', 'apps', 'news',
+        'newsFeed',
+        'fake', 'assertSent', 'assertNotSent', 'assertNothingSent', 'assertSentCount',
+        'assertSentInOrder', 'recorded', 'lastRequest', 'lastResponse',
+    ]);
 
 // The provider binds the contracts by class name, which nothing type-checks.
 arch('the shipped binding implements the binder contract')
