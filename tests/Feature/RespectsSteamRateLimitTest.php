@@ -76,8 +76,11 @@ it('releases the job for what is left of a spent daily budget, sending nothing',
         Steam::summaries([steamId()]);
     });
 
+    // The base takes midnight from a native DateTimeImmutable, which travelTo() does not reach.
+    $untilMidnight = new DateTimeImmutable('tomorrow', new DateTimeZone('UTC'))->getTimestamp() - time();
+
     expect($ran)->toBeFalse()
-        ->and(releaseDelay($job))->toBeGreaterThanOrEqual(86_399)->toBeLessThanOrEqual(86_400);
+        ->and(releaseDelay($job))->toBeGreaterThanOrEqual($untilMidnight - 1)->toBeLessThanOrEqual($untilMidnight + 1);
 
     Steam::assertNothingSent();
 });
