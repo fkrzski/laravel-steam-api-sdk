@@ -81,6 +81,11 @@ final readonly class PlayerSummaryFactory
         return new self($attributes);
     }
 
+    public function friendsOnly(): self
+    {
+        return $this->private()->state(['communityvisibilitystate' => CommunityVisibility::FriendsOnly->value]);
+    }
+
     public function online(): self
     {
         return $this->state(['personastate' => PersonaState::Online->value]);
