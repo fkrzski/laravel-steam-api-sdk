@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk\Testing;
 
 use Closure;
+use DateTimeImmutable;
 use DateTimeInterface;
+use DateTimeZone;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppNewsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppVersionCheckFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
@@ -23,6 +25,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrConfigFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\WebApiInterfaceFactory;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamNews\GetNewsForAppRequest;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use GuzzleHttp\Exception\ConnectException;
@@ -290,6 +293,32 @@ final class SteamResponse
     }
 
     /**
+     * `servertimestring` is the same moment in US Pacific time without an offset,
+     * which nothing reads; it is here because Steam sends it.
+     */
+    public static function serverInfo(DateTimeInterface $time): MockResponse
+    {
+        $pacific = DateTimeImmutable::createFromInterface($time)->setTimezone(new DateTimeZone('America/Los_Angeles'));
+
+        return MockResponse::make([
+            'servertime' => $time->getTimestamp(),
+            'servertimestring' => sprintf('%s %2d %s', $pacific->format('D M'), $pacific->format('j'), $pacific->format('H:i:s Y')),
+        ]);
+    }
+
+    public static function supportedApiList(WebApiInterfaceFactory ...$interfaces): MockResponse
+    {
+        return MockResponse::make([
+            'apilist' => [
+                'interfaces' => array_map(
+                    static fn (WebApiInterfaceFactory $interface): array => $interface->toArray(),
+                    $interfaces,
+                ),
+            ],
+        ]);
+    }
+
+    /**
      * A profile that refuses the request outright, raising `ProfileNotPublicException`
      * from `GetFriendList`, `GetUserGroupList` and `GetPlayerSummaries`.
      */
@@ -431,6 +460,16 @@ final class SteamResponse
     public static function appNewsUnavailable(): MockResponse
     {
         return MockResponse::make('{}', 403);
+    }
+
+    /**
+     * A key `GetSupportedAPIList` rejects, answered with a 403 and an empty list rather
+     * than the `key=` page {@see self::invalidApiKey()} returns. The request raises
+     * `InvalidApiKeyException` itself before the connector can read it as a hidden profile.
+     */
+    public static function supportedApiListInvalidKey(): MockResponse
+    {
+        return MockResponse::make(['apilist' => ['interfaces' => []]], 403);
     }
 
     /**

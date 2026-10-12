@@ -24,6 +24,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrConfigFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrPointOfPresenceFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\WebApiInterfaceFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Dto\AppNews;
 use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
@@ -283,6 +284,42 @@ it('nests app news under the appnews key', function (): void {
     ]);
 });
 
+// The values are GetServerInfo's own, so the Pacific string matches Steam's to the padded day.
+it('puts the server time at the top level beside steams pacific string', function (): void {
+    expect(bodyOf(SteamResponse::serverInfo(new DateTimeImmutable('2026-10-08 19:59:38 UTC'))))->toBe([
+        'servertime' => 1791489578,
+        'servertimestring' => 'Thu Oct  8 12:59:38 2026',
+    ]);
+});
+
+it('writes the pacific string without moving a mutable date', function (): void {
+    $time = new DateTime('2026-10-12 19:31:26 UTC');
+
+    expect(bodyOf(SteamResponse::serverInfo($time)))->toBe([
+        'servertime' => 1791833486,
+        'servertimestring' => 'Mon Oct 12 12:31:26 2026',
+    ])
+        ->and($time->getTimezone()->getName())->toBe('UTC');
+});
+
+it('nests the supported api list under apilist.interfaces', function (): void {
+    expect(bodyOf(SteamResponse::supportedApiList(
+        WebApiInterfaceFactory::new(),
+        WebApiInterfaceFactory::new()->name('IGCVersion_440'),
+    )))->toBe([
+        'apilist' => [
+            'interfaces' => [
+                WebApiInterfaceFactory::new()->toArray(),
+                WebApiInterfaceFactory::new()->name('IGCVersion_440')->toArray(),
+            ],
+        ],
+    ]);
+});
+
+it('answers an empty supported api list with no interfaces', function (): void {
+    expect(bodyOf(SteamResponse::supportedApiList()))->toBe(['apilist' => ['interfaces' => []]]);
+});
+
 it('refuses a request outright with a 401', function (): void {
     expect(SteamResponse::profileNotPublic()->status())->toBe(401)
         ->and(bodyOf(SteamResponse::profileNotPublic()))->toBe(['message' => 'Access is denied.']);
@@ -364,6 +401,11 @@ it('reports an app the sdr config does not know with a 500', function (): void {
 it('refuses app news with a 403 carrying an empty json object', function (): void {
     expect(SteamResponse::appNewsUnavailable()->status())->toBe(403)
         ->and(bodyOf(SteamResponse::appNewsUnavailable()))->toBe('{}');
+});
+
+it('answers a key the supported api list rejects with a 403 and an empty list', function (): void {
+    expect(SteamResponse::supportedApiListInvalidKey()->status())->toBe(403)
+        ->and(bodyOf(SteamResponse::supportedApiListInvalidKey()))->toBe(['apilist' => ['interfaces' => []]]);
 });
 
 it('answers a rejected key with a 403 echoing the key parameter', function (): void {

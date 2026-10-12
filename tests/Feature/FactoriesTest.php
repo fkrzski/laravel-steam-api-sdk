@@ -28,6 +28,9 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatAchievementFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\WebApiInterfaceFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\WebApiMethodFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\WebApiParameterFactory;
 use Fkrzski\SteamApiSdk\Enums\CommentPermission;
 use Fkrzski\SteamApiSdk\Enums\CommunityVisibility;
 use Fkrzski\SteamApiSdk\Enums\EconomyBan;
@@ -63,6 +66,9 @@ mutates(
     UserStatAchievementFactory::class,
     UserStatFactory::class,
     UserStatsFactory::class,
+    WebApiInterfaceFactory::class,
+    WebApiMethodFactory::class,
+    WebApiParameterFactory::class,
 );
 
 function otherSteamId(): SteamId
@@ -1416,4 +1422,168 @@ it('overrides the app news app id', function (): void {
 
 it('overrides arbitrary app news keys through state', function (): void {
     expect(AppNewsFactory::new()->state(['count' => 7])->make()->total)->toBe(7);
+});
+
+// WebApiParameterFactory
+
+it('builds a web api parameter payload', function (): void {
+    expect(WebApiParameterFactory::new()->toArray())->toBe([
+        'name' => 'account_name',
+        'type' => 'string',
+        'optional' => false,
+        'description' => 'user-provided account name to get an RSA key for',
+    ]);
+});
+
+it('maps a web api parameter payload onto the dto', function (): void {
+    $parameter = WebApiParameterFactory::new()->make();
+
+    expect($parameter->name)->toBe('account_name')
+        ->and($parameter->type)->toBe('string')
+        ->and($parameter->isOptional)->toBeFalse()
+        ->and($parameter->description)->toBe('user-provided account name to get an RSA key for');
+});
+
+it('overrides the web api parameter name, type and description', function (): void {
+    $parameter = WebApiParameterFactory::new()
+        ->name('publishedfileids[0]')
+        ->type('{message}')
+        ->description('published file id to look up')
+        ->make();
+
+    expect($parameter->name)->toBe('publishedfileids[0]')
+        ->and($parameter->type)->toBe('{message}')
+        ->and($parameter->description)->toBe('published file id to look up');
+});
+
+it('marks a web api parameter as optional', function (): void {
+    $parameter = WebApiParameterFactory::new()->optional();
+
+    expect($parameter->toArray()['optional'])->toBeTrue()
+        ->and($parameter->make()->isOptional)->toBeTrue();
+});
+
+it('drops the description key from a web api parameter without one', function (): void {
+    $parameter = WebApiParameterFactory::new()->withoutDescription();
+
+    expect($parameter->toArray())->toBe(['name' => 'account_name', 'type' => 'string', 'optional' => false])
+        ->and($parameter->make()->description)->toBeNull();
+});
+
+it('reads an empty web api parameter description as no description at all', function (): void {
+    $parameter = WebApiParameterFactory::new()->emptyDescription();
+
+    expect($parameter->toArray()['description'])->toBe('')
+        ->and($parameter->make()->description)->toBeNull();
+});
+
+it('overrides arbitrary web api parameter keys through state', function (): void {
+    expect(WebApiParameterFactory::new()->state(['type' => 'uint64'])->make()->type)->toBe('uint64');
+});
+
+// WebApiMethodFactory
+
+it('builds a web api method payload around a single parameter', function (): void {
+    expect(WebApiMethodFactory::new()->toArray())->toBe([
+        'name' => 'GetPasswordRSAPublicKey',
+        'version' => 1,
+        'httpmethod' => 'GET',
+        'description' => 'Fetches RSA public key to use to encrypt passwords for a given account name',
+        'parameters' => [WebApiParameterFactory::new()->toArray()],
+    ]);
+});
+
+it('maps a web api method payload onto the dto', function (): void {
+    $method = WebApiMethodFactory::new()->make();
+
+    expect($method->name)->toBe('GetPasswordRSAPublicKey')
+        ->and($method->version)->toBe(1)
+        ->and($method->httpMethod)->toBe('GET')
+        ->and($method->description)->toBe('Fetches RSA public key to use to encrypt passwords for a given account name')
+        ->and($method->parameters)->toHaveCount(1)
+        ->and($method->parameters[0]->name)->toBe('account_name');
+});
+
+it('overrides the web api method name, version and description', function (): void {
+    $method = WebApiMethodFactory::new()
+        ->name('GetPlayerSummaries')
+        ->version(2)
+        ->description('Get the summaries of a list of players')
+        ->make();
+
+    expect($method->name)->toBe('GetPlayerSummaries')
+        ->and($method->version)->toBe(2)
+        ->and($method->description)->toBe('Get the summaries of a list of players');
+});
+
+it('marks a web api method as sent with post', function (): void {
+    $method = WebApiMethodFactory::new()->post();
+
+    expect($method->toArray()['httpmethod'])->toBe('POST')
+        ->and($method->make()->httpMethod)->toBe('POST');
+});
+
+it('drops the description key from a web api method without one', function (): void {
+    $method = WebApiMethodFactory::new()->withoutDescription();
+
+    expect($method->toArray())->not->toHaveKey('description')
+        ->and($method->make()->description)->toBeNull();
+});
+
+it('replaces the parameters of a web api method', function (): void {
+    $parameters = WebApiMethodFactory::new()->parameters(
+        WebApiParameterFactory::new(),
+        WebApiParameterFactory::new()->name('steamid'),
+    )->make()->parameters;
+
+    expect($parameters)->toHaveCount(2)
+        ->and($parameters[0]->name)->toBe('account_name')
+        ->and($parameters[1]->name)->toBe('steamid');
+});
+
+it('lists no parameters as an empty list', function (): void {
+    $method = WebApiMethodFactory::new()->parameters();
+
+    expect($method->toArray()['parameters'])->toBe([])
+        ->and($method->make()->parameters)->toBeEmpty();
+});
+
+it('overrides arbitrary web api method keys through state', function (): void {
+    expect(WebApiMethodFactory::new()->state(['version' => 3])->make()->version)->toBe(3);
+});
+
+// WebApiInterfaceFactory
+
+it('builds a web api interface payload around a single method', function (): void {
+    expect(WebApiInterfaceFactory::new()->toArray())->toBe([
+        'name' => 'IAuthenticationService',
+        'methods' => [WebApiMethodFactory::new()->toArray()],
+    ]);
+});
+
+it('maps a web api interface payload onto the dto', function (): void {
+    $interface = WebApiInterfaceFactory::new()->make();
+
+    expect($interface->name)->toBe('IAuthenticationService')
+        ->and($interface->methods)->toHaveCount(1)
+        ->and($interface->methods[0]->name)->toBe('GetPasswordRSAPublicKey');
+});
+
+it('keeps a web api interface name as steam sends it', function (): void {
+    expect(WebApiInterfaceFactory::new()->name('IGCVersion_440')->make()->name)->toBe('IGCVersion_440');
+});
+
+it('replaces the methods of a web api interface', function (): void {
+    $methods = WebApiInterfaceFactory::new()->methods(
+        WebApiMethodFactory::new()->name('GetClientVersion'),
+        WebApiMethodFactory::new()->name('GetServerVersion'),
+    )->make()->methods;
+
+    expect($methods)->toHaveCount(2)
+        ->and($methods[0]->name)->toBe('GetClientVersion')
+        ->and($methods[1]->name)->toBe('GetServerVersion');
+});
+
+it('overrides arbitrary web api interface keys through state', function (): void {
+    expect(WebApiInterfaceFactory::new()->state(['name' => 'ISteamDirectory'])->make()->name)->toBe('ISteamDirectory');
 });
