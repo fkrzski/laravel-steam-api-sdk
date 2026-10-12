@@ -10,32 +10,13 @@ use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeNotInstalledException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamFake;
-use Fkrzski\SteamApiSdk\Dto\AppNews;
-use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
-use Fkrzski\SteamApiSdk\Dto\CommunityBadgeQuest;
-use Fkrzski\SteamApiSdk\Dto\Friend;
-use Fkrzski\SteamApiSdk\Dto\GameSchema;
-use Fkrzski\SteamApiSdk\Dto\GameServer;
-use Fkrzski\SteamApiSdk\Dto\GlobalAchievement;
 use Fkrzski\SteamApiSdk\Dto\NewsItem;
-use Fkrzski\SteamApiSdk\Dto\OwnedGame;
-use Fkrzski\SteamApiSdk\Dto\PlayerAchievements;
-use Fkrzski\SteamApiSdk\Dto\PlayerBadges;
-use Fkrzski\SteamApiSdk\Dto\PlayerBan;
-use Fkrzski\SteamApiSdk\Dto\PlayerSummary;
-use Fkrzski\SteamApiSdk\Dto\RecentlyPlayedGames;
-use Fkrzski\SteamApiSdk\Dto\SdrConfig;
-use Fkrzski\SteamApiSdk\Dto\UserGroup;
-use Fkrzski\SteamApiSdk\Dto\UserStats;
-use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
-use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\Http\Resources\AppsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\NewsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\PlayersResource;
 use Fkrzski\SteamApiSdk\Http\Resources\StatsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\UsersResource;
 use Fkrzski\SteamApiSdk\SteamConnector;
-use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Generator;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\LazyCollection;
@@ -139,215 +120,6 @@ final readonly class SteamManager implements SteamManagerContract
     }
 
     /**
-     * Fetch player summaries for up to 100 Steam IDs.
-     *
-     * @param  list<SteamId>  $steamIds
-     * @return list<PlayerSummary>
-     */
-    public function summaries(array $steamIds): array
-    {
-        return $this->users()->summaries($steamIds);
-    }
-
-    /**
-     * Fetch ban records for up to 100 Steam IDs.
-     *
-     * @param  list<SteamId>  $steamIds
-     * @return list<PlayerBan>
-     */
-    public function bans(array $steamIds): array
-    {
-        return $this->users()->bans($steamIds);
-    }
-
-    /**
-     * Fetch a player's friend list, optionally narrowed to one relationship.
-     *
-     * @return list<Friend>
-     */
-    public function friends(SteamId $steamId, ?FriendRelationship $relationship = null): array
-    {
-        return $this->users()->friends($steamId, $relationship);
-    }
-
-    /**
-     * Fetch the community groups a player belongs to.
-     *
-     * @return list<UserGroup>
-     */
-    public function groups(SteamId $steamId): array
-    {
-        return $this->users()->groups($steamId);
-    }
-
-    /**
-     * Fetch the games owned by a player.
-     *
-     * @param  list<int>  $appIdsFilter
-     * @return list<OwnedGame>
-     */
-    public function ownedGames(
-        SteamId $steamId,
-        array $appIdsFilter = [],
-        bool $includeAppInfo = false,
-        bool $includePlayedFreeGames = false,
-    ): array {
-        return $this->players()->ownedGames(
-            $steamId,
-            $appIdsFilter,
-            $includeAppInfo,
-            $includePlayedFreeGames,
-        );
-    }
-
-    /**
-     * Fetch the games a player played in the last two weeks.
-     *
-     * `count` caps how many games come back, not what Steam counted.
-     */
-    public function recentlyPlayedGames(SteamId $steamId, ?int $count = null): RecentlyPlayedGames
-    {
-        return $this->players()->recentlyPlayedGames($steamId, $count);
-    }
-
-    /**
-     * Fetch a player's Steam community level.
-     */
-    public function steamLevel(SteamId $steamId): int
-    {
-        return $this->players()->steamLevel($steamId);
-    }
-
-    /**
-     * Fetch a player's badges, along with the level and XP they add up to.
-     */
-    public function badges(SteamId $steamId): PlayerBadges
-    {
-        return $this->players()->badges($steamId);
-    }
-
-    /**
-     * Fetch a player's progress through the community badge quests.
-     *
-     * @return list<CommunityBadgeQuest>
-     */
-    public function communityBadgeProgress(SteamId $steamId): array
-    {
-        return $this->players()->communityBadgeProgress($steamId);
-    }
-
-    /**
-     * Fetch a player's stats for a single game.
-     */
-    public function userStats(SteamId $steamId, int $appId, ?Language $language = null): UserStats
-    {
-        return $this->stats()->userStats($steamId, $appId, $language);
-    }
-
-    /**
-     * Fetch a player's achievements for a single game.
-     */
-    public function achievements(SteamId $steamId, int $appId, ?Language $language = null): PlayerAchievements
-    {
-        return $this->stats()->achievements($steamId, $appId, $language);
-    }
-
-    /**
-     * Fetch how many players are in a game right now.
-     */
-    public function currentPlayers(int $appId): int
-    {
-        return $this->stats()->currentPlayers($appId);
-    }
-
-    /**
-     * Fetch how much of the player base has each achievement in a game.
-     *
-     * The argument keeps the name the base SDK gives it: Valve spells this one
-     * endpoint's identifier `gameid`, though the value is an ordinary app ID.
-     *
-     * @return list<GlobalAchievement>
-     */
-    public function globalAchievements(int $gameId): array
-    {
-        return $this->stats()->globalAchievements($gameId);
-    }
-
-    /**
-     * Fetch every stat and achievement a game publishes.
-     *
-     * An app publishing no schema answers with an empty {@see GameSchema} rather
-     * than a failure; an app ID Steam does not know raises `AppNotFoundException`.
-     */
-    public function schema(int $appId, ?Language $language = null): GameSchema
-    {
-        return $this->stats()->schema($appId, $language);
-    }
-
-    /**
-     * Resolve a Steam vanity URL slug to a {@see SteamId}.
-     */
-    public function resolveVanityUrl(string $vanityName): SteamId
-    {
-        return $this->users()->resolveVanityUrl($vanityName);
-    }
-
-    /**
-     * Check whether a game server running this version of an app is current.
-     *
-     * An app ID Steam does not know and an app running no versioned servers both
-     * raise `AppVersionUnavailableException`.
-     */
-    public function upToDateCheck(int $appId, int $version): AppVersionCheck
-    {
-        return $this->apps()->upToDateCheck($appId, $version);
-    }
-
-    /**
-     * Fetch the game servers at an IP address, optionally narrowed to one query port.
-     *
-     * An address Steam rejects raises `InvalidServerAddressException`.
-     *
-     * @return list<GameServer>
-     */
-    public function serversAtAddress(string $address): array
-    {
-        return $this->apps()->serversAtAddress($address);
-    }
-
-    /**
-     * Fetch the Steam Datagram Relay network a game connects through, keyed by
-     * point-of-presence code.
-     *
-     * An app ID Steam does not know raises `AppNotFoundException`.
-     */
-    public function sdrConfig(int $appId): SdrConfig
-    {
-        return $this->apps()->sdrConfig($appId);
-    }
-
-    /**
-     * Fetch an app's news, newest first.
-     *
-     * `count` caps how many items come back, while `total` on the result is what
-     * Steam counted for the filter. An app ID Steam does not know, and some apps
-     * it does, raise `AppNewsUnavailableException`.
-     *
-     * @param  list<string>  $feeds
-     * @param  list<string>  $tags
-     */
-    public function appNews(
-        int $appId,
-        ?int $count = null,
-        ?int $maxLength = null,
-        ?DateTimeInterface $endDate = null,
-        array $feeds = [],
-        array $tags = [],
-    ): AppNews {
-        return $this->news()->appNews($appId, $count, $maxLength, $endDate, $feeds, $tags);
-    }
-
-    /**
      * Walk an app's news lazily, newest first, one request per page.
      *
      * Each page asks for news up to the last item's date, which Steam counts
@@ -379,7 +151,7 @@ final readonly class SteamManager implements SteamManagerContract
             $seen = [];
 
             do {
-                $page = $this->appNews($appId, $perPage, $maxLength, $endDate, $feeds, $tags);
+                $page = $this->news()->appNews($appId, $perPage, $maxLength, $endDate, $feeds, $tags);
                 $fresh = false;
 
                 foreach ($page->items as $item) {

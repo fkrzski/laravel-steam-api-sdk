@@ -52,15 +52,3 @@ it('honours a fake installed after the resource was reached', function (): void 
 
     Steam::assertSent(GetSteamLevelRequest::class);
 });
-
-it('reaches the same endpoint through the flat helper and the resource', function (): void {
-    Steam::fake([
-        GetPlayerSummariesRequest::class => SteamResponse::playerSummaries(
-            PlayerSummaryFactory::new()->personaName('Gabe'),
-        ),
-    ]);
-
-    expect(Steam::summaries([steamId()]))->toEqual(Steam::users()->summaries([steamId()]));
-
-    Steam::assertSentCount(2);
-});
