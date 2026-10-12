@@ -46,7 +46,7 @@ arch('the manager forwards no endpoint of its own')
     ->not->toHavePublicMethodsBesides([
         '__construct',
         'connector', 'send', 'pool',
-        'players', 'users', 'stats', 'apps', 'news',
+        'players', 'users', 'stats', 'apps', 'news', 'webApi',
         'newsFeed',
         'fake', 'assertSent', 'assertNotSent', 'assertNothingSent', 'assertSentCount',
         'assertSentInOrder', 'recorded', 'lastRequest', 'lastResponse',
