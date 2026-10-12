@@ -61,7 +61,7 @@ it('dispatches a sending and a received event for every attempt', function (): v
         SteamResponse::playerSummaries(PlayerSummaryFactory::new()),
     ]);
 
-    Steam::summaries([steamId()]);
+    Steam::users()->summaries([steamId()]);
 
     expect(steamTraffic($events))->toBe([
         'sending ISteamUser/GetPlayerSummaries/v2 #1',
@@ -75,7 +75,7 @@ it('copies the method, the key-free query and the timing onto the events', funct
     Event::fake(STEAM_TRAFFIC_EVENTS);
     fakeSteamEndpoints();
 
-    Steam::summaries([steamId()]);
+    Steam::users()->summaries([steamId()]);
 
     Event::assertDispatched(
         SteamRequestSending::class,
@@ -100,7 +100,7 @@ it('dispatches one failure carrying the exception the caller gets', function ():
     Steam::fake([MockResponse::make('', 500)]);
 
     try {
-        Steam::summaries([steamId()]);
+        Steam::users()->summaries([steamId()]);
     } catch (SteamApiException $steamApiException) {
         Event::assertDispatchedTimes(SteamRequestFailed::class, 1);
         Event::assertDispatched(
@@ -118,7 +118,7 @@ it('receives a 429 before it fails as a rate limit', function (): void {
     $events = recordSteamTraffic();
     Steam::fake([MockResponse::make('', 429)]);
 
-    expect(fn (): array => Steam::summaries([steamId()]))->toThrow(SteamRateLimitException::class)
+    expect(fn (): array => Steam::users()->summaries([steamId()]))->toThrow(SteamRateLimitException::class)
         ->and(steamTraffic($events))->toBe([
             'sending ISteamUser/GetPlayerSummaries/v2 #1',
             'received 429 #1',
@@ -131,7 +131,7 @@ it('dispatches only the failure for a call that never leaves', function (Closure
     $refuse();
     fakeSteamEndpoints();
 
-    expect(fn (): array => Steam::summaries([steamId()]))->toThrow($exception)
+    expect(fn (): array => Steam::users()->summaries([steamId()]))->toThrow($exception)
         ->and(steamTraffic($events))->toBe(['failed '.$exception]);
 })->with([
     'no api key' => [
@@ -153,7 +153,7 @@ it('fails the call before it is sent when a sending listener throws', function (
     });
     fakeSteamEndpoints();
 
-    expect(fn (): array => Steam::summaries([steamId()]))->toThrow(RuntimeException::class, 'The listener failed.')
+    expect(fn (): array => Steam::users()->summaries([steamId()]))->toThrow(RuntimeException::class, 'The listener failed.')
         ->and(steamTraffic($events))->toBe([
             'sending ISteamUser/GetPlayerSummaries/v2 #1',
             'failed '.RuntimeException::class,
@@ -168,14 +168,14 @@ it('drops a throw from a failure listener so the caller still gets the steam fai
     });
     Steam::fake([MockResponse::make('', 500)]);
 
-    expect(fn (): array => Steam::summaries([steamId()]))->toThrow(SteamApiException::class, 'HTTP 500');
+    expect(fn (): array => Steam::users()->summaries([steamId()]))->toThrow(SteamApiException::class, 'HTTP 500');
 });
 
 it('reaches a dispatcher faked after the connector was built', function (): void {
     fakeSteamEndpoints();
     Event::fake(STEAM_TRAFFIC_EVENTS);
 
-    Steam::summaries([steamId()]);
+    Steam::users()->summaries([steamId()]);
 
     Event::assertDispatched(SteamRequestSending::class);
     Event::assertDispatched(SteamResponseReceived::class);
@@ -187,7 +187,7 @@ it('keeps dispatching from the connector built once scoped instances are flushed
     Event::fake(STEAM_TRAFFIC_EVENTS);
     fakeSteamEndpoints();
 
-    Steam::summaries([steamId()]);
+    Steam::users()->summaries([steamId()]);
 
     expect(Steam::connector())->not->toBe($connector);
     Event::assertDispatched(SteamRequestSending::class);

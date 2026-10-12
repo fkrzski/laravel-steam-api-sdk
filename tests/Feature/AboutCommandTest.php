@@ -158,7 +158,7 @@ it('counts sent requests against the daily budget', function (): void {
         ]),
     ]);
 
-    Steam::resolveVanityUrl('gabelogannewell');
+    Steam::users()->resolveVanityUrl('gabelogannewell');
 
     expect(steamAboutSection()['daily_requests_remaining'])->toBe('99,999 of 100,000');
 });

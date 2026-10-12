@@ -65,7 +65,7 @@ beforeEach(function (): void {
 it('renders an unresolved vanity name as a 404', function (): void {
     Steam::fake([ResolveVanityUrlRequest::class => SteamResponse::vanityNotFound()]);
 
-    Route::get('steam/vanity', fn (): string => Steam::resolveVanityUrl('nobody')->value);
+    Route::get('steam/vanity', fn (): string => Steam::users()->resolveVanityUrl('nobody')->value);
 
     $this->getJson('steam/vanity')
         ->assertNotFound()
@@ -75,7 +75,7 @@ it('renders an unresolved vanity name as a 404', function (): void {
 it('renders unavailable stats as a 404', function (): void {
     Steam::fake([GetPlayerAchievementsRequest::class => SteamResponse::statsRefused()]);
 
-    Route::get('steam/achievements', fn (): array => Steam::achievements(steamId(), 440)->achievements);
+    Route::get('steam/achievements', fn (): array => Steam::stats()->achievements(steamId(), 440)->achievements);
 
     $this->getJson('steam/achievements')->assertNotFound();
 });
@@ -83,7 +83,7 @@ it('renders unavailable stats as a 404', function (): void {
 it('renders an app id steam does not know as a 404', function (): void {
     Steam::fake([GetNumberOfCurrentPlayersRequest::class => SteamResponse::appNotFound()]);
 
-    Route::get('steam/players', fn (): int => Steam::currentPlayers(1));
+    Route::get('steam/players', fn (): int => Steam::stats()->currentPlayers(1));
 
     $this->getJson('steam/players')
         ->assertNotFound()
@@ -93,7 +93,7 @@ it('renders an app id steam does not know as a 404', function (): void {
 it('renders an app steam cannot check for updates as a 404', function (): void {
     Steam::fake([UpToDateCheckRequest::class => SteamResponse::appVersionUnavailable()]);
 
-    Route::get('steam/version', fn (): bool => Steam::upToDateCheck(999999999, 1)->isUpToDate);
+    Route::get('steam/version', fn (): bool => Steam::apps()->upToDateCheck(999999999, 1)->isUpToDate);
 
     $this->getJson('steam/version')
         ->assertNotFound()
@@ -106,7 +106,7 @@ it('renders an app steam cannot check for updates as a 404', function (): void {
 it('renders an app with no news as a 404', function (): void {
     Steam::fake()->news()->appNewsUnavailable();
 
-    Route::get('steam/news', fn (): int => Steam::appNews(480)->total);
+    Route::get('steam/news', fn (): int => Steam::news()->appNews(480)->total);
 
     $this->getJson('steam/news')
         ->assertNotFound()
@@ -119,7 +119,7 @@ it('renders an app with no news as a 404', function (): void {
 it('renders a private profile as a 403', function (): void {
     Steam::fake([GetUserGroupListRequest::class => SteamResponse::profileNotPublic()]);
 
-    Route::get('steam/groups', fn (): array => Steam::groups(steamId()));
+    Route::get('steam/groups', fn (): array => Steam::users()->groups(steamId()));
 
     $this->getJson('steam/groups')->assertForbidden();
 });
@@ -127,7 +127,7 @@ it('renders a private profile as a 403', function (): void {
 it('renders a rejected server address as a 422', function (): void {
     Steam::fake([GetServersAtAddressRequest::class => SteamResponse::invalidServerAddress()]);
 
-    Route::get('steam/servers', fn (): array => Steam::serversAtAddress('not-an-ip'));
+    Route::get('steam/servers', fn (): array => Steam::apps()->serversAtAddress('not-an-ip'));
 
     $this->getJson('steam/servers')
         ->assertUnprocessable()
@@ -164,7 +164,7 @@ it('renders an unreachable steam as a 503 that keeps the reason out', function (
 
     Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::connectionFailed()]);
 
-    Route::get('steam/summaries', fn (): array => Steam::summaries([steamId()]));
+    Route::get('steam/summaries', fn (): array => Steam::users()->summaries([steamId()]));
 
     $this->getJson('steam/summaries')
         ->assertServiceUnavailable()
@@ -176,7 +176,7 @@ it('renders a 5xx that outlasted the retries as a 503', function (): void {
 
     Steam::fake([GetPlayerSummariesRequest::class => MockResponse::make([], 502)]);
 
-    Route::get('steam/summaries', fn (): array => Steam::summaries([steamId()]));
+    Route::get('steam/summaries', fn (): array => Steam::users()->summaries([steamId()]));
 
     $this->getJson('steam/summaries')
         ->assertServiceUnavailable()
@@ -190,7 +190,7 @@ it('still renders an unreachable steam as a 503 while debugging', function (): v
 
     Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::connectionFailed()]);
 
-    Route::get('steam/summaries', fn (): array => Steam::summaries([steamId()]));
+    Route::get('steam/summaries', fn (): array => Steam::users()->summaries([steamId()]));
 
     $this->getJson('steam/summaries')->assertServiceUnavailable();
 });
@@ -200,7 +200,7 @@ it('leaves a rejected key to the debug page rather than a 503', function (): voi
 
     Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::invalidApiKey()]);
 
-    Route::get('steam/summaries', fn (): array => Steam::summaries([steamId()]));
+    Route::get('steam/summaries', fn (): array => Steam::users()->summaries([steamId()]));
 
     $this->getJson('steam/summaries')->assertStatus(500);
 });
@@ -210,7 +210,7 @@ it('leaves a root failure steam answered without a 5xx as a 500', function (): v
 
     Steam::fake([GetServersAtAddressRequest::class => SteamResponse::serversAtAddressRefused()]);
 
-    Route::get('steam/servers', fn (): array => Steam::serversAtAddress('127.0.0.1'));
+    Route::get('steam/servers', fn (): array => Steam::apps()->serversAtAddress('127.0.0.1'));
 
     $this->getJson('steam/servers')->assertStatus(500);
 });
@@ -223,7 +223,7 @@ it('hands back a subclass that carries a 5xx', function (): void {
     Steam::fake([GetSdrConfigRequest::class => SteamResponse::sdrConfigAppNotFound()]);
 
     try {
-        Steam::sdrConfig(999999999);
+        Steam::apps()->sdrConfig(999999999);
     } catch (AppNotFoundException $appNotFoundException) {
         expect($appNotFoundException->response?->status())->toBe(500)
             ->and(renderer()->unavailable($appNotFoundException, request()))->toBeNull();
@@ -239,7 +239,7 @@ it('renders a rejected api key as a 500, not the status steam sent', function ()
 
     Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::invalidApiKey()]);
 
-    Route::get('steam/summaries', fn (): array => Steam::summaries([steamId()]));
+    Route::get('steam/summaries', fn (): array => Steam::users()->summaries([steamId()]));
 
     $this->getJson('steam/summaries')
         ->assertStatus(500)
@@ -249,7 +249,7 @@ it('renders a rejected api key as a 500, not the status steam sent', function ()
 it('renders an oversized batch as a 500', function (): void {
     config()->set('app.debug', false);
 
-    Route::get('steam/batch', fn (): array => Steam::summaries(array_fill(0, 101, steamId())));
+    Route::get('steam/batch', fn (): array => Steam::users()->summaries(array_fill(0, 101, steamId())));
 
     $this->getJson('steam/batch')->assertStatus(500);
 });
@@ -259,7 +259,7 @@ it('keeps the missing key message out of the response body', function (): void {
 
     Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::playerSummaries()]);
 
-    Route::get('steam/key', fn (): array => Steam::summaries([steamId()]));
+    Route::get('steam/key', fn (): array => Steam::users()->summaries([steamId()]));
 
     $this->getJson('steam/key')
         ->assertStatus(500)
@@ -324,7 +324,7 @@ it('leaves the failure alone once rendering is turned off', function (): void {
 
     Steam::fake([ResolveVanityUrlRequest::class => SteamResponse::vanityNotFound()]);
 
-    Route::get('steam/vanity', fn (): string => Steam::resolveVanityUrl('nobody')->value);
+    Route::get('steam/vanity', fn (): string => Steam::users()->resolveVanityUrl('nobody')->value);
 
     $this->getJson('steam/vanity')->assertStatus(500);
 });
@@ -336,7 +336,7 @@ it('leaves an unreachable steam alone once rendering is turned off', function ()
 
     Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::connectionFailed()]);
 
-    Route::get('steam/summaries', fn (): array => Steam::summaries([steamId()]));
+    Route::get('steam/summaries', fn (): array => Steam::users()->summaries([steamId()]));
 
     $this->getJson('steam/summaries')->assertStatus(500);
 });
@@ -350,7 +350,7 @@ it('renders when the published config drops the render key', function (): void {
 
     Steam::fake([ResolveVanityUrlRequest::class => SteamResponse::vanityNotFound()]);
 
-    Route::get('steam/vanity', fn (): string => Steam::resolveVanityUrl('nobody')->value);
+    Route::get('steam/vanity', fn (): string => Steam::users()->resolveVanityUrl('nobody')->value);
 
     $this->getJson('steam/vanity')->assertNotFound();
 });

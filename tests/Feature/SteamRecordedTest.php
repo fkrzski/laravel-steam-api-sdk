@@ -21,8 +21,8 @@ it('records nothing until a request is sent', function (): void {
 it('records every response in the order they came back', function (): void {
     fakeSteamEndpoints();
 
-    Steam::resolveVanityUrl('gabelogannewell');
-    Steam::summaries([steamId()]);
+    Steam::users()->resolveVanityUrl('gabelogannewell');
+    Steam::users()->summaries([steamId()]);
 
     $recorded = Steam::recorded();
 
@@ -34,8 +34,8 @@ it('records every response in the order they came back', function (): void {
 it('exposes the last request and the response it came back with', function (): void {
     fakeSteamEndpoints();
 
-    Steam::summaries([steamId()]);
-    Steam::resolveVanityUrl('gabelogannewell');
+    Steam::users()->summaries([steamId()]);
+    Steam::users()->resolveVanityUrl('gabelogannewell');
 
     expect(Steam::lastRequest())->toBeInstanceOf(ResolveVanityUrlRequest::class)
         ->and(Steam::lastResponse()?->status())->toBe(200);

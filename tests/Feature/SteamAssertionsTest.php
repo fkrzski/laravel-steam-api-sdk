@@ -14,7 +14,7 @@ mutates(SteamManager::class);
 it('asserts a request was sent', function (): void {
     fakeSteamEndpoints();
 
-    Steam::summaries([steamId()]);
+    Steam::users()->summaries([steamId()]);
 
     Steam::assertSent(GetPlayerSummariesRequest::class);
 });
@@ -22,7 +22,7 @@ it('asserts a request was sent', function (): void {
 it('asserts a request was sent by closure', function (): void {
     fakeSteamEndpoints();
 
-    Steam::summaries([steamId()]);
+    Steam::users()->summaries([steamId()]);
 
     Steam::assertSent(
         fn (GetPlayerSummariesRequest $request): bool => $request->steamIds[0]->value === '76561198000000000',
@@ -41,7 +41,7 @@ it('fails when the expected request was not sent', function (): void {
 it('asserts a request was not sent', function (): void {
     fakeSteamEndpoints();
 
-    Steam::resolveVanityUrl('gabelogannewell');
+    Steam::users()->resolveVanityUrl('gabelogannewell');
 
     Steam::assertNotSent(GetPlayerSummariesRequest::class);
 });
@@ -49,7 +49,7 @@ it('asserts a request was not sent', function (): void {
 it('fails when an unexpected request was sent', function (): void {
     fakeSteamEndpoints();
 
-    Steam::resolveVanityUrl('gabelogannewell');
+    Steam::users()->resolveVanityUrl('gabelogannewell');
 
     expect(function (): void {
         Steam::assertNotSent(ResolveVanityUrlRequest::class);
@@ -66,7 +66,7 @@ it('asserts nothing was sent', function (): void {
 it('fails when something was sent', function (): void {
     fakeSteamEndpoints();
 
-    Steam::resolveVanityUrl('gabelogannewell');
+    Steam::users()->resolveVanityUrl('gabelogannewell');
 
     expect(function (): void {
         Steam::assertNothingSent();
@@ -76,8 +76,8 @@ it('fails when something was sent', function (): void {
 it('asserts how many requests were sent', function (): void {
     fakeSteamEndpoints();
 
-    Steam::summaries([steamId()]);
-    Steam::resolveVanityUrl('gabelogannewell');
+    Steam::users()->summaries([steamId()]);
+    Steam::users()->resolveVanityUrl('gabelogannewell');
 
     Steam::assertSentCount(2);
 });
@@ -85,8 +85,8 @@ it('asserts how many requests were sent', function (): void {
 it('narrows the count to a single request class', function (): void {
     fakeSteamEndpoints();
 
-    Steam::summaries([steamId()]);
-    Steam::resolveVanityUrl('gabelogannewell');
+    Steam::users()->summaries([steamId()]);
+    Steam::users()->resolveVanityUrl('gabelogannewell');
 
     Steam::assertSentCount(1, ResolveVanityUrlRequest::class);
 });
@@ -94,7 +94,7 @@ it('narrows the count to a single request class', function (): void {
 it('fails when the count does not match', function (): void {
     fakeSteamEndpoints();
 
-    Steam::resolveVanityUrl('gabelogannewell');
+    Steam::users()->resolveVanityUrl('gabelogannewell');
 
     expect(function (): void {
         Steam::assertSentCount(2);
@@ -107,8 +107,8 @@ it('fails when the count does not match', function (): void {
 it('asserts the order the requests were sent in', function (): void {
     fakeSteamEndpoints();
 
-    Steam::resolveVanityUrl('gabelogannewell');
-    Steam::summaries([steamId()]);
+    Steam::users()->resolveVanityUrl('gabelogannewell');
+    Steam::users()->summaries([steamId()]);
 
     Steam::assertSentInOrder([
         ResolveVanityUrlRequest::class,
@@ -119,7 +119,7 @@ it('asserts the order the requests were sent in', function (): void {
 it('fails when a request in the order was never sent', function (): void {
     fakeSteamEndpoints();
 
-    Steam::resolveVanityUrl('gabelogannewell');
+    Steam::users()->resolveVanityUrl('gabelogannewell');
 
     $assert = function (): void {
         Steam::assertSentInOrder([GetPlayerSummariesRequest::class]);

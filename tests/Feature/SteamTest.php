@@ -130,7 +130,7 @@ it('throws when a request needing the key is sent without one', function (): voi
         GetPlayerSummariesRequest::class => SteamResponse::playerSummaries(),
     ]);
 
-    expect(fn (): array => Steam::summaries([steamId()]))
+    expect(fn (): array => Steam::users()->summaries([steamId()]))
         ->toThrow(ApiKeyNotConfiguredException::class);
 
     Steam::assertNothingSent();
@@ -157,27 +157,27 @@ it('sends an anonymous request with no key configured', function (Closure $call,
     Steam::assertSent($request);
 })->with([
     'current players' => [
-        fn (): int => Steam::currentPlayers(appId: 381210),
+        fn (): int => Steam::stats()->currentPlayers(appId: 381210),
         GetNumberOfCurrentPlayersRequest::class,
     ],
     'global achievements' => [
-        fn (): array => Steam::globalAchievements(gameId: 381210),
+        fn (): array => Steam::stats()->globalAchievements(gameId: 381210),
         GetGlobalAchievementPercentagesForAppRequest::class,
     ],
     'up to date check' => [
-        fn (): AppVersionCheck => Steam::upToDateCheck(appId: 440, version: 10828683),
+        fn (): AppVersionCheck => Steam::apps()->upToDateCheck(appId: 440, version: 10828683),
         UpToDateCheckRequest::class,
     ],
     'servers at address' => [
-        fn (): array => Steam::serversAtAddress('108.181.62.21'),
+        fn (): array => Steam::apps()->serversAtAddress('108.181.62.21'),
         GetServersAtAddressRequest::class,
     ],
     'sdr config' => [
-        fn (): SdrConfig => Steam::sdrConfig(appId: 730),
+        fn (): SdrConfig => Steam::apps()->sdrConfig(appId: 730),
         GetSdrConfigRequest::class,
     ],
     'app news' => [
-        fn (): AppNews => Steam::appNews(appId: 440),
+        fn (): AppNews => Steam::news()->appNews(appId: 440),
         GetNewsForAppRequest::class,
     ],
     'news feed' => [
@@ -305,7 +305,7 @@ it('fakes responses and resolves a vanity url', function (): void {
         ResolveVanityUrlRequest::class => SteamResponse::vanityUrl(steamId()),
     ]);
 
-    $steamId = Steam::resolveVanityUrl('gabelogannewell');
+    $steamId = Steam::users()->resolveVanityUrl('gabelogannewell');
 
     expect($steamId->value)->toBe('76561198000000000');
 
@@ -337,7 +337,7 @@ it('keeps the configured tries on a fake but not the pause between them', functi
         GetPlayerSummariesRequest::class => MockResponse::make([], 503),
     ]);
 
-    expect(fn (): array => Steam::summaries([steamId()]))
+    expect(fn (): array => Steam::users()->summaries([steamId()]))
         ->toThrow(SteamApiException::class, 'HTTP 503');
 
     Steam::assertSentCount(3);
@@ -353,14 +353,14 @@ it('refuses to fake outside the testing environment', function (): void {
         ->toThrow(FakeOutsideTestsException::class, 'only available while running tests');
 });
 
-it('fetches player summaries through the convenience method', function (): void {
+it('fetches player summaries', function (): void {
     $mock = Steam::fake([
         GetPlayerSummariesRequest::class => SteamResponse::playerSummaries(
             PlayerSummaryFactory::new()->personaName('Gabe'),
         ),
     ]);
 
-    $summaries = Steam::summaries([steamId()]);
+    $summaries = Steam::users()->summaries([steamId()]);
 
     expect($summaries)->toHaveCount(1)
         ->and($summaries[0]->personaName)->toBe('Gabe');
@@ -375,7 +375,7 @@ it('fetches player bans', function (): void {
         ),
     ]);
 
-    $bans = Steam::bans([steamId()]);
+    $bans = Steam::users()->bans([steamId()]);
 
     expect($bans)->toHaveCount(1)
         ->and($bans[0]->steamId->value)->toBe('76561198000000000')
@@ -392,7 +392,7 @@ it('batches every steam id into one ban lookup', function (): void {
 
     $ids = [steamId(), SteamId::fromSteamId64('76561198000000001')];
 
-    expect(Steam::bans($ids))->toBeEmpty();
+    expect(Steam::users()->bans($ids))->toBeEmpty();
 
     $mock->assertSent(
         fn (GetPlayerBansRequest $request): bool => $request->steamIds === $ids,
@@ -406,7 +406,7 @@ it('fetches a friend list', function (): void {
         ),
     ]);
 
-    $friends = Steam::friends(steamId());
+    $friends = Steam::users()->friends(steamId());
 
     expect($friends)->toHaveCount(1)
         ->and($friends[0]->relationship)->toBe(FriendRelationship::All);
@@ -419,7 +419,7 @@ it('sends no relationship filter by default', function (): void {
         GetFriendListRequest::class => SteamResponse::friendList(),
     ]);
 
-    expect(Steam::friends(steamId()))->toBeEmpty();
+    expect(Steam::users()->friends(steamId()))->toBeEmpty();
 
     $mock->assertSent(
         fn (GetFriendListRequest $request): bool => ! $request->relationship instanceof FriendRelationship,
@@ -431,7 +431,7 @@ it('narrows the friend list to a relationship', function (): void {
         GetFriendListRequest::class => SteamResponse::friendList(),
     ]);
 
-    Steam::friends(steamId(), FriendRelationship::All);
+    Steam::users()->friends(steamId(), FriendRelationship::All);
 
     $mock->assertSent(
         fn (GetFriendListRequest $request): bool => $request->relationship === FriendRelationship::All,
@@ -445,7 +445,7 @@ it('fetches the group list', function (): void {
         ),
     ]);
 
-    $groups = Steam::groups(steamId());
+    $groups = Steam::users()->groups(steamId());
 
     expect($groups)->toHaveCount(1)
         ->and($groups[0]->gid)->toBe('103582791429521412');
@@ -462,7 +462,7 @@ it('fetches owned games', function (): void {
         ),
     ]);
 
-    $games = Steam::ownedGames(steamId(), appIdsFilter: [381210]);
+    $games = Steam::players()->ownedGames(steamId(), appIdsFilter: [381210]);
 
     expect($games)->toHaveCount(1)
         ->and($games[0]->appId)->toBe(381210);
@@ -479,7 +479,7 @@ it('fetches recently played games', function (): void {
         ),
     ]);
 
-    $recent = Steam::recentlyPlayedGames(steamId(), count: 1);
+    $recent = Steam::players()->recentlyPlayedGames(steamId(), count: 1);
 
     expect($recent->totalCount)->toBe(40)
         ->and($recent->games)->toHaveCount(1)
@@ -495,7 +495,7 @@ it('fetches the steam level', function (): void {
         GetSteamLevelRequest::class => SteamResponse::steamLevel(42),
     ]);
 
-    expect(Steam::steamLevel(steamId()))->toBe(42);
+    expect(Steam::players()->steamLevel(steamId()))->toBe(42);
 
     $mock->assertSent(GetSteamLevelRequest::class);
 });
@@ -510,7 +510,7 @@ it('fetches badges', function (): void {
         ),
     ]);
 
-    $badges = Steam::badges(steamId());
+    $badges = Steam::players()->badges(steamId());
 
     expect($badges->playerLevel)->toBe(42)
         ->and($badges->badges)->toHaveCount(2)
@@ -529,7 +529,7 @@ it('fetches community badge progress', function (): void {
         ),
     ]);
 
-    $quests = Steam::communityBadgeProgress(steamId());
+    $quests = Steam::players()->communityBadgeProgress(steamId());
 
     expect($quests)->toHaveCount(2)
         ->and($quests[0]->questId)->toBe(115)
@@ -549,7 +549,7 @@ it('fetches user stats for a game', function (): void {
         ),
     ]);
 
-    $stats = Steam::userStats(steamId(), appId: 381210);
+    $stats = Steam::stats()->userStats(steamId(), appId: 381210);
 
     expect($stats->gameName)->toBe('Dead by Daylight');
 
@@ -563,7 +563,7 @@ it('fetches player achievements', function (): void {
         ),
     ]);
 
-    $achievements = Steam::achievements(steamId(), appId: 381210);
+    $achievements = Steam::stats()->achievements(steamId(), appId: 381210);
 
     expect($achievements->gameName)->toBe('Dead by Daylight')
         ->and($achievements->achievements)->toHaveCount(1);
@@ -576,7 +576,7 @@ it('sends no language with the user stats request by default', function (): void
         GetUserStatsForGameRequest::class => SteamResponse::userStats(UserStatsFactory::new()),
     ]);
 
-    Steam::userStats(steamId(), appId: 381210);
+    Steam::stats()->userStats(steamId(), appId: 381210);
 
     $mock->assertSent(
         fn (GetUserStatsForGameRequest $request): bool => ! $request->language instanceof Language,
@@ -588,7 +588,7 @@ it('localises the user stats request', function (): void {
         GetUserStatsForGameRequest::class => SteamResponse::userStats(UserStatsFactory::new()),
     ]);
 
-    Steam::userStats(steamId(), appId: 381210, language: Language::Polish);
+    Steam::stats()->userStats(steamId(), appId: 381210, language: Language::Polish);
 
     $mock->assertSent(
         fn (GetUserStatsForGameRequest $request): bool => $request->language === Language::Polish,
@@ -602,7 +602,7 @@ it('sends no language with the achievements request by default', function (): vo
         ),
     ]);
 
-    Steam::achievements(steamId(), appId: 381210);
+    Steam::stats()->achievements(steamId(), appId: 381210);
 
     $mock->assertSent(
         fn (GetPlayerAchievementsRequest $request): bool => ! $request->language instanceof Language,
@@ -616,7 +616,7 @@ it('localises the achievements request', function (): void {
         ),
     ]);
 
-    Steam::achievements(steamId(), appId: 381210, language: Language::Polish);
+    Steam::stats()->achievements(steamId(), appId: 381210, language: Language::Polish);
 
     $mock->assertSent(
         fn (GetPlayerAchievementsRequest $request): bool => $request->language === Language::Polish,
@@ -628,7 +628,7 @@ it('fetches the current player count', function (): void {
         GetNumberOfCurrentPlayersRequest::class => SteamResponse::currentPlayers(12_345),
     ]);
 
-    expect(Steam::currentPlayers(appId: 381210))->toBe(12_345);
+    expect(Steam::stats()->currentPlayers(appId: 381210))->toBe(12_345);
 
     $mock->assertSent(
         fn (GetNumberOfCurrentPlayersRequest $request): bool => $request->appId === 381210,
@@ -642,7 +642,7 @@ it('fetches the global achievements for a game', function (): void {
         ),
     ]);
 
-    $achievements = Steam::globalAchievements(gameId: 381210);
+    $achievements = Steam::stats()->globalAchievements(gameId: 381210);
 
     expect($achievements)->toHaveCount(1)
         ->and($achievements[0]->apiName)->toBe('ACH_ESCAPE')
@@ -660,7 +660,7 @@ it('fetches the schema for a game', function (): void {
         ),
     ]);
 
-    $schema = Steam::schema(appId: 620);
+    $schema = Steam::stats()->schema(appId: 620);
 
     expect($schema->gameName)->toBe('Portal 2')
         ->and($schema->stats)->toHaveCount(1)
@@ -680,7 +680,7 @@ it('returns an empty schema for an app publishing none', function (): void {
         ),
     ]);
 
-    $schema = Steam::schema(appId: 620);
+    $schema = Steam::stats()->schema(appId: 620);
 
     expect($schema->gameName)->toBeNull()
         ->and($schema->gameVersion)->toBeNull()
@@ -693,7 +693,7 @@ it('sends no language with the schema request by default', function (): void {
         GetSchemaForGameRequest::class => SteamResponse::gameSchema(GameSchemaFactory::new()),
     ]);
 
-    Steam::schema(appId: 620);
+    Steam::stats()->schema(appId: 620);
 
     $mock->assertSent(
         fn (GetSchemaForGameRequest $request): bool => ! $request->language instanceof Language,
@@ -705,7 +705,7 @@ it('localises the schema request', function (): void {
         GetSchemaForGameRequest::class => SteamResponse::gameSchema(GameSchemaFactory::new()),
     ]);
 
-    Steam::schema(appId: 620, language: Language::Polish);
+    Steam::stats()->schema(appId: 620, language: Language::Polish);
 
     $mock->assertSent(
         fn (GetSchemaForGameRequest $request): bool => $request->language === Language::Polish,
@@ -719,7 +719,7 @@ it('fetches an app version check', function (): void {
         ),
     ]);
 
-    $check = Steam::upToDateCheck(appId: 440, version: 1);
+    $check = Steam::apps()->upToDateCheck(appId: 440, version: 1);
 
     expect($check->isUpToDate)->toBeFalse()
         ->and($check->requiredVersion)->toBe(10828683);
@@ -737,7 +737,7 @@ it('fetches the servers at an address', function (): void {
         ),
     ]);
 
-    $servers = Steam::serversAtAddress('108.181.62.21');
+    $servers = Steam::apps()->serversAtAddress('108.181.62.21');
 
     expect($servers)->toHaveCount(2)
         ->and($servers[1]->address)->toBe('108.181.62.21:27025');
@@ -757,7 +757,7 @@ it('fetches the sdr config', function (): void {
         ),
     ]);
 
-    expect(array_keys(Steam::sdrConfig(appId: 730)->pointsOfPresence))->toBe(['ams', 'waw']);
+    expect(array_keys(Steam::apps()->sdrConfig(appId: 730)->pointsOfPresence))->toBe(['ams', 'waw']);
 
     $mock->assertSent(fn (GetSdrConfigRequest $request): bool => $request->appId === 730);
 });
@@ -773,7 +773,7 @@ it("fetches an app's news", function (): void {
 
     $endDate = new DateTimeImmutable('2026-10-01 12:00:00 UTC');
 
-    $news = Steam::appNews(
+    $news = Steam::news()->appNews(
         appId: 440,
         count: 2,
         maxLength: 100,
@@ -934,7 +934,7 @@ it('sends no api key on an anonymous endpoint', function (): void {
         GetNumberOfCurrentPlayersRequest::class => SteamResponse::currentPlayers(12_345),
     ]);
 
-    Steam::currentPlayers(appId: 381210);
+    Steam::stats()->currentPlayers(appId: 381210);
 
     $query = Steam::lastResponse()?->getPendingRequest()->query()->all();
 
@@ -949,7 +949,7 @@ it('sends the configured language on every localised request', function (): void
         GetSchemaForGameRequest::class => SteamResponse::gameSchema(GameSchemaFactory::new()),
     ]);
 
-    Steam::schema(appId: 620);
+    Steam::stats()->schema(appId: 620);
 
     expect(Steam::lastResponse()?->getPendingRequest()->query()->all())->toHaveKey('l', 'polish');
 });
