@@ -9,6 +9,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\NewsFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\PlayersFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\StatsFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\UsersFake;
+use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\WebApiFake;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Saloon\Http\Faking\MockClient;
 
@@ -45,6 +46,11 @@ final class SteamFake extends MockClient
     public function news(): NewsFake
     {
         return new NewsFake($this);
+    }
+
+    public function webApi(): WebApiFake
+    {
+        return new WebApiFake($this);
     }
 
     /**
