@@ -246,6 +246,18 @@ it('renders a rejected api key as a 500, not the status steam sent', function ()
         ->assertExactJson(['message' => 'Server Error']);
 });
 
+it('renders a key the supported api list rejects as a 500', function (): void {
+    config()->set('app.debug', false);
+
+    Steam::fake()->webApi()->supportedApiListInvalidKey();
+
+    Route::get('steam/apis', fn (): array => Steam::webApi()->supportedApis());
+
+    $this->getJson('steam/apis')
+        ->assertStatus(500)
+        ->assertExactJson(['message' => 'Server Error']);
+});
+
 it('renders an oversized batch as a 500', function (): void {
     config()->set('app.debug', false);
 

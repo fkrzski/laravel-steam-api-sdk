@@ -22,11 +22,13 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrConfigFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\WebApiInterfaceFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\AppsFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\NewsFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\PlayersFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\StatsFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\UsersFake;
+use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\WebApiFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Dto\AppNews;
@@ -50,7 +52,7 @@ use Fkrzski\SteamApiSdk\Exceptions\SteamUserNotFoundException;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 
-mutates(SteamFake::class, UsersFake::class, PlayersFake::class, StatsFake::class, AppsFake::class, NewsFake::class);
+mutates(SteamFake::class, UsersFake::class, PlayersFake::class, StatsFake::class, AppsFake::class, NewsFake::class, WebApiFake::class);
 
 it('attaches the steam fake it returns', function (): void {
     $fake = Steam::fake();
@@ -89,6 +91,10 @@ it('hands the same mock back from every endpoint', function (Closure $fakeEndpoi
     'sdr config' => [fn (SteamFake $fake): SteamFake => $fake->apps()->sdrConfig(SdrConfigFactory::new())],
     'app news' => [fn (SteamFake $fake): SteamFake => $fake->news()->appNews(AppNewsFactory::new())],
     'news feed' => [fn (SteamFake $fake): SteamFake => $fake->news()->newsFeed(NewsItemFactory::new())],
+    'server info' => [
+        fn (SteamFake $fake): SteamFake => $fake->webApi()->serverInfo(new DateTimeImmutable('2026-10-08 19:59:38 UTC')),
+    ],
+    'supported api list' => [fn (SteamFake $fake): SteamFake => $fake->webApi()->supportedApiList()],
 ]);
 
 it('fakes every users endpoint through the chain', function (): void {
@@ -208,6 +214,20 @@ it('fakes a whole news feed through the chain', function (): void {
     Steam::assertSentCount(2);
 });
 
+it('fakes every web api endpoint through the chain', function (): void {
+    Steam::fake()
+        ->webApi()->serverInfo(new DateTimeImmutable('2026-10-08 19:59:38 UTC'))
+        ->webApi()->supportedApiList(WebApiInterfaceFactory::new(), WebApiInterfaceFactory::new()->name('IGCVersion_440'));
+
+    $interfaces = Steam::webApi()->supportedApis();
+
+    expect(Steam::webApi()->serverTime()->getTimestamp())->toBe(1791489578)
+        ->and($interfaces)->toHaveCount(2)
+        ->and($interfaces[1]->name)->toBe('IGCVersion_440');
+
+    Steam::assertSentCount(2);
+});
+
 it('chains from the array form', function (): void {
     Steam::fake([
         ResolveVanityUrlRequest::class => SteamResponse::vanityUrl(steamId()),
@@ -319,6 +339,11 @@ it('raises what the base sdk raises for a named failure', function (
         fn (SteamFake $fake): SteamFake => $fake->news()->appNewsUnavailable(),
         fn (): AppNews => Steam::news()->appNews(appId: 480),
         AppNewsUnavailableException::class,
+    ],
+    'supported api list invalid key' => [
+        fn (SteamFake $fake): SteamFake => $fake->webApi()->supportedApiListInvalidKey(),
+        fn (): array => Steam::webApi()->supportedApis(),
+        InvalidApiKeyException::class,
     ],
 ]);
 

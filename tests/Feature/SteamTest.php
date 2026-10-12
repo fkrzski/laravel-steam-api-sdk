@@ -28,6 +28,7 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrConfigFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrPointOfPresenceFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\WebApiInterfaceFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Dto\AppNews;
 use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
@@ -57,6 +58,8 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersR
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetSchemaForGameRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamWebAPIUtil\GetServerInfoRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamWebAPIUtil\GetSupportedApiListRequest;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Illuminate\Support\LazyCollection;
@@ -148,6 +151,8 @@ it('sends an anonymous request with no key configured', function (Closure $call,
         GetServersAtAddressRequest::class => SteamResponse::serversAtAddress(GameServerFactory::new()),
         GetSdrConfigRequest::class => SteamResponse::sdrConfig(SdrConfigFactory::new()),
         GetNewsForAppRequest::class => SteamResponse::appNews(AppNewsFactory::new()),
+        GetServerInfoRequest::class => SteamResponse::serverInfo(new DateTimeImmutable('2026-10-08 19:59:38 UTC')),
+        GetSupportedApiListRequest::class => SteamResponse::supportedApiList(WebApiInterfaceFactory::new()),
     ]);
 
     $call();
@@ -183,6 +188,14 @@ it('sends an anonymous request with no key configured', function (Closure $call,
     'news feed' => [
         fn (): array => Steam::newsFeed(appId: 440)->all(),
         GetNewsForAppRequest::class,
+    ],
+    'server time' => [
+        fn (): DateTimeImmutable => Steam::webApi()->serverTime(),
+        GetServerInfoRequest::class,
+    ],
+    'supported apis' => [
+        fn (): array => Steam::webApi()->supportedApis(),
+        GetSupportedApiListRequest::class,
     ],
 ]);
 
@@ -925,6 +938,56 @@ it('raises unavailable news once the feed is walked', function (): void {
 
     expect(fn (): array => $feed->all())
         ->toThrow(AppNewsUnavailableException::class, 'GetNewsForApp: Steam returned no news for app 480');
+});
+
+it('fetches the steam server time', function (): void {
+    $mock = Steam::fake([
+        GetServerInfoRequest::class => SteamResponse::serverInfo(new DateTimeImmutable('2026-10-08 19:59:38 UTC')),
+    ]);
+
+    $time = Steam::webApi()->serverTime();
+
+    expect($time->getTimestamp())->toBe(1791489578)
+        ->and($time->getTimezone()->getName())->toBe('+00:00');
+
+    $mock->assertSent(GetServerInfoRequest::class);
+});
+
+it('fetches the supported apis', function (): void {
+    $mock = Steam::fake([
+        GetSupportedApiListRequest::class => SteamResponse::supportedApiList(
+            WebApiInterfaceFactory::new(),
+            WebApiInterfaceFactory::new()->name('IGCVersion_440'),
+        ),
+    ]);
+
+    $interfaces = Steam::webApi()->supportedApis();
+
+    expect($interfaces)->toHaveCount(2)
+        ->and($interfaces[0]->name)->toBe('IAuthenticationService')
+        ->and($interfaces[1]->name)->toBe('IGCVersion_440');
+
+    $mock->assertSent(GetSupportedApiListRequest::class);
+});
+
+it('keeps the configured key out of the server time request', function (): void {
+    Steam::fake([
+        GetServerInfoRequest::class => SteamResponse::serverInfo(new DateTimeImmutable('2026-10-08 19:59:38 UTC')),
+    ]);
+
+    Steam::webApi()->serverTime();
+
+    expect(Steam::lastResponse()?->getPendingRequest()->query()->all())->toBe([]);
+});
+
+it('sends the configured key with the supported api list', function (): void {
+    Steam::fake([
+        GetSupportedApiListRequest::class => SteamResponse::supportedApiList(WebApiInterfaceFactory::new()),
+    ]);
+
+    Steam::webApi()->supportedApis();
+
+    expect(Steam::lastResponse()?->getPendingRequest()->query()->all())->toBe(['key' => 'test-steam-api-key']);
 });
 
 // The connector strips the key while booting the pending request, so the request

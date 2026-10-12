@@ -15,6 +15,7 @@ use Fkrzski\SteamApiSdk\Http\Resources\NewsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\PlayersResource;
 use Fkrzski\SteamApiSdk\Http\Resources\StatsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\UsersResource;
+use Fkrzski\SteamApiSdk\Http\Resources\WebApiResource;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Support\LazyCollection;
 use InvalidArgumentException;
@@ -80,6 +81,11 @@ interface SteamManager
      * The ISteamNews endpoint, reached fluently.
      */
     public function news(): NewsResource;
+
+    /**
+     * The ISteamWebAPIUtil endpoints, reached fluently.
+     */
+    public function webApi(): WebApiResource;
 
     /**
      * Walk an app's news lazily, newest first, one request per page.

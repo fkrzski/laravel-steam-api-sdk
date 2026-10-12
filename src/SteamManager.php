@@ -16,6 +16,7 @@ use Fkrzski\SteamApiSdk\Http\Resources\NewsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\PlayersResource;
 use Fkrzski\SteamApiSdk\Http\Resources\StatsResource;
 use Fkrzski\SteamApiSdk\Http\Resources\UsersResource;
+use Fkrzski\SteamApiSdk\Http\Resources\WebApiResource;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Generator;
 use Illuminate\Contracts\Foundation\Application;
@@ -117,6 +118,14 @@ final readonly class SteamManager implements SteamManagerContract
     public function news(): NewsResource
     {
         return $this->connector()->news();
+    }
+
+    /**
+     * The ISteamWebAPIUtil endpoints, reached fluently.
+     */
+    public function webApi(): WebApiResource
+    {
+        return $this->connector()->webApi();
     }
 
     /**

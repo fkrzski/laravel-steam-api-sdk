@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Steam::webApi()` — the base SDK's `WebApiResource`, handed back the same way as `players()`, `users()`, `stats()`, `apps()` and `news()`, whose `serverTime()` returns Steam's clock as a UTC `DateTimeImmutable` and never sends the key. `supportedApis()` sends the key when one is configured, which adds the methods it can call, and goes out without it otherwise, while a key Steam rejects raises `InvalidApiKeyException`, rendered as a 500 ([#131](https://github.com/fkrzski/laravel-steam-api-sdk/issues/131)).
+- `WebApiInterfaceFactory`, `WebApiMethodFactory` and `WebApiParameterFactory`, with `SteamResponse::serverInfo()` and `SteamResponse::supportedApiList()` for the two envelopes. `->withoutDescription()` drops the description as Steam does on most methods and some parameters, and `->emptyDescription()` sends the `''` it sends on other parameters, both read back as `null` ([#131](https://github.com/fkrzski/laravel-steam-api-sdk/issues/131)).
+- `SteamResponse::supportedApiListInvalidKey()` — the 403 with an empty interface list that `GetSupportedApiListRequest` raises as `InvalidApiKeyException`, faked fluently as `->webApi()->supportedApiListInvalidKey()` beside `->webApi()->serverInfo()` and `->webApi()->supportedApiList()` on `SteamFake` ([#131](https://github.com/fkrzski/laravel-steam-api-sdk/issues/131)).
+
 ### Changed
 
 - **BC break.** `fkrzski/php-steam-api-sdk` `^0.9` is required, and `Steam::connector()->sender()` returns its `SteamSender`, which wraps the sender in use, so `addMiddleware()`, `getHandlerStack()` and `getGuzzleClient()` are gone from it. Code calling them has to drop the call, and middleware added that way never outlived the scoped connector anyway ([#124](https://github.com/fkrzski/laravel-steam-api-sdk/issues/124)).

@@ -24,6 +24,9 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrConfigFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrPointOfPresenceFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\WebApiInterfaceFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\WebApiMethodFactory;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\WebApiParameterFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Dto\AppNews;
 use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
@@ -60,6 +63,8 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersR
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetPlayerAchievementsRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetSchemaForGameRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamWebAPIUtil\GetServerInfoRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamWebAPIUtil\GetSupportedApiListRequest;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Saloon\Http\Faking\MockResponse;
@@ -283,6 +288,42 @@ it('nests app news under the appnews key', function (): void {
     ]);
 });
 
+// The values are GetServerInfo's own, so the Pacific string matches Steam's to the padded day.
+it('puts the server time at the top level beside steams pacific string', function (): void {
+    expect(bodyOf(SteamResponse::serverInfo(new DateTimeImmutable('2026-10-08 19:59:38 UTC'))))->toBe([
+        'servertime' => 1791489578,
+        'servertimestring' => 'Thu Oct  8 12:59:38 2026',
+    ]);
+});
+
+it('writes the pacific string without moving a mutable date', function (): void {
+    $time = new DateTime('2026-10-12 19:31:26 UTC');
+
+    expect(bodyOf(SteamResponse::serverInfo($time)))->toBe([
+        'servertime' => 1791833486,
+        'servertimestring' => 'Mon Oct 12 12:31:26 2026',
+    ])
+        ->and($time->getTimezone()->getName())->toBe('UTC');
+});
+
+it('nests the supported api list under apilist.interfaces', function (): void {
+    expect(bodyOf(SteamResponse::supportedApiList(
+        WebApiInterfaceFactory::new(),
+        WebApiInterfaceFactory::new()->name('IGCVersion_440'),
+    )))->toBe([
+        'apilist' => [
+            'interfaces' => [
+                WebApiInterfaceFactory::new()->toArray(),
+                WebApiInterfaceFactory::new()->name('IGCVersion_440')->toArray(),
+            ],
+        ],
+    ]);
+});
+
+it('answers an empty supported api list with no interfaces', function (): void {
+    expect(bodyOf(SteamResponse::supportedApiList()))->toBe(['apilist' => ['interfaces' => []]]);
+});
+
 it('refuses a request outright with a 401', function (): void {
     expect(SteamResponse::profileNotPublic()->status())->toBe(401)
         ->and(bodyOf(SteamResponse::profileNotPublic()))->toBe(['message' => 'Access is denied.']);
@@ -364,6 +405,11 @@ it('reports an app the sdr config does not know with a 500', function (): void {
 it('refuses app news with a 403 carrying an empty json object', function (): void {
     expect(SteamResponse::appNewsUnavailable()->status())->toBe(403)
         ->and(bodyOf(SteamResponse::appNewsUnavailable()))->toBe('{}');
+});
+
+it('answers a key the supported api list rejects with a 403 and an empty list', function (): void {
+    expect(SteamResponse::supportedApiListInvalidKey()->status())->toBe(403)
+        ->and(bodyOf(SteamResponse::supportedApiListInvalidKey()))->toBe(['apilist' => ['interfaces' => []]]);
 });
 
 it('answers a rejected key with a 403 echoing the key parameter', function (): void {
@@ -645,6 +691,46 @@ it('refuses to answer anything but the news endpoint from a news feed', function
         ->toThrow(LogicException::class, 'A faked news feed answers GetNewsForAppRequest only.');
 });
 
+it('feeds the server time back through the facade', function (): void {
+    Steam::fake([
+        GetServerInfoRequest::class => SteamResponse::serverInfo(new DateTimeImmutable('2026-10-08 21:59:38 +02:00')),
+    ]);
+
+    $time = Steam::webApi()->serverTime();
+
+    expect($time->format(DATE_ATOM))->toBe('2026-10-08T19:59:38+00:00');
+});
+
+it('feeds the supported api list back through the facade', function (): void {
+    Steam::fake([
+        GetSupportedApiListRequest::class => SteamResponse::supportedApiList(
+            WebApiInterfaceFactory::new()->name('IGCVersion_440')->methods(
+                WebApiMethodFactory::new()->name('GetClientVersion')->withoutDescription()->parameters(),
+            ),
+            WebApiInterfaceFactory::new()->methods(
+                WebApiMethodFactory::new()->name('PollAuthSessionStatus')->post()->parameters(
+                    WebApiParameterFactory::new()->name('client_id')->type('uint64')->withoutDescription(),
+                    WebApiParameterFactory::new()->emptyDescription(),
+                    WebApiParameterFactory::new()->optional(),
+                ),
+            ),
+        ),
+    ]);
+
+    [$gcVersion, $authentication] = Steam::webApi()->supportedApis();
+    $parameters = $authentication->methods[0]->parameters;
+
+    expect($gcVersion->name)->toBe('IGCVersion_440')
+        ->and($gcVersion->methods[0]->description)->toBeNull()
+        ->and($gcVersion->methods[0]->httpMethod)->toBe('GET')
+        ->and($gcVersion->methods[0]->parameters)->toBeEmpty()
+        ->and($authentication->methods[0]->httpMethod)->toBe('POST')
+        ->and($parameters[0]->type)->toBe('uint64')
+        ->and($parameters[0]->description)->toBeNull()
+        ->and($parameters[1]->description)->toBeNull()
+        ->and($parameters[2]->isOptional)->toBeTrue();
+});
+
 // Failures — these pin the contract with the base SDK's exception mapping
 
 it('raises a not public profile from a refused friend list', function (): void {
@@ -779,6 +865,16 @@ it('raises unavailable news from a 403 on the news endpoint', function (): void 
 
     expect(fn (): AppNews => Steam::news()->appNews(appId: 480))
         ->toThrow(AppNewsUnavailableException::class, 'GetNewsForApp: Steam returned no news for app 480');
+});
+
+// The connector reads a 403 without `key=` as a hidden profile; the request claims this one first.
+it('raises an invalid api key from a key the supported api list rejects', function (): void {
+    Steam::fake([GetSupportedApiListRequest::class => SteamResponse::supportedApiListInvalidKey()]);
+
+    expect(fn (): array => Steam::webApi()->supportedApis())->toThrow(
+        InvalidApiKeyException::class,
+        'GetSupportedAPIList: Steam rejected the API key. Check that it is valid and active.',
+    );
 });
 
 it('claims an app the sdr config does not know before the retry loop', function (): void {
