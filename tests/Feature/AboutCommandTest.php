@@ -43,7 +43,8 @@ it('registers the Steam API section on the about command', function (): void {
     expect(steamAboutSection())->toHaveKeys([
         'api_key',
         'rate_limit_store',
-        'daily_requests_remaining',
+        'requests_remaining',
+        '429_cool-down',
         'route_binding',
         'language',
         'timeouts',
@@ -59,7 +60,8 @@ it('renders the section under its own heading', function (): void {
         ->toContain('Steam API')
         ->toContain('API Key')
         ->toContain('Rate Limit Store')
-        ->toContain('Daily Requests Remaining')
+        ->toContain('Requests Remaining')
+        ->toContain('429 Cool-down')
         ->toContain('Route Binding')
         ->toContain('Language')
         ->toContain('Timeouts')
@@ -148,7 +150,7 @@ it('reports a rate limit store the cache config does not define as invalid', fun
 });
 
 it('reports the untouched daily request budget', function (): void {
-    expect(steamAboutSection()['daily_requests_remaining'])->toBe('100,000 of 100,000');
+    expect(steamAboutSection()['requests_remaining'])->toBe('100,000 of 100,000 per day');
 });
 
 it('counts sent requests against the daily budget', function (): void {
@@ -160,13 +162,63 @@ it('counts sent requests against the daily budget', function (): void {
 
     Steam::users()->resolveVanityUrl('gabelogannewell');
 
-    expect(steamAboutSection()['daily_requests_remaining'])->toBe('99,999 of 100,000');
+    expect(steamAboutSection()['requests_remaining'])->toBe('99,999 of 100,000 per day');
+});
+
+it('reports every configured limit in the order the connector checks them', function (): void {
+    config()->set('steam-api.rate_limit.limits', [
+        ['allow' => 100_000, 'every' => 'day'],
+        ['allow' => 10, 'every' => 1, 'sleep' => true],
+    ]);
+
+    Steam::fake([
+        ResolveVanityUrlRequest::class => MockResponse::make([
+            'response' => ['success' => 1, 'steamid' => '76561198000000000'],
+        ]),
+    ]);
+
+    Steam::users()->resolveVanityUrl('gabelogannewell');
+
+    expect(steamAboutSection()['requests_remaining'])->toBe('99,999 of 100,000 per day, 9 of 10 per 1s (sleeps)');
+});
+
+it('reports a window in seconds as written, a day long or not', function (): void {
+    config()->set('steam-api.rate_limit.limits', [['allow' => 500, 'every' => 86_400]]);
+
+    expect(steamAboutSection()['requests_remaining'])->toBe('500 of 500 per 86400s');
+});
+
+it('reports configured limits without an api key', function (): void {
+    config()->set([
+        'steam-api.key' => null,
+        'steam-api.rate_limit.limits' => [['allow' => 1, 'every' => 60]],
+    ]);
+
+    expect(steamAboutSection()['requests_remaining'])->toBe('1 of 1 per 60s');
+});
+
+it('reports an empty list of limits as not metered, key or not', function (?string $key): void {
+    config()->set([
+        'steam-api.key' => $key,
+        'steam-api.rate_limit.limits' => [],
+    ]);
+
+    expect(steamAboutSection()['requests_remaining'])->toBe('not metered');
+})->with([
+    'with a key' => 'test-steam-api-key',
+    'without one' => null,
+]);
+
+it('reports limits it cannot build as invalid', function (): void {
+    config()->set('steam-api.rate_limit.limits', [['allow' => 0, 'every' => 60]]);
+
+    expect(steamAboutSection()['requests_remaining'])->toBe('INVALID');
 });
 
 it('reports the budget as not metered when the api key is missing', function (mixed $key): void {
     config()->set(['steam-api.key' => $key]);
 
-    expect(steamAboutSection()['daily_requests_remaining'])->toBe('not metered (no API key)');
+    expect(steamAboutSection()['requests_remaining'])->toBe('not metered (no API key)');
 })->with([
     'null' => null,
     'whitespace only' => '   ',
@@ -184,7 +236,7 @@ it('reports an unknown budget when the connector declares no upfront limit', fun
         }
     });
 
-    expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
+    expect(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
 });
 
 it('reports the route binding as disabled by default', function (): void {
@@ -281,7 +333,7 @@ it('reports a language steam does not know as invalid', function (): void {
 it('reports an unknown budget when the language is not a steam code', function (): void {
     config()->set('steam-api.language', 'klingon');
 
-    expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
+    expect(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
 });
 
 it('reports saloons timeouts as the default', function (): void {
@@ -375,14 +427,31 @@ it('reports a rejected retry option as invalid', function (string $option, mixed
 it('reports an unknown budget when an http option is rejected', function (): void {
     config()->set('steam-api.http.retry.tries', '0');
 
-    expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
+    expect(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
 });
 
 it('reports an unknown budget when the rate limit store is not defined', function (): void {
     config()->set('steam-api.rate_limit.store', 'redis-x');
 
-    expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
+    expect(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
 });
+
+it('reports an unknown budget when the cool-down is rejected', function (): void {
+    config()->set('steam-api.rate_limit.cooldown', '0');
+
+    expect(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
+});
+
+it('reports the cool-down after a 429', function (mixed $cooldown, string $reported): void {
+    config()->set('steam-api.rate_limit.cooldown', $cooldown);
+
+    expect(steamAboutSection()['429_cool-down'])->toBe($reported);
+})->with([
+    'unset' => [null, '60s (default)'],
+    'the default set as a string' => ['60', '60s (default)'],
+    'configured' => ['120', '120s'],
+    'rejected' => ['0', 'INVALID'],
+]);
 
 it('reports logging as disabled until a channel is set', function (): void {
     expect(steamAboutSection()['logging'])->toBe('disabled');
@@ -421,7 +490,7 @@ it('reports a rejected logging option as invalid', function (string $option, mix
 it('reports an unknown budget when the log channel is not defined', function (): void {
     config()->set('steam-api.logging.channel', 'papertrail-x');
 
-    expect(steamAboutSection()['daily_requests_remaining'])->toBe('UNKNOWN');
+    expect(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
 });
 
 it('does not resolve the connector while booting', function (): void {

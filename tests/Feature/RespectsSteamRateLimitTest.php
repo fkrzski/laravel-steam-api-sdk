@@ -85,6 +85,22 @@ it('releases the job for what is left of a spent daily budget, sending nothing',
     Steam::assertNothingSent();
 });
 
+it('releases the job for what is left of a configured window', function (): void {
+    config()->set('steam-api.rate_limit.limits', [['allow' => 1, 'every' => 60]]);
+
+    fakeSteamEndpoints();
+
+    new RespectsSteamRateLimit()->handle(queuedJob(), fn (): string => Steam::users()->resolveVanityUrl('gabe')->value);
+
+    $job = queuedJob();
+
+    new RespectsSteamRateLimit()->handle($job, fn (): string => Steam::users()->resolveVanityUrl('gabe')->value);
+
+    expect(releaseDelay($job))->toBeGreaterThanOrEqual(59)->toBeLessThanOrEqual(60);
+
+    Steam::assertSentCount(1);
+});
+
 it('releases the job for the window a 429 names', function (?string $key): void {
     config()->set('steam-api.key', $key);
 

@@ -8,7 +8,7 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLoggingOptionException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitStoreException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitOptionException;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
 use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
 use Fkrzski\SteamApiSdk\Exceptions\AppNewsUnavailableException;
@@ -151,7 +151,7 @@ final readonly class SteamExceptionRenderer
      */
     public function misconfigured(
         InvalidApiKeyException|TooManySteamIdsException|ApiKeyNotConfiguredException
-        |InvalidSteamLanguageException|InvalidSteamHttpOptionException|InvalidSteamRateLimitStoreException
+        |InvalidSteamLanguageException|InvalidSteamHttpOptionException|InvalidSteamRateLimitOptionException
         |InvalidSteamLoggingOptionException|FakeOutsideTestsException $e,
         Request $request,
     ): ?Response {
