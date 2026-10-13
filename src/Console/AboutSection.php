@@ -9,7 +9,7 @@ use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLoggingOptionException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitStoreException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitOptionException;
 use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
 use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
@@ -269,7 +269,7 @@ final readonly class AboutSection
     {
         try {
             $store = $this->rateLimit->store();
-        } catch (InvalidSteamRateLimitStoreException) {
+        } catch (InvalidSteamRateLimitOptionException) {
             return self::INVALID;
         }
 
@@ -329,7 +329,7 @@ final readonly class AboutSection
 
             return $limit?->update($connector->rateLimitStore());
         } catch (
-            InvalidSteamLanguageException|InvalidSteamHttpOptionException|InvalidSteamRateLimitStoreException
+            InvalidSteamLanguageException|InvalidSteamHttpOptionException|InvalidSteamRateLimitOptionException
             |InvalidSteamLoggingOptionException|LimitException|JsonException
         ) {
             return null;

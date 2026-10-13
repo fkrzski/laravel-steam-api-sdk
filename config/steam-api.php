@@ -64,18 +64,35 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Rate Limit Store
+    | Rate Limits
     |--------------------------------------------------------------------------
     |
-    | The cache store holding the daily request counter and the wait after a
-    | 429. Left unset it is the default store, which `cache:clear` flushes —
+    | The cache store holding the request counters and the wait after a 429.
+    | Left unset it is the default store, which `cache:clear` flushes —
     | resetting the count while Steam's own carries on. Name a store from
     | config/cache.php to keep it apart; one that evicts keys can drop it too.
+    |
+    | Left null, `limits` keeps Steam's 100 000 requests a day, reset at 00:00
+    | UTC and counted only with an API key. A list replaces that, key or not:
+    | [] counts nothing locally, and each entry allows `allow` requests every
+    | `every` seconds — or every 'day', up to 00:00 UTC — waiting the window
+    | out instead of throwing when `sleep` is true. Changing an entry's `allow`
+    | or `every` restarts its count.
+    |
+    |     ['allow' => 100_000, 'every' => 'day'],
+    |     ['allow' => 10, 'every' => 1, 'sleep' => true],
+    |
+    | A 429 from Steam without a Retry-After holds requests back for `cooldown`
+    | seconds.
     |
     */
 
     'rate_limit' => [
         'store' => env('STEAM_API_RATE_LIMIT_STORE'),
+
+        'limits' => null,
+
+        'cooldown' => env('STEAM_API_RATE_LIMIT_COOLDOWN', 60),
     ],
 
     /*

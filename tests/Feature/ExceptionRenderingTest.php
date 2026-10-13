@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLoggingOptionException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitStoreException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitOptionException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
@@ -297,10 +297,10 @@ it('renders a rejected http option as a 500', function (): void {
     expect($response?->getStatusCode())->toBe(500);
 });
 
-it('renders a rejected rate limit store as a 500', function (): void {
+it('renders a rejected rate limit option as a 500', function (): void {
     config()->set('app.debug', false);
 
-    $response = renderer()->misconfigured(new InvalidSteamRateLimitStoreException('redis-x'), request());
+    $response = renderer()->misconfigured(InvalidSteamRateLimitOptionException::store('redis-x'), request());
 
     expect($response?->getStatusCode())->toBe(500);
 });

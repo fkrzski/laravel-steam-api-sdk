@@ -57,6 +57,8 @@ final class SteamServiceProvider extends ServiceProvider
                 tries: $http->tries(),
                 retryInterval: $http->retryInterval(),
                 exponentialBackoff: $http->exponentialBackoff(),
+                rateLimits: $rateLimit->limits(),
+                tooManyRequestsCooldown: $rateLimit->cooldown(),
             )), $app);
         });
 
