@@ -37,7 +37,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Timeouts & Retries
+    | HTTP Client
     |--------------------------------------------------------------------------
     |
     | How long the connector waits on Steam, in seconds — to connect, then for
@@ -48,6 +48,14 @@ return [
     | doubled after each retry with exponential backoff. A 4xx or a spent quota
     | never is, because every attempt spends a request from the daily budget.
     | One attempt is the default, and requests sent through a pool go out once.
+    |
+    | Requests go out through Guzzle unless `sender` names a class implementing
+    | Saloon's Sender. It is resolved from the container each time the
+    | connector is built, so a binding decides how: a singleton is shared, an
+    | unbound class is built anew. To keep Guzzle with middleware of your own,
+    | bind a GuzzleSender with it attached and name that. A sender on another
+    | client has to read Saloon's `connect_timeout` and `timeout` options off
+    | the request, which is how the timeouts above reach it.
     |
     */
 
@@ -60,6 +68,8 @@ return [
             'interval' => env('STEAM_API_RETRY_INTERVAL', 0),
             'exponential_backoff' => env('STEAM_API_RETRY_EXPONENTIAL_BACKOFF', false),
         ],
+
+        'sender' => env('STEAM_API_SENDER'),
     ],
 
     /*

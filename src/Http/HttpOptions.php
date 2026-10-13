@@ -7,9 +7,11 @@ namespace Fkrzski\LaravelSteamApiSdk\Http;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
+use ReflectionClass;
+use Saloon\Contracts\Sender;
 
 /**
- * The connector's timeouts and retries, read out of the `steam-api.http` block.
+ * The connector's timeouts, retries and sender, read out of the `steam-api.http` block.
  *
  * `env()` hands back strings, so every value is cast and checked here rather
  * than left to {@see SteamConfig}, whose exceptions name its own properties
@@ -55,6 +57,29 @@ final readonly class HttpOptions
         // filter_var() reads an unset value as false, which is the default.
         return filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE)
             ?? throw new InvalidSteamHttpOptionException('retry.exponential_backoff', $value);
+    }
+
+    /**
+     * Null leaves the base SDK's GuzzleSender in place.
+     *
+     * @return class-string<Sender>|null
+     */
+    public function sender(): ?string
+    {
+        $value = $this->value('sender');
+
+        if ($value === null) {
+            return null;
+        }
+
+        $class = is_string($value) ? trim($value) : $value;
+
+        if (! is_string($class) || ! is_subclass_of($class, Sender::class)) {
+            throw new InvalidSteamHttpOptionException('sender', $value);
+        }
+
+        // The container keys bindings by the declared name, which "\App\…" or another casing would miss.
+        return new ReflectionClass($class)->getName();
     }
 
     private function seconds(string $option): ?float

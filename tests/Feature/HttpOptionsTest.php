@@ -3,14 +3,43 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
+use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\SteamConnector;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
+use Saloon\Contracts\Sender;
+use Saloon\Http\Senders\GuzzleSender;
 
 mutates(HttpOptions::class, InvalidSteamHttpOptionException::class);
 
 function httpOptions(): HttpOptions
 {
     return app(HttpOptions::class);
+}
+
+/**
+ * Configure a GuzzleSender answering from the handler's queue instead of Steam.
+ */
+function bindGuzzleSender(MockHandler $handler): GuzzleSender
+{
+    $sender = new GuzzleSender;
+    $sender->getHandlerStack()->setHandler($handler);
+
+    app()->instance(GuzzleSender::class, $sender);
+    config()->set('steam-api.http.sender', GuzzleSender::class);
+
+    return $sender;
+}
+
+function vanityUrlAnswer(): Response
+{
+    return new Response(200, ['Content-Type' => 'application/json'], json_encode([
+        'response' => ['steamid' => steamId()->value, 'success' => 1],
+    ], JSON_THROW_ON_ERROR));
 }
 
 it('builds the connector with saloons timeouts and a single attempt until told otherwise', function (): void {
@@ -20,7 +49,8 @@ it('builds the connector with saloons timeouts and a single attempt until told o
         ->and($config->requestTimeout)->toBeNull()
         ->and($config->tries)->toBe(1)
         ->and($config->retryInterval)->toBe(0)
-        ->and($config->exponentialBackoff)->toBeFalse();
+        ->and($config->exponentialBackoff)->toBeFalse()
+        ->and($config->sender)->toBeNull();
 });
 
 it('hands the configured timeouts and retries to the connector', function (): void {
@@ -108,13 +138,15 @@ it('falls back to the default for an option left unset', function (mixed $value)
         'steam-api.http.retry.tries' => $value,
         'steam-api.http.retry.interval' => $value,
         'steam-api.http.retry.exponential_backoff' => $value,
+        'steam-api.http.sender' => $value,
     ]);
 
     expect(httpOptions()->connectTimeout())->toBeNull()
         ->and(httpOptions()->requestTimeout())->toBeNull()
         ->and(httpOptions()->tries())->toBe(1)
         ->and(httpOptions()->retryInterval())->toBe(0)
-        ->and(httpOptions()->exponentialBackoff())->toBeFalse();
+        ->and(httpOptions()->exponentialBackoff())->toBeFalse()
+        ->and(httpOptions()->sender())->toBeNull();
 })->with([
     'null' => null,
     'empty string' => '',
@@ -127,6 +159,83 @@ it('falls back to the defaults when the published config drops the retry block',
     expect(httpOptions()->tries())->toBe(1)
         ->and(httpOptions()->retryInterval())->toBe(0)
         ->and(httpOptions()->exponentialBackoff())->toBeFalse();
+});
+
+it('resolves the configured sender through the container', function (): void {
+    $sender = new GuzzleSender;
+
+    app()->bind(GuzzleSender::class, fn (): GuzzleSender => $sender);
+    config()->set('steam-api.http.sender', GuzzleSender::class);
+
+    expect(app(SteamConnector::class)->steamConfig->sender)->toBe($sender);
+});
+
+it('shares a sender bound as a singleton across scopes', function (): void {
+    app()->singleton(GuzzleSender::class);
+    config()->set('steam-api.http.sender', GuzzleSender::class);
+
+    $first = app(SteamConnector::class)->steamConfig->sender;
+    app()->forgetScopedInstances();
+
+    expect(app(SteamConnector::class)->steamConfig->sender)->toBeInstanceOf(GuzzleSender::class)->toBe($first);
+});
+
+it('builds an unbound sender anew with each connector', function (): void {
+    config()->set('steam-api.http.sender', GuzzleSender::class);
+
+    $first = app(SteamConnector::class)->steamConfig->sender;
+    app()->forgetScopedInstances();
+
+    expect(app(SteamConnector::class)->steamConfig->sender)->toBeInstanceOf(GuzzleSender::class)->not->toBe($first);
+});
+
+it('finds the binding however the sender is written', function (string $class): void {
+    $sender = bindGuzzleSender(new MockHandler);
+    config()->set('steam-api.http.sender', $class);
+
+    expect(httpOptions()->sender())->toBe(GuzzleSender::class)
+        ->and(app(SteamConnector::class)->steamConfig->sender)->toBe($sender);
+})->with([
+    'as declared' => GuzzleSender::class,
+    'surrounded by whitespace' => ' Saloon\Http\Senders\GuzzleSender ',
+    'with a leading backslash' => '\\'.GuzzleSender::class,
+    'in lowercase' => 'saloon\http\senders\guzzlesender',
+]);
+
+it('sends through the configured sender, timeouts included', function (): void {
+    $handler = new MockHandler([vanityUrlAnswer()]);
+    bindGuzzleSender($handler);
+    config()->set([
+        'steam-api.http.connect_timeout' => '2.5',
+        'steam-api.http.request_timeout' => '60',
+    ]);
+
+    expect(Steam::users()->resolveVanityUrl('gabe')->value)->toBe(steamId()->value)
+        ->and($handler->getLastOptions())->toMatchArray(['connect_timeout' => 2.5, 'timeout' => 60.0]);
+});
+
+it('retries a request the configured sender got no answer for', function (): void {
+    $handler = new MockHandler([
+        new ConnectException('Connection refused', new Request('GET', 'https://api.steampowered.com')),
+        vanityUrlAnswer(),
+    ]);
+    bindGuzzleSender($handler);
+    config()->set('steam-api.http.retry.tries', 2);
+
+    expect(Steam::users()->resolveVanityUrl('gabe')->value)->toBe(steamId()->value)
+        ->and($handler->count())->toBe(0);
+});
+
+it('never calls the configured sender under the fake', function (): void {
+    $handler = new MockHandler([vanityUrlAnswer()]);
+    $sender = bindGuzzleSender($handler);
+    fakeSteamEndpoints();
+
+    Steam::users()->resolveVanityUrl('gabe');
+
+    Steam::assertSent(ResolveVanityUrlRequest::class);
+    expect(Steam::connector()->steamConfig->sender)->toBe($sender)
+        ->and($handler->getLastRequest())->toBeNull();
 });
 
 it('throws when a timeout is not a number of seconds', function (string $option, mixed $value): void {
@@ -183,6 +292,32 @@ it('throws when exponential backoff is not a boolean', function (mixed $value): 
     'an array' => [[]],
 ]);
 
+it('throws when a binding hands back something other than a sender', function (): void {
+    app()->bind(GuzzleSender::class, fn (): stdClass => new stdClass);
+    config()->set('steam-api.http.sender', GuzzleSender::class);
+
+    expect(fn (): SteamConnector => app(SteamConnector::class))->toThrow(
+        UnexpectedValueException::class,
+        'The container resolved the configured Steam sender "Saloon\Http\Senders\GuzzleSender" to stdClass, '
+        .'which does not implement Saloon\Contracts\Sender.',
+    );
+});
+
+it('throws when the sender names no sender class', function (mixed $value): void {
+    config()->set('steam-api.http.sender', $value);
+
+    expect(fn (): SteamConnector => app(SteamConnector::class))
+        ->toThrow(InvalidSteamHttpOptionException::class);
+})->with([
+    'a boolean' => true,
+    'a number' => 123,
+    'an array' => [[]],
+    'an instance' => fn (): GuzzleSender => new GuzzleSender,
+    'a missing class' => 'App\Http\MissingSender',
+    'the contract itself' => Sender::class,
+    'a class that sends nothing' => stdClass::class,
+]);
+
 it('names the config key, the env var and what to set it to', function (string $option, mixed $value, string $message): void {
     expect(new InvalidSteamHttpOptionException($option, $value))->getMessage()->toBe($message);
 })->with([
@@ -217,5 +352,12 @@ it('names the config key, the env var and what to set it to', function (string $
         [],
         'The configured Steam HTTP option "steam-api.http.retry.exponential_backoff" cannot be []. Set '
         .'STEAM_API_RETRY_EXPONENTIAL_BACKOFF in your .env file, or that config value, to true or false.',
+    ],
+    'sender' => [
+        'sender',
+        'App\Http\MissingSender',
+        'The configured Steam HTTP option "steam-api.http.sender" cannot be "App\Http\MissingSender". Set '
+        .'STEAM_API_SENDER in your .env file, or that config value, to the name of a class implementing '
+        .'Saloon\Contracts\Sender, or leave it unset for Guzzle.',
     ],
 ]);
