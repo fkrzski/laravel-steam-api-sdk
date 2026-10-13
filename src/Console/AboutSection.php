@@ -13,6 +13,7 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitOptionException;
 use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
 use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
+use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
@@ -53,7 +54,7 @@ final readonly class AboutSection
 
     private const string INVALID = 'INVALID';
 
-    private const string NOT_METERED = 'not metered (no API key)';
+    private const string NOT_METERED = 'not metered';
 
     private const string UNLIMITED = 'unlimited';
 
@@ -75,7 +76,8 @@ final readonly class AboutSection
         return [
             'API Key' => $this->maskedApiKey(...),
             'Rate Limit Store' => $this->rateLimitStore(...),
-            'Daily Requests Remaining' => $this->remainingDailyRequests(...),
+            'Requests Remaining' => $this->remainingRequests(...),
+            '429 Cool-down' => $this->cooldown(...),
             'Route Binding' => $this->routeBinding(...),
             'Language' => $this->language(...),
             'Timeouts' => $this->timeouts(...),
@@ -283,56 +285,90 @@ final readonly class AboutSection
     }
 
     /**
-     * How much of the daily request budget is left.
+     * How much of each local limit is left, in the order the connector checks them.
      *
-     * Steam bills the budget to the key, so a connector built without one counts
-     * nothing — and is not built just to say so.
+     * Steam bills the default budget to the key, so a connector built without one
+     * counts nothing — and is not built just to say so. Configured limits count
+     * either way.
      */
-    private function remainingDailyRequests(): string
+    private function remainingRequests(): string
     {
-        if ($this->configuredApiKey() === null) {
+        try {
+            $configured = $this->rateLimit->limits();
+        } catch (InvalidSteamRateLimitOptionException) {
+            return self::INVALID;
+        }
+
+        if ($configured === []) {
             return self::NOT_METERED;
         }
 
-        $limit = $this->dailyLimit();
+        if ($configured === null && $this->configuredApiKey() === null) {
+            return self::NOT_METERED.' (no API key)';
+        }
 
-        if (! $limit instanceof Limit) {
+        $limits = $this->localLimits();
+
+        if ($limits === null || $limits === []) {
             return self::UNKNOWN;
         }
 
-        return sprintf(
-            '%s of %s',
+        return implode(', ', array_map($this->remaining(...), $limits));
+    }
+
+    private function remaining(Limit $limit): string
+    {
+        $remaining = sprintf(
+            '%s of %s %s',
             number_format($limit->getAllow() - $limit->getHits()),
             number_format($limit->getAllow()),
+            str_ends_with($limit->getName(), UtcDayLimit::WINDOW)
+                ? 'per day'
+                : sprintf('per %ds', $limit->getReleaseInSeconds()),
         );
+
+        return $limit->getShouldSleep() ? $remaining.' (sleeps)' : $remaining;
     }
 
     /**
-     * The connector's daily limit, hydrated from the rate-limit store.
+     * The connector's local limits, hydrated from the rate-limit store.
      *
      * `about` is a diagnostics command, so the states it is expected to run into
      * — an app the connector cannot be built for yet, and counter data the plugin
      * cannot read back — degrade to "unknown" instead of taking the whole command
      * down. The rows above name the misconfiguration this one cannot report.
+     *
+     * @return array<Limit>|null
      */
-    private function dailyLimit(): ?Limit
+    private function localLimits(): ?array
     {
         try {
             $connector = $this->app->make(SteamConnector::class);
+            $store = $connector->rateLimitStore();
 
-            // The 429 detector is response-driven and carries no budget of its
-            // own — the daily quota is the limit that counts hits upfront.
-            $limit = array_find(
-                $connector->getLimits(),
-                static fn (Limit $limit): bool => ! $limit->usesResponse(),
-            );
+            // The 429 detector is response-driven and carries no budget of its own.
+            $limits = array_filter($connector->getLimits(), static fn (Limit $limit): bool => ! $limit->usesResponse());
 
-            return $limit?->update($connector->rateLimitStore());
+            return array_map(static fn (Limit $limit): Limit => $limit->update($store), $limits);
         } catch (
             InvalidSteamLanguageException|InvalidSteamHttpOptionException|InvalidSteamRateLimitOptionException
             |InvalidSteamLoggingOptionException|LimitException|JsonException
         ) {
             return null;
         }
+    }
+
+    /**
+     * How long a 429 without `Retry-After` holds requests back.
+     */
+    private function cooldown(): string
+    {
+        try {
+            $seconds = $this->rateLimit->cooldown();
+        } catch (InvalidSteamRateLimitOptionException) {
+            return self::INVALID;
+        }
+
+        return $seconds === RateLimitOptions::DEFAULT_COOLDOWN ? $seconds.'s (default)' : $seconds.'s';
     }
 }
