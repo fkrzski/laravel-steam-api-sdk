@@ -7,11 +7,13 @@ use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
+use Fkrzski\SteamApiSdk\Http\Senders\SteamSender;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Support\Composer;
 use Illuminate\Support\Facades\Artisan;
 use Saloon\Http\Faking\MockResponse;
+use Saloon\Http\Senders\GuzzleSender;
 use Saloon\RateLimitPlugin\Limit;
 
 mutates(AboutSection::class);
@@ -49,6 +51,7 @@ it('registers the Steam API section on the about command', function (): void {
         'language',
         'timeouts',
         'retries',
+        'sender',
         'logging',
     ]);
 });
@@ -66,6 +69,7 @@ it('renders the section under its own heading', function (): void {
         ->toContain('Language')
         ->toContain('Timeouts')
         ->toContain('Retries')
+        ->toContain('Sender')
         ->toContain('Logging')
         ->not->toContain('Application Name');
 });
@@ -423,6 +427,35 @@ it('reports a rejected retry option as invalid', function (string $option, mixed
     'interval' => ['interval', '-1'],
     'exponential backoff' => ['exponential_backoff', 'maybe'],
 ]);
+
+it('reports guzzle as the default sender', function (mixed $sender): void {
+    config()->set('steam-api.http.sender', $sender);
+
+    expect(steamAboutSection()['sender'])->toBe('Guzzle (default)');
+})->with([
+    'null' => null,
+    'empty string' => '',
+]);
+
+it('names the configured sender as the container is asked for it', function (): void {
+    config()->set('steam-api.http.sender', '\\'.GuzzleSender::class);
+
+    expect(steamAboutSection()['sender'])->toBe(GuzzleSender::class);
+});
+
+it('reports a sender that is not a sender class as invalid', function (): void {
+    config()->set('steam-api.http.sender', stdClass::class);
+
+    expect(steamAboutSection()['sender'])->toBe('INVALID')
+        ->and(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
+});
+
+it('reports an unknown budget when the container cannot build the sender', function (): void {
+    config()->set('steam-api.http.sender', SteamSender::class);
+
+    expect(steamAboutSection()['sender'])->toBe(SteamSender::class)
+        ->and(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
+});
 
 it('reports an unknown budget when an http option is rejected', function (): void {
     config()->set('steam-api.http.retry.tries', '0');

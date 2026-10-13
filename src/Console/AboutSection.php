@@ -17,6 +17,7 @@ use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Foundation\Application;
 use JsonException;
 use Saloon\Config as SaloonConfig;
@@ -60,6 +61,8 @@ final readonly class AboutSection
 
     private const string NO_RETRIES = 'none';
 
+    private const string DEFAULT_SENDER = 'Guzzle';
+
     public function __construct(
         private Application $app,
         private ConfigRepository $config,
@@ -82,6 +85,7 @@ final readonly class AboutSection
             'Language' => $this->language(...),
             'Timeouts' => $this->timeouts(...),
             'Retries' => $this->retries(...),
+            'Sender' => $this->sender(...),
             'Logging' => $this->logging(...),
         ];
     }
@@ -199,6 +203,21 @@ final readonly class AboutSection
             $backoff => sprintf('%dms apart, doubling', $interval),
             default => sprintf('%dms apart', $interval),
         });
+    }
+
+    /**
+     * The sender class the connector is built with, as configured rather than as
+     * the container resolves it, so the row never builds one.
+     */
+    private function sender(): string
+    {
+        try {
+            $sender = $this->http->sender();
+        } catch (InvalidSteamHttpOptionException) {
+            return self::INVALID;
+        }
+
+        return $sender ?? self::DEFAULT_SENDER.' (default)';
     }
 
     /**
@@ -334,9 +353,10 @@ final readonly class AboutSection
      * The connector's local limits, hydrated from the rate-limit store.
      *
      * `about` is a diagnostics command, so the states it is expected to run into
-     * — an app the connector cannot be built for yet, and counter data the plugin
-     * cannot read back — degrade to "unknown" instead of taking the whole command
-     * down. The rows above name the misconfiguration this one cannot report.
+     * — an app the connector cannot be built for yet, a sender the container cannot
+     * build, and counter data the plugin cannot read back — degrade to "unknown"
+     * instead of taking the whole command down. The rows above name the
+     * misconfiguration this one cannot report.
      *
      * @return array<Limit>|null
      */
@@ -352,7 +372,7 @@ final readonly class AboutSection
             return array_map(static fn (Limit $limit): Limit => $limit->update($store), $limits);
         } catch (
             InvalidSteamLanguageException|InvalidSteamHttpOptionException|InvalidSteamRateLimitOptionException
-            |InvalidSteamLoggingOptionException|LimitException|JsonException
+            |InvalidSteamLoggingOptionException|BindingResolutionException|LimitException|JsonException
         ) {
             return null;
         }
