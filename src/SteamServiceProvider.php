@@ -34,8 +34,10 @@ use Illuminate\Foundation\Exceptions\Handler;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\ServiceProvider;
+use Saloon\Contracts\Sender;
 use Saloon\RateLimitPlugin\Stores\LaravelCacheStore;
 use Throwable;
+use UnexpectedValueException;
 
 final class SteamServiceProvider extends ServiceProvider
 {
@@ -58,6 +60,7 @@ final class SteamServiceProvider extends ServiceProvider
                 retryInterval: $http->retryInterval(),
                 exponentialBackoff: $http->exponentialBackoff(),
                 rateLimits: $rateLimit->limits(),
+                sender: $this->steamSender($app, $http->sender()),
                 tooManyRequestsCooldown: $rateLimit->cooldown(),
             )), $app);
         });
@@ -194,6 +197,28 @@ final class SteamServiceProvider extends ServiceProvider
         $apiKey = is_string($apiKey) ? trim($apiKey) : '';
 
         return $apiKey === '' ? null : $apiKey;
+    }
+
+    /**
+     * The configured sender, built by the container each time the connector is,
+     * so a binding of its class decides how. Null leaves the base SDK's Guzzle.
+     *
+     * @throws UnexpectedValueException when a binding hands back something else
+     */
+    private function steamSender(Application $app, ?string $class): ?Sender
+    {
+        if ($class === null) {
+            return null;
+        }
+
+        $sender = $app->make($class);
+
+        return $sender instanceof Sender ? $sender : throw new UnexpectedValueException(sprintf(
+            'The container resolved the configured Steam sender "%s" to %s, which does not implement %s.',
+            $class,
+            get_debug_type($sender),
+            Sender::class,
+        ));
     }
 
     /**
