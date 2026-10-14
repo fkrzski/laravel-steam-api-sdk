@@ -57,6 +57,11 @@ return [
     | client has to read Saloon's `connect_timeout` and `timeout` options off
     | the request, which is how the timeouts above reach it.
     |
+    | With Laravel Nightwatch installed and enabled, the default Guzzle reports
+    | every request to it. A sender of your own is left as it is, so attach
+    | Nightwatch's Guzzle middleware to it yourself. Either way, the API key is
+    | left out of the URLs Nightwatch records.
+    |
     */
 
     'http' => [

@@ -18,6 +18,7 @@
     },
     "require-dev": {
         "larastan/larastan": "^3.0",
+        "laravel/nightwatch": "^1.24",
         "laravel/pint": "^1.29.1",
         "orchestra/testbench": "^11.0",
         "pestphp/pest": "^5.0.0",

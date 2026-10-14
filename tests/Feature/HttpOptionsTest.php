@@ -10,7 +10,6 @@ use Fkrzski\SteamApiSdk\SteamConnector;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\Psr7\Request;
-use GuzzleHttp\Psr7\Response;
 use Saloon\Contracts\Sender;
 use Saloon\Http\Senders\GuzzleSender;
 
@@ -19,27 +18,6 @@ mutates(HttpOptions::class, InvalidSteamHttpOptionException::class);
 function httpOptions(): HttpOptions
 {
     return app(HttpOptions::class);
-}
-
-/**
- * Configure a GuzzleSender answering from the handler's queue instead of Steam.
- */
-function bindGuzzleSender(MockHandler $handler): GuzzleSender
-{
-    $sender = new GuzzleSender;
-    $sender->getHandlerStack()->setHandler($handler);
-
-    app()->instance(GuzzleSender::class, $sender);
-    config()->set('steam-api.http.sender', GuzzleSender::class);
-
-    return $sender;
-}
-
-function vanityUrlAnswer(): Response
-{
-    return new Response(200, ['Content-Type' => 'application/json'], json_encode([
-        'response' => ['steamid' => steamId()->value, 'success' => 1],
-    ], JSON_THROW_ON_ERROR));
 }
 
 it('builds the connector with saloons timeouts and a single attempt until told otherwise', function (): void {
