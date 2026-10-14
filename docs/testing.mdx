@@ -28,7 +28,7 @@ Steam::fake()
     )
     ->stats()->currentPlayers(12_345);
 
-$summaries = Steam::summaries([$steamId]);
+$summaries = Steam::users()->summaries([$steamId]);
 ```
 
 Each method registers the response for the request class its endpoint sends and hands the
@@ -37,7 +37,7 @@ the second.
 
 A method wrapping a collection takes as many factories as you want — an empty call fakes
 an empty result. The rest take exactly what their envelope carries: one container factory,
-a plain number, or a `SteamId`:
+a plain number, a `SteamId`, or a moment:
 
 ```php
 $fake = Steam::fake();
@@ -47,10 +47,11 @@ $fake->users()->friends($first, $second, $third);      // three friends
 $fake->players()->badges(PlayerBadgesFactory::new());  // the badges envelope
 $fake->players()->steamLevel(42);                      // a level, no factory
 $fake->stats()->currentPlayers(12_345);                // a head count, no factory
+$fake->webApi()->serverInfo(now());                    // Steam's clock, no factory
 ```
 
-It sits on the connector, so it covers every call through the facade — helpers,
-resources, `pool()` and `send()` alike — and goes away with the request that installed it.
+It sits on the connector, so it covers every call through the facade — resources,
+`newsFeed()`, `pool()` and `send()` alike — and goes away with the request that installed it.
 
 `Steam::fake()` also takes a map of request class → response, for a request of your own
 sent through `send()`, or a `MockResponse` the chain does not build. `SteamResponse` holds
@@ -96,6 +97,8 @@ is public at all. Hand-written envelopes get this wrong quietly.
 | `->apps()->sdrConfig()` | `SteamResponse::sdrConfig()` | `GetSdrConfigRequest` |
 | `->news()->appNews()` | `SteamResponse::appNews()` | `GetNewsForAppRequest` |
 | `->news()->newsFeed()` | `SteamResponse::newsFeed()` | `GetNewsForAppRequest` |
+| `->webApi()->serverInfo()` | `SteamResponse::serverInfo()` | `GetServerInfoRequest` |
+| `->webApi()->supportedApiList()` | `SteamResponse::supportedApiList()` | `GetSupportedApiListRequest` |
 
 ## DTO factories
 
@@ -116,6 +119,7 @@ Named states cover the variations worth naming, and compose:
 
 ```php
 PlayerSummaryFactory::new()->private();                      // hidden profile
+PlayerSummaryFactory::new()->friendsOnly();                  // friends-only profile
 PlayerSummaryFactory::new()->online()->inGame('730', 'CS2'); // online, in a game
 PlayerBanFactory::new()->vacBanned(2)->communityBanned();
 OwnedGameFactory::new()->withAppInfo()->neverPlayed();
@@ -130,10 +134,13 @@ AppVersionCheckFactory::new()->outOfDate(requiredVersion: 10828683);
 GameServerFactory::new()->insecure()->withoutSpectatorPort();
 SdrPointOfPresenceFactory::new()->withoutRelays();
 NewsItemFactory::new()->communityAnnouncement()->internalUrl()->withoutAuthor();
+WebApiMethodFactory::new()->post()->withoutDescription();
+WebApiParameterFactory::new()->optional()->emptyDescription();
 ```
 
 `private()` withholds everything Steam does on a hidden profile, the creation date
-included — the summary it builds carries a null `timeCreated`.
+included — the summary it builds carries a null `timeCreated`. `friendsOnly()` withholds the
+same, and reads back as `CommunityVisibility::FriendsOnly`.
 
 `empty()` on `GameSchemaFactory` builds what an app publishing no schema answers with:
 Steam drops every key, so the DTO comes back with a null `gameName` and two empty lists.
@@ -142,7 +149,9 @@ name as the empty string Steam really sends, which the DTO reads back as null.
 
 `withoutSpectatorPort()` sends the `0` Steam sends for a server without SourceTV, which the
 DTO reads back as null, and `withoutAuthor()` does the same with the `''` of a post without a
-byline. `withoutRelays()` drops the key the way Steam does.
+byline. `withoutRelays()` drops the key the way Steam does. A Web API description goes missing
+both ways: `withoutDescription()` drops the key, as Steam does on most methods, and
+`emptyDescription()` sends the `''` some parameters carry, and the DTO reads either as null.
 
 `state()` covers the rest — raw payload keys merged over the defaults:
 
@@ -171,6 +180,12 @@ GameSchemaFactory::new()->stats(
 SdrConfigFactory::new()->pointsOfPresence(
     SdrPointOfPresenceFactory::new()->code('waw')->latitude(52.23)->longitude(21.01)->relays(
         SdrRelayFactory::new()->ipv4('155.133.240.10')->ports(27015, 27060),
+    ),
+);
+
+WebApiInterfaceFactory::new()->name('ISteamUser')->methods(
+    WebApiMethodFactory::new()->name('GetPlayerSummaries')->version(2)->parameters(
+        WebApiParameterFactory::new()->name('steamids'),
     ),
 );
 ```
@@ -206,8 +221,9 @@ Available factories: `PlayerSummaryFactory`, `PlayerBanFactory`, `FriendFactory`
 `UserStatsFactory`, `PlayerAchievementFactory`, `PlayerAchievementsFactory`,
 `GlobalAchievementFactory`, `GameSchemaFactory`, `SchemaStatFactory`,
 `SchemaAchievementFactory`, `AppVersionCheckFactory`, `GameServerFactory`,
-`SdrConfigFactory`, `SdrPointOfPresenceFactory`, `SdrRelayFactory`, `AppNewsFactory` and
-`NewsItemFactory`, all under
+`SdrConfigFactory`, `SdrPointOfPresenceFactory`, `SdrRelayFactory`, `AppNewsFactory`,
+`NewsItemFactory`, `WebApiInterfaceFactory`, `WebApiMethodFactory` and
+`WebApiParameterFactory`, all under
 `Fkrzski\LaravelSteamApiSdk\Testing\Factories`.
 
 ## Faking a news feed
@@ -253,6 +269,7 @@ exception the base SDK raises for that endpoint:
 | `->apps()->serversAtAddressRefused()` | `SteamResponse::serversAtAddressRefused()` | `SteamApiException` |
 | `->apps()->sdrConfigAppNotFound()` | `SteamResponse::sdrConfigAppNotFound()` | `AppNotFoundException` |
 | `->news()->appNewsUnavailable()` | `SteamResponse::appNewsUnavailable()` | `AppNewsUnavailableException` |
+| `->webApi()->supportedApiListInvalidKey()` | `SteamResponse::supportedApiListInvalidKey()` | `InvalidApiKeyException` |
 | `->invalidApiKey()` | `SteamResponse::invalidApiKey()` | `InvalidApiKeyException` |
 | — | `SteamResponse::apiKeyUnauthorized()` | `InvalidApiKeyException` |
 | — | `SteamResponse::apiKeyMissing()` | `InvalidApiKeyException` |
@@ -266,7 +283,7 @@ exception the base SDK raises for that endpoint:
     it('surfaces a private friend list', function (): void {
         Steam::fake()->users()->friendsNotPublic();
 
-        Steam::friends($steamId);
+        Steam::users()->friends($steamId);
     })->throws(ProfileNotPublicException::class);
     ```
   </TabItem>
@@ -278,7 +295,7 @@ exception the base SDK raises for that endpoint:
 
     $this->expectException(ProfileNotPublicException::class);
 
-    Steam::friends($steamId);
+    Steam::users()->friends($steamId);
     ```
   </TabItem>
 </Tabs>
@@ -310,11 +327,17 @@ again, which `GetNewsForApp` answers an unknown app and one whose news it does n
 
 A rejected key lands on `403` or `401`, whichever the endpoint picks — `invalidApiKey()`
 fakes the first, `apiKeyUnauthorized()` the second, which is what
-`GetCommunityBadgeProgressRequest` answers with.
+`GetCommunityBadgeProgressRequest` answers with. `GetSupportedAPIList` answers a JSON `403`
+with an empty interface list instead of the HTML page, and `supportedApiListInvalidKey()` fakes
+that.
+
+A faked `429` raises `SteamRateLimitException` the way Steam's own does, and starts the
+[cool-down](/laravel-steam-api-sdk/rate-limiting#after-a-429) with it: every request after it
+in that test is refused locally, before the fake can answer.
 
 <Aside type="caution" title="Two failures cannot be faked with a response">
-Neither comes from one: `SteamRateLimitException` is raised by the rate-limit
-plugin before a response exists, and `TooManySteamIdsException` by the request
+Neither comes from one: `SteamRateLimitException` for a spent local limit is raised by the
+rate-limit plugin before a response exists, and `TooManySteamIdsException` by the request
 constructor when you pass more than 100 IDs.
 </Aside>
 
@@ -334,7 +357,7 @@ Steam::fake([
 ]);
 
 try {
-    Steam::summaries([$steamId]);
+    Steam::users()->summaries([$steamId]);
 } catch (SteamApiException) {
     // raised once the third attempt fails too
 }
@@ -343,7 +366,9 @@ Steam::assertSentCount(3);
 ```
 
 Saloon pauses with a bare `usleep()`, which `Sleep::fake()` cannot reach, so the fake skips
-the wait rather than leaving a suite to sit it out. `connectionFailed()` is retried the same
+the wait rather than leaving a suite to sit it out. The pause a `sleep`
+[rate limit](/laravel-steam-api-sdk/rate-limiting#waiting-instead-of-failing) takes is not
+skipped, so a test sending more than such a limit allows waits the window out. `connectionFailed()` is retried the same
 way, but Saloon throws it before recording a response: `recorded()` and the assertions never
 see the attempt, so assert on the exception.
 
@@ -363,9 +388,9 @@ is configured. No request leaves your machine, so the value is irrelevant:
 </phpunit>
 ```
 
-A suite covering only `appNews()`, `newsFeed()`, `currentPlayers()`, `globalAchievements()`
-and the three ISteamApps helpers needs no key at all — Steam serves those anonymously, and the connector sends them
-without one.
+A suite covering only the `apps()`, `news()` and `webApi()` endpoints, `currentPlayers()`,
+`globalAchievements()` and `newsFeed()` needs no key at all — Steam serves those anonymously,
+and the connector sends them without one.
 
 ## Asserting
 
@@ -411,7 +436,7 @@ too — the recorded responses, and the last exchange:
     ```php
     Steam::fake([/* … */]);
 
-    Steam::summaries([$steamId]);
+    Steam::users()->summaries([$steamId]);
 
     expect(Steam::recorded())->toHaveCount(1)
         ->and(Steam::lastRequest())->toBeInstanceOf(GetPlayerSummariesRequest::class)
@@ -422,7 +447,7 @@ too — the recorded responses, and the last exchange:
     ```php
     Steam::fake([/* … */]);
 
-    Steam::summaries([$steamId]);
+    Steam::users()->summaries([$steamId]);
 
     $this->assertCount(1, Steam::recorded());
     $this->assertInstanceOf(GetPlayerSummariesRequest::class, Steam::lastRequest());
@@ -452,7 +477,7 @@ use Illuminate\Support\Facades\Event;
 Event::fake([SteamResponseReceived::class]);
 Steam::fake()->users()->summaries(PlayerSummaryFactory::new());
 
-Steam::summaries([$steamId]);
+Steam::users()->summaries([$steamId]);
 
 Event::assertDispatched(
     SteamResponseReceived::class,
@@ -475,7 +500,7 @@ Event::assertDispatched(
             PlayerSummaryFactory::new()->personaName('Gabe'),
         );
 
-        $summaries = Steam::summaries([SteamId::fromSteamId64('76561198000000000')]);
+        $summaries = Steam::users()->summaries([SteamId::fromSteamId64('76561198000000000')]);
 
         expect($summaries[0]->personaName)->toBe('Gabe');
 
@@ -498,7 +523,7 @@ Event::assertDispatched(
                 PlayerSummaryFactory::new()->personaName('Gabe'),
             );
 
-            $summaries = Steam::summaries([SteamId::fromSteamId64('76561198000000000')]);
+            $summaries = Steam::users()->summaries([SteamId::fromSteamId64('76561198000000000')]);
 
             $this->assertSame('Gabe', $summaries[0]->personaName);
 
