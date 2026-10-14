@@ -17,6 +17,7 @@ use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
 use Fkrzski\LaravelSteamApiSdk\Localization\LocaleLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
 use Fkrzski\LaravelSteamApiSdk\Logging\SteamTrafficLogger;
+use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
@@ -34,6 +35,7 @@ use Illuminate\Foundation\Exceptions\Handler;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Nightwatch\Facades\Nightwatch;
 use Saloon\Contracts\Sender;
 use Saloon\RateLimitPlugin\Stores\LaravelCacheStore;
 use Throwable;
@@ -106,6 +108,7 @@ final class SteamServiceProvider extends ServiceProvider
         $this->registerRouteBinding();
         $this->registerExceptionRenderers();
         $this->registerLogging();
+        $this->registerNightwatch();
     }
 
     /**
@@ -149,6 +152,20 @@ final class SteamServiceProvider extends ServiceProvider
 
         $events->listen(SteamRequestFailed::class, [SteamTrafficLogger::class, 'logFailure']);
         $events->listen(SteamResponseReceived::class, [SteamTrafficLogger::class, 'logResponse']);
+    }
+
+    /**
+     * Keep the API key out of the URLs Nightwatch records, whichever sender
+     * carried the request. Registered once here: Nightwatch's core outlives
+     * every scope, so a callback added with each connector would pile up.
+     */
+    private function registerNightwatch(): void
+    {
+        $nightwatch = $this->app->make(NightwatchReporting::class);
+
+        if ($nightwatch->installed()) {
+            Nightwatch::redactOutgoingRequests($nightwatch->redactApiKey(...));
+        }
     }
 
     /**
@@ -201,14 +218,17 @@ final class SteamServiceProvider extends ServiceProvider
 
     /**
      * The configured sender, built by the container each time the connector is,
-     * so a binding of its class decides how. Null leaves the base SDK's Guzzle.
+     * so a binding of its class decides how. Left unset, it is a GuzzleSender
+     * reporting to Nightwatch while Nightwatch is enabled, or null for the base SDK's.
      *
      * @throws UnexpectedValueException when a binding hands back something else
      */
     private function steamSender(Application $app, ?string $class): ?Sender
     {
         if ($class === null) {
-            return null;
+            $nightwatch = $app->make(NightwatchReporting::class);
+
+            return $nightwatch->enabled() ? $nightwatch->sender() : null;
         }
 
         $sender = $app->make($class);

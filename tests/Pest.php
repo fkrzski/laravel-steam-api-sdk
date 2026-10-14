@@ -9,10 +9,16 @@ use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\Psr7\Response;
+use Saloon\Http\Senders\GuzzleSender;
 use Saloon\RateLimitPlugin\Limit;
+use Tests\NightwatchTestCase;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)->in('Feature');
+
+pest()->extend(NightwatchTestCase::class)->in('Nightwatch');
 
 pest()->tia()->locally();
 
@@ -60,4 +66,25 @@ function fakeSteamEndpoints(): void
         ),
         ResolveVanityUrlRequest::class => SteamResponse::vanityUrl(steamId()),
     ]);
+}
+
+/**
+ * Configure a GuzzleSender answering from the handler's queue instead of Steam.
+ */
+function bindGuzzleSender(MockHandler $handler): GuzzleSender
+{
+    $sender = new GuzzleSender;
+    $sender->getHandlerStack()->setHandler($handler);
+
+    app()->instance(GuzzleSender::class, $sender);
+    config()->set('steam-api.http.sender', GuzzleSender::class);
+
+    return $sender;
+}
+
+function vanityUrlAnswer(): Response
+{
+    return new Response(200, ['Content-Type' => 'application/json'], json_encode([
+        'response' => ['steamid' => steamId()->value, 'success' => 1],
+    ], JSON_THROW_ON_ERROR));
 }

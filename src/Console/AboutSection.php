@@ -12,6 +12,7 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLoggingOptionException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitOptionException;
 use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
 use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
+use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
 use Fkrzski\SteamApiSdk\Enums\Language;
@@ -63,12 +64,15 @@ final readonly class AboutSection
 
     private const string DEFAULT_SENDER = 'Guzzle';
 
+    private const string NIGHTWATCH_SENDER = 'Guzzle + Nightwatch';
+
     public function __construct(
         private Application $app,
         private ConfigRepository $config,
         private HttpOptions $http,
         private RateLimitOptions $rateLimit,
         private LoggingOptions $logging,
+        private NightwatchReporting $nightwatch,
     ) {}
 
     /**
@@ -207,7 +211,8 @@ final readonly class AboutSection
 
     /**
      * The sender class the connector is built with, as configured rather than as
-     * the container resolves it, so the row never builds one.
+     * the container resolves it, so the row never builds one. Left unset, it is
+     * Guzzle, reporting to Nightwatch while that is enabled.
      */
     private function sender(): string
     {
@@ -217,7 +222,7 @@ final readonly class AboutSection
             return self::INVALID;
         }
 
-        return $sender ?? self::DEFAULT_SENDER.' (default)';
+        return $sender ?? ($this->nightwatch->enabled() ? self::NIGHTWATCH_SENDER : self::DEFAULT_SENDER).' (default)';
     }
 
     /**
