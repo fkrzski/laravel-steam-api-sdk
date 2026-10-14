@@ -1,21 +1,23 @@
 ---
 title: API reference
-description: Every method on the Steam facade and every event it dispatches — signatures, what each method returns and raises, with a runnable example.
+description: Every resource and method on the Steam facade and every event it dispatches — signatures, what each returns and raises, with a runnable example.
 ---
 
-Every method here lives on the `Steam` facade
-(`Fkrzski\LaravelSteamApiSdk\Facades\Steam`). The request helpers take a
+Every method here is reached through the `Steam` facade
+(`Fkrzski\LaravelSteamApiSdk\Facades\Steam`): an endpoint on the resource for its Steam
+interface, the rest on the facade itself. Endpoints take a
 [`SteamId`](/laravel-steam-api-sdk/guide#the-steamid-value-object) wherever they
 identify a user and return readonly DTOs from the underlying SDK, documented in
 [Data objects](/php-steam-api-sdk/dto-reference).
 
 <Aside title="Four exceptions every request can raise">
 `ApiKeyNotConfiguredException` (no key configured), `InvalidApiKeyException` (Steam
-rejected it), `SteamRateLimitException` (daily quota spent) and `SteamConnectionException`
-(Steam never answered, once the [retries](/laravel-steam-api-sdk/configuration#timeouts-and-retries)
-are spent). The first one skips `appNews()`, `currentPlayers()`, `globalAchievements()`,
-`newsFeed()` and the three ISteamApps helpers, which Steam serves without a key. They are listed per method only where
-a helper raises them on its own, and every exception below extends `SteamApiException`.
+rejected it), `SteamRateLimitException` (a [limit](/laravel-steam-api-sdk/rate-limiting) spent, or
+Steam answered `429`) and `SteamConnectionException` (Steam never answered, once the
+[retries](/laravel-steam-api-sdk/configuration#timeouts-and-retries) are spent). The first one skips
+the `apps()`, `news()` and `webApi()` endpoints, `currentPlayers()`, `globalAchievements()` and
+`newsFeed()`, which Steam serves without a key. They are listed per method only where an endpoint
+raises them on its own, and every exception below extends `SteamApiException`.
 </Aside>
 
 <Aside type="caution" title="The language argument is an enum since 0.6.0">
@@ -24,12 +26,48 @@ raw code they took before, so a call passing `'english'` swaps it for `Language:
 Omit it and the request carries the [configured default](/laravel-steam-api-sdk/configuration#default-language).
 </Aside>
 
-## Request helpers
+## Resources
+
+The base SDK groups its endpoints into one resource per Steam interface, and the facade
+hands each back as the connector builds it — `AppsResource`, `NewsResource`,
+`PlayersResource`, `StatsResource`, `UsersResource` and `WebApiResource` from
+`Fkrzski\SteamApiSdk\Http\Resources`.
+
+```text frame="none"
+Steam::apps(): AppsResource
+Steam::news(): NewsResource
+Steam::players(): PlayersResource
+Steam::stats(): StatsResource
+Steam::users(): UsersResource
+Steam::webApi(): WebApiResource
+```
+
+| Resource | Steam interface | Methods |
+| --- | --- | --- |
+| `Steam::apps()` | `ISteamApps` | `sdrConfig()`, `serversAtAddress()`, `upToDateCheck()` |
+| `Steam::news()` | `ISteamNews` | `appNews()` |
+| `Steam::players()` | `IPlayerService` | `badges()`, `communityBadgeProgress()`, `ownedGames()`, `recentlyPlayedGames()`, `steamLevel()` |
+| `Steam::stats()` | `ISteamUserStats` | `achievements()`, `currentPlayers()`, `globalAchievements()`, `schema()`, `userStats()` |
+| `Steam::users()` | `ISteamUser` | `bans()`, `friends()`, `groups()`, `resolveVanityUrl()`, `summaries()` |
+| `Steam::webApi()` | `ISteamWebAPIUtil` | `serverTime()`, `supportedApis()` |
+
+A resource sends through the same scoped connector the facade uses, so
+[`fake()`](#fake) covers one you reached before installing the mock.
+
+<Aside type="caution" title="The facade helpers are gone since 0.9.0">
+Every endpoint was also a helper on the facade, under the same name. Call it on its resource
+with the same arguments, so `Steam::groups($id)` is now `Steam::users()->groups($id)`.
+</Aside>
+
+## Endpoints
+
+Alphabetical, each under its resource. `newsFeed()` is the one the bridge adds on the facade
+itself.
 
 ### `achievements()`
 
 ```text frame="none"
-Steam::achievements(SteamId $steamId, int $appId, ?Language $language = null): PlayerAchievements
+Steam::stats()->achievements(SteamId $steamId, int $appId, ?Language $language = null): PlayerAchievements
 ```
 
 <Badge text="throws StatsUnavailableException" variant="danger" size="small" />
@@ -43,7 +81,7 @@ profile and an app without achievements identically, so a `400` becomes
 ```php
 use Fkrzski\SteamApiSdk\Enums\Language;
 
-$result = Steam::achievements($steamId, appId: 381210, language: Language::English);
+$result = Steam::stats()->achievements($steamId, appId: 381210, language: Language::English);
 
 foreach ($result->achievements as $achievement) {
     echo $achievement->apiName, ' — ', $achievement->achieved ? 'unlocked' : 'locked', PHP_EOL;
@@ -53,7 +91,7 @@ foreach ($result->achievements as $achievement) {
 ### `appNews()`
 
 ```text frame="none"
-Steam::appNews(
+Steam::news()->appNews(
     int $appId,
     ?int $count = null,
     ?int $maxLength = null,
@@ -72,7 +110,7 @@ does not know raises, and so do some it does, such as Spacewar, because Steam an
 alike.
 
 ```php
-$news = Steam::appNews(appId: 440, count: 5, feeds: ['steam_community_announcements']);
+$news = Steam::news()->appNews(appId: 440, count: 5, feeds: ['steam_community_announcements']);
 
 foreach ($news->items as $item) {
     echo $item->publishedAt->format('Y-m-d'), ' — ', $item->title, PHP_EOL;
@@ -89,7 +127,7 @@ paging by the last post's date repeats it — [`newsFeed()`](#newsfeed) handles 
 ### `badges()`
 
 ```text frame="none"
-Steam::badges(SteamId $steamId): PlayerBadges
+Steam::players()->badges(SteamId $steamId): PlayerBadges
 ```
 
 <Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
@@ -99,7 +137,7 @@ Trading-card badges name the app they came from; event and milestone badges leav
 `appId` null. An account with no badges answers with level `0` rather than raising.
 
 ```php
-$badges = Steam::badges($steamId);
+$badges = Steam::players()->badges($steamId);
 
 echo $badges->playerLevel, ' — ', $badges->xpNeededToLevelUp, ' XP to go', PHP_EOL;
 
@@ -111,7 +149,7 @@ foreach ($badges->badges as $badge) {
 ### `bans()`
 
 ```text frame="none"
-Steam::bans(list<SteamId> $steamIds): list<PlayerBan>
+Steam::users()->bans(list<SteamId> $steamIds): list<PlayerBan>
 ```
 
 <Badge text="throws TooManySteamIdsException" variant="danger" size="small" />
@@ -122,7 +160,7 @@ are public, so a hidden profile still returns a row. An empty list of IDs raises
 `InvalidArgumentException`, more than 100 raises `TooManySteamIdsException`.
 
 ```php
-$bans = Steam::bans([$steamId]);
+$bans = Steam::users()->bans([$steamId]);
 
 foreach ($bans as $ban) {
     echo $ban->steamId->value, ' — ', $ban->isVacBanned ? 'VAC banned' : 'clean', PHP_EOL;
@@ -132,7 +170,7 @@ foreach ($bans as $ban) {
 ### `communityBadgeProgress()`
 
 ```text frame="none"
-Steam::communityBadgeProgress(SteamId $steamId): list<CommunityBadgeQuest>
+Steam::players()->communityBadgeProgress(SteamId $steamId): list<CommunityBadgeQuest>
 ```
 
 <Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
@@ -141,7 +179,7 @@ Returns the quests behind the Steam community badge, each with the flag saying w
 the account finished it. Steam publishes no names for them, so `questId` stays opaque.
 
 ```php
-foreach (Steam::communityBadgeProgress($steamId) as $quest) {
+foreach (Steam::players()->communityBadgeProgress($steamId) as $quest) {
     echo $quest->questId, $quest->completed ? ' — done' : ' — pending', PHP_EOL;
 }
 ```
@@ -149,7 +187,7 @@ foreach (Steam::communityBadgeProgress($steamId) as $quest) {
 ### `currentPlayers()`
 
 ```text frame="none"
-Steam::currentPlayers(int $appId): int
+Steam::stats()->currentPlayers(int $appId): int
 ```
 
 <Badge text="throws AppNotFoundException" variant="danger" size="small" />
@@ -158,13 +196,13 @@ Returns how many players are in a game right now, as a plain `int` rather than a
 Steam serves it without a key; an app ID it does not know answers `404` and raises.
 
 ```php
-$playing = Steam::currentPlayers(appId: 381210);
+$playing = Steam::stats()->currentPlayers(appId: 381210);
 ```
 
 ### `friends()`
 
 ```text frame="none"
-Steam::friends(SteamId $steamId, ?FriendRelationship $relationship = null): list<Friend>
+Steam::users()->friends(SteamId $steamId, ?FriendRelationship $relationship = null): list<Friend>
 ```
 
 <Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
@@ -175,7 +213,7 @@ Lists a player's friends, each with the relationship and the date it started.
 ```php
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 
-$friends = Steam::friends($steamId, FriendRelationship::Friend);
+$friends = Steam::users()->friends($steamId, FriendRelationship::Friend);
 
 foreach ($friends as $friend) {
     echo $friend->steamId->value, ' — since ', $friend->friendSince->format('Y-m-d'), PHP_EOL;
@@ -190,7 +228,7 @@ empty payload — a hidden list never reaches you as an empty result.
 ### `globalAchievements()`
 
 ```text frame="none"
-Steam::globalAchievements(int $gameId): list<GlobalAchievement>
+Steam::stats()->globalAchievements(int $gameId): list<GlobalAchievement>
 ```
 
 <Badge text="throws StatsUnavailableException" variant="danger" size="small" />
@@ -200,7 +238,7 @@ keeps the name the base SDK gives it — Valve spells this one endpoint's identi
 `gameid`, though the value is an ordinary app ID. No key goes out here either.
 
 ```php
-foreach (Steam::globalAchievements(gameId: 381210) as $achievement) {
+foreach (Steam::stats()->globalAchievements(gameId: 381210) as $achievement) {
     echo $achievement->apiName, ' — ', round($achievement->percent, 2), '%', PHP_EOL;
 }
 ```
@@ -214,7 +252,7 @@ your key: this endpoint sends none.
 ### `groups()`
 
 ```text frame="none"
-Steam::groups(SteamId $steamId): list<UserGroup>
+Steam::users()->groups(SteamId $steamId): list<UserGroup>
 ```
 
 <Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
@@ -224,7 +262,7 @@ Lists the community groups a player belongs to, each as a `UserGroup` carrying i
 names through the community API yourself.
 
 ```php
-$groups = Steam::groups($steamId);
+$groups = Steam::users()->groups($steamId);
 
 foreach ($groups as $group) {
     echo $group->gid, PHP_EOL;
@@ -266,7 +304,7 @@ publishes in bursts.
 ### `ownedGames()`
 
 ```text frame="none"
-Steam::ownedGames(
+Steam::players()->ownedGames(
     SteamId $steamId,
     list<int> $appIdsFilter = [],
     bool $includeAppInfo = false,
@@ -281,7 +319,7 @@ IDs, `includeAppInfo` adds names and icons, `includePlayedFreeGames` includes fr
 games the player has launched.
 
 ```php
-$library = Steam::ownedGames(
+$library = Steam::players()->ownedGames(
     steamId: $steamId,
     appIdsFilter: [381210],
     includeAppInfo: true,
@@ -291,7 +329,7 @@ $library = Steam::ownedGames(
 ### `recentlyPlayedGames()`
 
 ```text frame="none"
-Steam::recentlyPlayedGames(SteamId $steamId, ?int $count = null): RecentlyPlayedGames
+Steam::players()->recentlyPlayedGames(SteamId $steamId, ?int $count = null): RecentlyPlayedGames
 ```
 
 <Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
@@ -302,7 +340,7 @@ capped list from a complete one. A player who launched nothing comes back as
 `totalCount: 0`, not an exception.
 
 ```php "count: 5"
-$recent = Steam::recentlyPlayedGames($steamId, count: 5);
+$recent = Steam::players()->recentlyPlayedGames($steamId, count: 5);
 
 foreach ($recent->games as $game) {
     echo $game->name, ' — ', $game->playtimeTwoWeeks, ' min', PHP_EOL;
@@ -312,7 +350,7 @@ foreach ($recent->games as $game) {
 ### `resolveVanityUrl()`
 
 ```text frame="none"
-Steam::resolveVanityUrl(string $vanityName): SteamId
+Steam::users()->resolveVanityUrl(string $vanityName): SteamId
 ```
 
 <Badge text="throws SteamUserNotFoundException" variant="danger" size="small" />
@@ -321,13 +359,13 @@ Resolves a vanity slug — the `<name>` in `steamcommunity.com/id/<name>` — to
 `SteamId`.
 
 ```php
-$steamId = Steam::resolveVanityUrl('gabelogannewell');
+$steamId = Steam::users()->resolveVanityUrl('gabelogannewell');
 ```
 
 ### `schema()`
 
 ```text frame="none"
-Steam::schema(int $appId, ?Language $language = null): GameSchema
+Steam::stats()->schema(int $appId, ?Language $language = null): GameSchema
 ```
 
 <Badge text="throws AppNotFoundException" variant="danger" size="small" />
@@ -338,7 +376,7 @@ empty `GameSchema` — a null `gameName` and two empty lists — rather than rai
 an app ID Steam does not know does that.
 
 ```php
-$schema = Steam::schema(appId: 381210);
+$schema = Steam::stats()->schema(appId: 381210);
 
 foreach ($schema->achievements as $achievement) {
     echo $achievement->apiName, ' — ', $achievement->hidden ? 'hidden' : $achievement->name, PHP_EOL;
@@ -348,7 +386,7 @@ foreach ($schema->achievements as $achievement) {
 ### `sdrConfig()`
 
 ```text frame="none"
-Steam::sdrConfig(int $appId): SdrConfig
+Steam::apps()->sdrConfig(int $appId): SdrConfig
 ```
 
 <Badge text="throws AppNotFoundException" variant="danger" size="small" />
@@ -359,7 +397,7 @@ it without a key, and answers an app ID it does not know with a `500` that raise
 however many tries the connector allows.
 
 ```php
-$config = Steam::sdrConfig(appId: 730);
+$config = Steam::apps()->sdrConfig(appId: 730);
 
 foreach ($config->pointsOfPresence['waw']->relays as $relay) {
     echo $relay->ipv4, ':', $relay->minPort, '-', $relay->maxPort, PHP_EOL;
@@ -369,7 +407,7 @@ foreach ($config->pointsOfPresence['waw']->relays as $relay) {
 ### `serversAtAddress()`
 
 ```text frame="none"
-Steam::serversAtAddress(string $address): list<GameServer>
+Steam::apps()->serversAtAddress(string $address): list<GameServer>
 ```
 
 <Badge text="throws InvalidServerAddressException" variant="danger" size="small" />
@@ -378,7 +416,7 @@ Lists the game servers Steam knows at an IPv4 address, or only the one behind
 `ip:queryport`. An address with no servers returns an empty list, and no key goes out.
 
 ```php
-foreach (Steam::serversAtAddress('108.181.62.21') as $server) {
+foreach (Steam::apps()->serversAtAddress('108.181.62.21') as $server) {
     echo $server->address, ' runs app ', $server->appId, PHP_EOL;
 }
 ```
@@ -389,10 +427,23 @@ Steam refuses to look some addresses up at all, with a "once per minute" message
 arrives as `SteamApiException` itself.
 </Aside>
 
+### `serverTime()`
+
+```text frame="none"
+Steam::webApi()->serverTime(): DateTimeImmutable
+```
+
+Returns Steam's clock in UTC, as a `DateTimeImmutable` rather than a DTO. Steam serves it
+anonymously, so no key goes out, even with one configured.
+
+```php
+$skew = Steam::webApi()->serverTime()->getTimestamp() - time();
+```
+
 ### `steamLevel()`
 
 ```text frame="none"
-Steam::steamLevel(SteamId $steamId): int
+Steam::players()->steamLevel(SteamId $steamId): int
 ```
 
 <Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
@@ -401,13 +452,13 @@ Returns a player's community level as a plain `int` rather than a DTO. Hiding ga
 details leaves the level readable — only a profile Steam withholds altogether raises.
 
 ```php
-$level = Steam::steamLevel($steamId);
+$level = Steam::players()->steamLevel($steamId);
 ```
 
 ### `summaries()`
 
 ```text frame="none"
-Steam::summaries(list<SteamId> $steamIds): list<PlayerSummary>
+Steam::users()->summaries(list<SteamId> $steamIds): list<PlayerSummary>
 ```
 
 <Badge text="throws TooManySteamIdsException" variant="danger" size="small" />
@@ -418,17 +469,38 @@ Fetches public profile summaries for **1 to 100** players. Same bounds as
 sent.
 
 ```php
-$summaries = Steam::summaries([$steamId]);
+$summaries = Steam::users()->summaries([$steamId]);
 
 foreach ($summaries as $summary) {
     echo $summary->personaName, ' — ', $summary->profileUrl, PHP_EOL;
 }
 ```
 
+### `supportedApis()`
+
+```text frame="none"
+Steam::webApi()->supportedApis(): list<WebApiInterface>
+```
+
+<Badge text="throws InvalidApiKeyException" variant="danger" size="small" />
+
+Lists every Web API method Steam lets the caller see, grouped by interface. The key goes along
+when one is configured and adds the methods it can call, while without one Steam answers with
+the anonymous list. A key Steam rejects comes back as a JSON `403` rather than its usual HTML
+page, and still raises.
+
+```php
+foreach (Steam::webApi()->supportedApis() as $interface) {
+    foreach ($interface->methods as $method) {
+        echo $interface->name, '/', $method->name, '/v', $method->version, PHP_EOL;
+    }
+}
+```
+
 ### `upToDateCheck()`
 
 ```text frame="none"
-Steam::upToDateCheck(int $appId, int $version): AppVersionCheck
+Steam::apps()->upToDateCheck(int $appId, int $version): AppVersionCheck
 ```
 
 <Badge text="throws AppVersionUnavailableException" variant="danger" size="small" />
@@ -439,7 +511,7 @@ exactly like a game publishing no server version, so both raise. App ID `0` gets
 which arrives as `SteamApiException` itself.
 
 ```php
-$check = Steam::upToDateCheck(appId: 440, version: $installedVersion);
+$check = Steam::apps()->upToDateCheck(appId: 440, version: $installedVersion);
 
 if (! $check->isUpToDate) {
     echo 'Update to ', $check->requiredVersion, ': ', $check->message, PHP_EOL;
@@ -449,7 +521,7 @@ if (! $check->isUpToDate) {
 ### `userStats()`
 
 ```text frame="none"
-Steam::userStats(SteamId $steamId, int $appId, ?Language $language = null): UserStats
+Steam::stats()->userStats(SteamId $steamId, int $appId, ?Language $language = null): UserStats
 ```
 
 <Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
@@ -458,46 +530,12 @@ Returns a player's stats and achievement flags for one game. `language` localise
 achievement metadata, e.g. `Language::English`.
 
 ```php
-$stats = Steam::userStats($steamId, appId: 381210);
+$stats = Steam::stats()->userStats($steamId, appId: 381210);
 
 foreach ($stats->stats as $stat) {
     echo $stat->name, ' = ', $stat->value, PHP_EOL;
 }
 ```
-
-## Resources
-
-The base SDK groups its endpoints into one resource per Steam interface, and the facade
-hands each back as the connector builds it — `AppsResource`, `NewsResource`,
-`PlayersResource`, `StatsResource` and `UsersResource` from
-`Fkrzski\SteamApiSdk\Http\Resources`.
-
-```text frame="none"
-Steam::apps(): AppsResource
-Steam::news(): NewsResource
-Steam::players(): PlayersResource
-Steam::stats(): StatsResource
-Steam::users(): UsersResource
-```
-
-Every request helper above but `newsFeed()`, which the bridge builds on `appNews()`, is a
-shortcut for the resource method of the same name, with the same signature, DTO and exceptions:
-
-```php
-Steam::summaries([$steamId]);           // the helper
-Steam::users()->summaries([$steamId]);  // the resource behind it
-```
-
-| Resource | Steam interface | Methods |
-| --- | --- | --- |
-| `Steam::apps()` | `ISteamApps` | `sdrConfig()`, `serversAtAddress()`, `upToDateCheck()` |
-| `Steam::news()` | `ISteamNews` | `appNews()` |
-| `Steam::players()` | `IPlayerService` | `badges()`, `communityBadgeProgress()`, `ownedGames()`, `recentlyPlayedGames()`, `steamLevel()` |
-| `Steam::stats()` | `ISteamUserStats` | `achievements()`, `currentPlayers()`, `globalAchievements()`, `schema()`, `userStats()` |
-| `Steam::users()` | `ISteamUser` | `bans()`, `friends()`, `groups()`, `resolveVanityUrl()`, `summaries()` |
-
-A resource sends through the same scoped connector the facade uses, so
-[`fake()`](#fake) covers one you reached before installing the mock.
 
 ## Low-level helpers
 
@@ -525,7 +563,7 @@ Steam::fake(array<class-string, mixed> $responses = []): SteamFake
 
 Attaches `Testing\SteamFake`, a Saloon `MockClient`, to the connector and returns it.
 Refused unless the application environment is `testing`. Its `apps()`, `news()`,
-`players()`, `stats()` and `users()` fake each endpoint by name and hand the mock back — see
+`players()`, `stats()`, `users()` and `webApi()` fake each endpoint by name and hand the mock back — see
 [Faking responses](/laravel-steam-api-sdk/testing#faking-responses). The assertions and
 readers sit on the facade too, under [Test assertions](#test-assertions) and
 [Recorded traffic](#recorded-traffic).
@@ -551,7 +589,7 @@ Steam::send(Saloon\Http\Request $request): Saloon\Http\Response
 ```
 
 Sends any Saloon `Request` through the shared connector and returns the raw
-`Response` — the escape hatch for requests the helpers don't cover. Decode it with
+`Response` — the escape hatch for requests the resources don't cover. Decode it with
 `->dto()` yourself; whatever the request raises reaches you unchanged.
 
 ## Events

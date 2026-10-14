@@ -16,9 +16,10 @@ It powers the [player stats](https://deadbystats.eu) on
 [Dead by Stats](https://deadbystats.eu).
 
 - Auto-discovered `SteamConnector` binding, scoped per request and safe under Octane.
-- Rate-limit budget shared across processes through a Laravel cache store of your choosing.
-- Timeouts and retries from the config file, and queue middleware that holds a job back once the daily budget is spent.
-- Fluent `Steam` facade with first-class request helpers, a lazy news feed among them.
+- Rate limits shared across processes through a Laravel cache store of your choosing — Steam's daily quota or your own, with a cool-down after a 429.
+- Timeouts and retries from the config file, and queue middleware that holds a job back once a limit is spent.
+- Requests through Guzzle, reported to Laravel Nightwatch while it is enabled, or through any Saloon sender the container builds.
+- Fluent `Steam` facade over the SDK's resources — `Steam::users()->summaries(...)` and the rest — plus a lazy news feed.
 - Laravel events for every Steam request, response and failure, and a log channel built on them.
 - Localised payloads follow your application locale, or the language you pin in config.
 - `AsSteamId` Eloquent cast, `SteamIdRule` validation rule and one-liner test fakes that mirror the resources — `Steam::fake()->users()->summaries(...)` — with DTO factories for the payloads.
@@ -58,35 +59,40 @@ use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 
 $id = SteamId::fromSteamId64('76561198000000000');
 
-$summaries    = Steam::summaries([$id]);
-$bans         = Steam::bans([$id]);
-$friends      = Steam::friends($id);
-$groups       = Steam::groups($id);
-$library      = Steam::ownedGames($id, appIdsFilter: [381210]);
-$recentGames  = Steam::recentlyPlayedGames($id);
-$level        = Steam::steamLevel($id);
-$badges       = Steam::badges($id);
-$quests       = Steam::communityBadgeProgress($id);
-$stats        = Steam::userStats($id, appId: 381210);
-$achievements = Steam::achievements($id, appId: 381210);
-$playing      = Steam::currentPlayers(appId: 381210);
-$globalStats  = Steam::globalAchievements(gameId: 381210);
-$gameSchema   = Steam::schema(appId: 381210);
-$resolvedId   = Steam::resolveVanityUrl('gabelogannewell');
-$versionCheck = Steam::upToDateCheck(appId: 440, version: $installedVersion);
-$servers      = Steam::serversAtAddress('108.181.62.21');
-$relayNetwork = Steam::sdrConfig(appId: 730);
+$summaries    = Steam::users()->summaries([$id]);
+$bans         = Steam::users()->bans([$id]);
+$friends      = Steam::users()->friends($id);
+$groups       = Steam::users()->groups($id);
+$resolvedId   = Steam::users()->resolveVanityUrl('gabelogannewell');
+$library      = Steam::players()->ownedGames($id, appIdsFilter: [381210]);
+$recentGames  = Steam::players()->recentlyPlayedGames($id);
+$level        = Steam::players()->steamLevel($id);
+$badges       = Steam::players()->badges($id);
+$quests       = Steam::players()->communityBadgeProgress($id);
+$stats        = Steam::stats()->userStats($id, appId: 381210);
+$achievements = Steam::stats()->achievements($id, appId: 381210);
+$playing      = Steam::stats()->currentPlayers(appId: 381210);
+$globalStats  = Steam::stats()->globalAchievements(gameId: 381210);
+$gameSchema   = Steam::stats()->schema(appId: 381210);
+$versionCheck = Steam::apps()->upToDateCheck(appId: 440, version: $installedVersion);
+$servers      = Steam::apps()->serversAtAddress('108.181.62.21');
+$relayNetwork = Steam::apps()->sdrConfig(appId: 730);
+$news         = Steam::news()->appNews(appId: 440);
+$newsFeed     = Steam::newsFeed(appId: 440);
+$serverTime   = Steam::webApi()->serverTime();
+$webApis      = Steam::webApi()->supportedApis();
 ```
 
-Each helper returns a strongly-typed DTO from the underlying SDK — you never touch raw JSON.
+Each resource method returns a strongly-typed DTO from the underlying SDK — you never touch raw JSON.
 
 ## Documentation
 
 Full documentation lives at **[docs.fkrzski.dev/laravel-steam-api-sdk](https://docs.fkrzski.dev/laravel-steam-api-sdk)**:
 
-- [Guide](https://docs.fkrzski.dev/laravel-steam-api-sdk/guide) — the `SteamId` value object, facade helpers, exceptions, and concurrent requests.
-- [Configuration](https://docs.fkrzski.dev/laravel-steam-api-sdk/configuration) — the config file, your API key, timeouts and retries, the cache-backed rate limit and queued jobs.
-- [API reference](https://docs.fkrzski.dev/laravel-steam-api-sdk/api-reference) — every facade method, its parameters, return type, and errors.
+- [Guide](https://docs.fkrzski.dev/laravel-steam-api-sdk/guide) — the `SteamId` value object, the resources, exceptions, and concurrent requests.
+- [Configuration](https://docs.fkrzski.dev/laravel-steam-api-sdk/configuration) — the config file, your API key, timeouts and retries, the HTTP sender and Nightwatch.
+- [Rate limiting](https://docs.fkrzski.dev/laravel-steam-api-sdk/rate-limiting) — the daily budget, limits of your own, the 429 cool-down and queued jobs.
+- [API reference](https://docs.fkrzski.dev/laravel-steam-api-sdk/api-reference) — every resource and facade method, its parameters, return type, and errors.
 - [Eloquent cast](https://docs.fkrzski.dev/laravel-steam-api-sdk/eloquent-cast) — persist a Steam ID on a model with `AsSteamId`.
 - [Route binding](https://docs.fkrzski.dev/laravel-steam-api-sdk/route-binding) — opt in to resolving a `{steamId}` route parameter into a `SteamId` value object.
 - [Validation rule](https://docs.fkrzski.dev/laravel-steam-api-sdk/validation) — validate submitted Steam IDs with `SteamIdRule`.

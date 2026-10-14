@@ -41,7 +41,8 @@ carries. None of them carries the API key.
 | `SteamRequestFailed` | once per failed call, after the retries, with the exception the caller gets |
 
 A `429` is received before it fails as `SteamRateLimitException`. A call refused before it goes
-out, for a missing API key or a spent daily budget, dispatches `SteamRequestFailed` alone, and
+out, for a missing API key, a spent [rate limit](/laravel-steam-api-sdk/rate-limiting) or the
+cool-down after a `429`, dispatches `SteamRequestFailed` alone, and
 an attempt Steam never answers is not received. Requests in a
 [pool](/laravel-steam-api-sdk/guide#concurrent-requests) go out once, so `attempt` is always `1`
 there.

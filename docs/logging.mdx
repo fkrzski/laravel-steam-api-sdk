@@ -47,8 +47,8 @@ received in context. A `429` is logged before the failure it raises:
 [2026-10-09 14:02:56] production.WARNING: GetFriendList: Steam profile is not public. {"exception":"Fkrzski\\SteamApiSdk\\Exceptions\\ProfileNotPublicException","code":401}
 ```
 
-A call refused before it goes out, for a missing API key or a spent daily budget, logs the
-warning alone.
+A call refused before it goes out, for a missing API key, a spent rate limit or the cool-down
+after a `429`, logs the warning alone.
 
 <Aside type="caution" title="The channel's level filters these too">
 A channel at `error` drops the warnings, and one at `info` drops the responses. Laravel's own
