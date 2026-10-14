@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: Configure the Steam bridge — the config file, your Steam Web API key, the default language, timeouts and retries, the rate-limit budget and logging.
+description: Configure the Steam bridge — the config file, your Steam Web API key, the default language, timeouts and retries, the HTTP sender, Nightwatch and logging.
 ---
 
 The bridge wires the `SteamConnector` from a single config file. In most apps the
@@ -75,11 +75,19 @@ return [
             'interval' => env('STEAM_API_RETRY_INTERVAL', 0),
             'exponential_backoff' => env('STEAM_API_RETRY_EXPONENTIAL_BACKOFF', false),
         ],
+
+        // A Saloon Sender class, built by the container. Unset, Guzzle.
+        'sender' => env('STEAM_API_SENDER'),
     ],
 
-    // The cache store holding the daily request counter. Unset, the default one.
+    // The cache store holding the request counters, the limits replacing
+    // Steam's 100 000 a day, and the seconds a 429 holds requests back.
     'rate_limit' => [
         'store' => env('STEAM_API_RATE_LIMIT_STORE'),
+
+        'limits' => null,
+
+        'cooldown' => env('STEAM_API_RATE_LIMIT_COOLDOWN', 60),
     ],
 
     // Resolve a route parameter into a SteamId value object. Opt-in. See the
@@ -105,6 +113,12 @@ return [
 ];
 ```
 
+<Aside type="caution" title="A file published before 0.9.0 misses three keys">
+The provider merges only the top level of the file, so an `http` block published earlier has no
+`sender`, and a `rate_limit` block no `limits` or `cooldown`. Those keep their defaults, and
+`STEAM_API_SENDER` and `STEAM_API_RATE_LIMIT_COOLDOWN` go unread until you copy the keys in.
+</Aside>
+
 ## The API key
 
 Set the key in `.env`. It is read through `config('steam-api.key')` and appended to
@@ -115,9 +129,9 @@ STEAM_API_KEY=your-steam-web-api-key
 ```
 
 Get one from the [Steam Web API dashboard](https://steamcommunity.com/dev). The key is
-optional: Steam serves `appNews()`, `currentPlayers()`, `globalAchievements()`, `newsFeed()`,
-`sdrConfig()`, `serversAtAddress()` and `upToDateCheck()` anonymously, so those go out without
-one. With
+optional: Steam serves the `apps()` and `news()` endpoints, `currentPlayers()`,
+`globalAchievements()`, `newsFeed()` and `webApi()->serverTime()` anonymously, so those go out
+without one, and `webApi()->supportedApis()` sends it only when there is one. With
 the key unset — or present but blank — any other request raises the base SDK's
 `ApiKeyNotConfiguredException`. Its message says to pass a key to `SteamConfig`, which here
 means setting `STEAM_API_KEY`, or `steam-api.key` directly.
@@ -202,20 +216,92 @@ STEAM_API_RETRY_EXPONENTIAL_BACKOFF=true
 | `STEAM_API_RETRY_EXPONENTIAL_BACKOFF` | `false` | doubles the interval after each retry |
 
 Only what can change by the next attempt is retried: Steam unreachable, a timeout, a `5xx`.
-A `4xx` and a spent quota are thrown at once, and so is the `500`
+A `4xx` and a spent rate limit are thrown at once, and so is the `500`
 [`sdrConfig()`](/laravel-steam-api-sdk/api-reference#sdrconfig) answers an unknown app with.
 Once the tries are spent, a request Steam never answered raises `SteamConnectionException`
 and a `5xx` the root `SteamApiException`. Requests sent through
 [`pool()`](/laravel-steam-api-sdk/guide#concurrent-requests) go out once.
 
 <Aside type="caution" title="Every attempt is a request">
-Each retry spends one of the day's 100 000 requests, since the budget counts a `5xx` like
-any other answer.
+Each retry counts against the [rate limits](/laravel-steam-api-sdk/rate-limiting) like a request
+of its own, since they count a `5xx` like any other answer.
 </Aside>
 
 A value that is not a number, or is out of range, raises `InvalidSteamHttpOptionException`
 naming the key. Like a rejected language code, it surfaces on your first Steam call and
 renders as a 500.
+
+## Sender
+
+Requests go out through Guzzle until `STEAM_API_SENDER` names a class implementing
+`Saloon\Contracts\Sender`. The container builds it each time the connector is built, so a
+binding of that class decides how: a singleton is shared, and an unbound class is built anew.
+
+That is where Guzzle middleware goes, since `Steam::connector()->sender()` returns the base
+SDK's `SteamSender` wrapper rather than a `GuzzleSender`. Give the sender a class of its own and
+bind it with the middleware attached:
+
+```php title="app/Http/SteamGuzzleSender.php"
+namespace App\Http;
+
+use Saloon\Http\Senders\GuzzleSender;
+
+final class SteamGuzzleSender extends GuzzleSender {}
+```
+
+```php title="app/Providers/AppServiceProvider.php"
+use App\Http\SteamGuzzleSender;
+use GuzzleHttp\Middleware;
+use Psr\Http\Message\RequestInterface;
+
+public function register(): void
+{
+    $this->app->singleton(SteamGuzzleSender::class, fn (): SteamGuzzleSender => new SteamGuzzleSender()->addMiddleware(
+        Middleware::mapRequest(
+            static fn (RequestInterface $request): RequestInterface => $request->withHeader('User-Agent', 'my-app/1.0'),
+        ),
+    ));
+}
+```
+
+```dotenv title=".env"
+STEAM_API_SENDER=App\Http\SteamGuzzleSender
+```
+
+<Aside type="caution" title="Middleware sees the key">
+A Guzzle middleware gets the request Steam receives, `key=` in its query. Log the method and the
+path, never the full URI.
+</Aside>
+
+A sender built on another client has to read `connect_timeout` and `timeout` off the request,
+which is how the [timeouts](#timeouts-and-retries) reach it —
+[What a sender has to honour](/php-steam-api-sdk/configuration#what-a-sender-has-to-honour)
+lists the rest.
+
+The class name is normalised to the one it is declared with, so a leading `\` or another casing
+still reaches the binding. A value naming no sender class raises `InvalidSteamHttpOptionException`
+on your first Steam call, rendered as a 500, and a binding that hands back something other than a
+`Sender` raises `UnexpectedValueException`.
+
+### Nightwatch
+
+With [Laravel Nightwatch](https://nightwatch.laravel.com) installed and enabled, the default
+Guzzle reports every Steam request to it as an outgoing request, which `saloonphp/laravel-plugin`
+cannot do, since the base SDK wraps every sender. `NIGHTWATCH_ENABLED=false` leaves plain Guzzle.
+
+A sender of your own is left as it is, so it reports only once Nightwatch's middleware is
+attached to it:
+
+```php title="app/Providers/AppServiceProvider.php"
+use App\Http\SteamGuzzleSender;
+use Laravel\Nightwatch\Facades\Nightwatch;
+
+$this->app->singleton(SteamGuzzleSender::class, fn (): SteamGuzzleSender => new SteamGuzzleSender()
+    ->addMiddleware(Nightwatch::guzzleMiddleware()));
+```
+
+Whichever sender carries a request, the API key is stripped from every Steam URL Nightwatch
+records.
 
 ## Route binding
 
@@ -259,65 +345,9 @@ class the package ships is `final`; the container is the extension point.
 
 ## Rate limiting
 
-The Steam Web API allows **100 000 requests per API key per day**. The connector
-enforces this through [`saloonphp/rate-limit-plugin`](https://github.com/saloonphp/rate-limit-plugin)
-and throws `SteamRateLimitException` once the budget is spent. With no key configured it
-counts nothing, since Steam bills the quota to the key, and a `429` from Steam still raises
-`SteamRateLimitException`.
-
-The counter is keyed by the API key itself — hashed, so the key never lands in the
-store — rather than by the connector class. Two keys in one application draw down two
-budgets.
-
-The counter lives in a Laravel cache store, not per-process memory, so with a shared driver
-(Redis, database, Memcached) every FPM worker, queue worker and Octane process draws down one
-budget. It is the default store until you name another:
-
-```dotenv title=".env"
-STEAM_API_RATE_LIMIT_STORE=redis
-```
-
-Give it a store of its own: `cache:clear` flushes the default one, resetting the count while
-Steam's own carries on. A store that evicts keys under memory pressure — Redis with an
-eviction policy, Memcached — can drop the counter too. A name `cache.stores` does not define
-raises `InvalidSteamRateLimitStoreException` on your first Steam call, rendered as a 500.
-
-<Aside type="caution" title="The array and file drivers do not share">
-Those two keep the budget per process — fine locally, but pick a shared driver in
-production so the quota is enforced app-wide.
-</Aside>
-
-<Aside title="The upgrade to 0.4.0 orphans the old counter">
-It was keyed by the connector class, so a persistent store reads no count under the
-new key and reports the full 100 000 once. What Steam itself has already counted is
-untouched.
-</Aside>
-
-## Queued jobs
-
-Left alone, a job that hits the spent budget fails like on any other exception.
-`Queue\Middleware\RespectsSteamRateLimit` releases it for what is left of the window instead
-— before it runs once the budget is spent, or when a request inside it raises
-`SteamRateLimitException`:
-
-```php title="app/Jobs/SyncPlayerStats.php"
-use Fkrzski\LaravelSteamApiSdk\Queue\Middleware\RespectsSteamRateLimit;
-
-public function middleware(): array
-{
-    return [new RespectsSteamRateLimit];
-}
-
-public function retryUntil(): DateTime
-{
-    return now()->addDay();
-}
-```
-
-A release counts as an attempt, so a job waiting out a daily window wants `retryUntil()`
-rather than a small `$tries`. The middleware releases through `InteractsWithQueue`, and lets
-a job without it run unguarded. With no key configured nothing is metered, so only a `429`
-from Steam holds a job back.
+The `rate_limit` block sets the cache store the request counters live in, the `limits`
+replacing Steam's 100 000 a day, and the `cooldown` after a `429`.
+[Rate limiting](/laravel-steam-api-sdk/rate-limiting) has the full guide, queued jobs included.
 
 ## Exception rendering
 
@@ -332,7 +362,7 @@ table. Turn the group off to render it yourself:
 ```
 
 The flag does not reach misconfiguration. A rejected API key, a missing one, a batch over
-100 IDs, and a language code, HTTP option, rate limit store or logging option the config cannot
+100 IDs, and a language code, HTTP option, rate limit option or logging option the config cannot
 use are a 500 whatever it is set to: Steam answers a bad key with a 400 or a 403, and passing that on
 would blame the caller for something only you can fix.
 
@@ -358,23 +388,20 @@ php artisan about --only=steam_api
 
 ```text frame="terminal" title="php artisan about --only=steam_api"
   Steam API .............................................................
+  429 Cool-down ........................................... 60s (default)
   API Key .................................................. ********4f2a
-  Daily Requests Remaining ............................ 99,412 of 100,000
   Language .......................................... polish (locale: pl)
   Logging ........................................... steam (+ responses)
   Rate Limit Store ................................................ redis
+  Requests Remaining . 99,412 of 100,000 per day, 9 of 10 per 1s (sleeps)
   Retries ............................. 3 attempts, 500ms apart, doubling
   Route Binding ....................................... enabled (steamId)
+  Sender .................................. Guzzle + Nightwatch (default)
   Timeouts ...................................... connect 3s, request 60s
 ```
 
 - **API Key** — masked to its last four characters, so the output is safe to paste
   into a bug report. `NOT SET` when no key is configured.
-- **Rate Limit Store** — the cache store the counter lives in, marked `(default)` while
-  `steam-api.rate_limit.store` is unset.
-- **Daily Requests Remaining** — what is left of the 100 000, read from that store.
-  `not metered (no API key)` with no key configured, since Steam bills the budget to the key,
-  and `UNKNOWN` while another row reads `INVALID`, since the connector cannot be built.
 - **Language** — the code every localised request carries, and which of the two answers it
   is: `polish (config)` or `polish (locale: pl)`. `NOT SET` names its source the same way,
   and `INVALID` stands alone, since only config can carry a rejected code.
@@ -385,9 +412,12 @@ php artisan about --only=steam_api
   `unlimited` for `0`.
 - **Retries** — `none (default)` for a single attempt, otherwise the attempts and the pause
   between them.
+- **Sender** — the class `STEAM_API_SENDER` names, otherwise `Guzzle (default)`, or
+  `Guzzle + Nightwatch (default)` while [Nightwatch](#nightwatch) is reporting.
 
-The store, timeout, retry and logging rows read `INVALID` for a value the connector does not
-take.
+The timeout, retry, sender and logging rows read `INVALID` for a value the connector does not
+take. The three rate limit rows are covered in
+[Rate limiting](/laravel-steam-api-sdk/rate-limiting#checking-the-budget).
 
 Nothing here runs on boot: the values are computed when the command renders, and no
 request is sent to Steam.
