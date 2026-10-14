@@ -16,15 +16,17 @@ JSON. It powers the [player stats](https://deadbystats.eu) on
 
 - **Auto-discovered facade** — the `Steam` facade and its `SteamConnector` binding
   register themselves, scoped per request and safe under Octane.
-- **Shared rate-limit budget** — the daily quota lives in a Laravel cache store you
-  pick, so every process draws on one counter.
+- **Shared rate limits** — Steam's daily quota, or
+  [limits of your own](/laravel-steam-api-sdk/rate-limiting), counted in a Laravel cache store
+  you pick, so every process draws on one counter.
 - **Timeouts and retries** — set in the config file; Steam unreachable or answering a
   `5xx` is tried again, every other failure is thrown at once.
-- **Queue middleware** — `RespectsSteamRateLimit` releases a job until the daily
+- **Pluggable sender** — requests go out through Guzzle, reported to Nightwatch while it is
+  enabled, or through any Saloon sender the container builds.
+- **Queue middleware** — `RespectsSteamRateLimit` releases a job until the spent limit's
   window resets rather than letting it fail.
-- **First-class request helpers** — `summaries()`, `ownedGames()`,
-  `userStats()` and the rest return typed DTOs, and `newsFeed()` pages an app's news
-  lazily.
+- **Fluent resources** — `Steam::users()->summaries()`, `Steam::players()->ownedGames()` and
+  the rest return typed DTOs, and `Steam::newsFeed()` pages an app's news lazily.
 - **Locale-aware language** — localised payloads follow `app()->getLocale()` through
   Steam's own language codes, or the one you pin in the config file.
 - **Eloquent cast** — [`AsSteamId`](/laravel-steam-api-sdk/eloquent-cast) stores a
@@ -84,10 +86,10 @@ use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 
 $id = SteamId::fromSteamId64('76561198000000000');
 
-$summaries = Steam::summaries([$id]);
+$summaries = Steam::users()->summaries([$id]);
 
 echo $summaries[0]->personaName;
 ```
 
-Every helper sends its request through the shared connector and hands back the
+Every resource sends its request through the shared connector and hands back the
 readonly DTO — you never touch the Saloon response.
