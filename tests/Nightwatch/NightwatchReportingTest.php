@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Fkrzski\LaravelSteamApiSdk\Console\AboutSection;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
@@ -12,7 +13,7 @@ use Laravel\Nightwatch\Facades\Nightwatch;
 use Laravel\Nightwatch\Records\OutgoingRequest;
 use Saloon\Http\Senders\GuzzleSender;
 
-mutates(NightwatchReporting::class);
+mutates(NightwatchReporting::class, AboutSection::class);
 
 /**
  * The URLs Nightwatch records from here on, read after the bridge's redaction.
@@ -29,6 +30,15 @@ function nightwatchUrls(): ArrayObject
     });
 
     return $urls;
+}
+
+/**
+ * The "Sender" row of `about`, read straight off the section rather than
+ * through the command.
+ */
+function aboutSenderRow(): string
+{
+    return app(AboutSection::class)()['Sender']();
 }
 
 /**
@@ -129,4 +139,20 @@ it('reports nothing to nightwatch under the fake', function (): void {
 
     Steam::assertSent(ResolveVanityUrlRequest::class);
     expect($urls->getArrayCopy())->toBeEmpty();
+});
+
+it('reports guzzle with nightwatch as the default sender in about', function (): void {
+    expect(aboutSenderRow())->toBe('Guzzle + Nightwatch (default)');
+});
+
+it('reports plain guzzle as the default sender in about while nightwatch is disabled', function (): void {
+    config()->set('nightwatch.enabled', false);
+
+    expect(aboutSenderRow())->toBe('Guzzle (default)');
+});
+
+it('names a sender of your own in about beside nightwatch', function (): void {
+    config()->set('steam-api.http.sender', GuzzleSender::class);
+
+    expect(aboutSenderRow())->toBe(GuzzleSender::class);
 });
