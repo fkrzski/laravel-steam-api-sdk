@@ -1,11 +1,11 @@
 ---
 title: Guide
-description: The Steam facade in practice — building SteamId value objects, calling the request helpers, handling SDK exceptions, and fanning out concurrent requests.
+description: The Steam facade in practice — building SteamId value objects, calling its resources, handling SDK exceptions, and fanning out concurrent requests.
 ---
 
 Once the package is [installed and configured](/laravel-steam-api-sdk/configuration),
 the `Steam` facade is the only entry point. Three things carry the rest: the
-**`SteamId`** value object every helper takes, the **request helpers**, and the
+**`SteamId`** value object every endpoint takes, the **resources** that send them, and the
 readonly **DTOs** they return.
 
 ## The `SteamId` value object
@@ -43,45 +43,51 @@ validation cycle, without a Steam Web API call.
 
 ## Calling the facade
 
-Each helper builds its Steam request, sends it through the shared connector, and
-decodes the response into typed DTOs — objects, never arrays:
+Each endpoint sits on the [resource](/laravel-steam-api-sdk/api-reference#resources) for its
+Steam interface, which builds the request, sends it through the shared connector, and decodes
+the response into typed DTOs — objects, never arrays:
 
 ```php
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 
-$summaries    = Steam::summaries([$id]);
-$bans         = Steam::bans([$id]);
-$friends      = Steam::friends($id);
-$groups       = Steam::groups($id);
-$library      = Steam::ownedGames($id, appIdsFilter: [381210]);
-$recentGames  = Steam::recentlyPlayedGames($id);
-$level        = Steam::steamLevel($id);
-$badges       = Steam::badges($id);
-$quests       = Steam::communityBadgeProgress($id);
-$stats        = Steam::userStats($id, appId: 381210);
-$achievements = Steam::achievements($id, appId: 381210);
-$playing      = Steam::currentPlayers(appId: 381210);
-$globalStats  = Steam::globalAchievements(gameId: 381210);
-$gameSchema   = Steam::schema(appId: 381210);
-$resolvedId   = Steam::resolveVanityUrl('gabelogannewell');
-$versionCheck = Steam::upToDateCheck(appId: 440, version: $installedVersion);
-$servers      = Steam::serversAtAddress('108.181.62.21');
-$relayNetwork = Steam::sdrConfig(appId: 730);
-$news         = Steam::appNews(appId: 440);
+$summaries    = Steam::users()->summaries([$id]);
+$bans         = Steam::users()->bans([$id]);
+$friends      = Steam::users()->friends($id);
+$groups       = Steam::users()->groups($id);
+$resolvedId   = Steam::users()->resolveVanityUrl('gabelogannewell');
+$library      = Steam::players()->ownedGames($id, appIdsFilter: [381210]);
+$recentGames  = Steam::players()->recentlyPlayedGames($id);
+$level        = Steam::players()->steamLevel($id);
+$badges       = Steam::players()->badges($id);
+$quests       = Steam::players()->communityBadgeProgress($id);
+$stats        = Steam::stats()->userStats($id, appId: 381210);
+$achievements = Steam::stats()->achievements($id, appId: 381210);
+$playing      = Steam::stats()->currentPlayers(appId: 381210);
+$globalStats  = Steam::stats()->globalAchievements(gameId: 381210);
+$gameSchema   = Steam::stats()->schema(appId: 381210);
+$versionCheck = Steam::apps()->upToDateCheck(appId: 440, version: $installedVersion);
+$servers      = Steam::apps()->serversAtAddress('108.181.62.21');
+$relayNetwork = Steam::apps()->sdrConfig(appId: 730);
+$news         = Steam::news()->appNews(appId: 440);
 $newsFeed     = Steam::newsFeed(appId: 440);
+$serverTime   = Steam::webApi()->serverTime();
+$webApis      = Steam::webApi()->supportedApis();
 ```
 
-The [API reference](/laravel-steam-api-sdk/api-reference) lists which helper returns
-what; the DTO properties and enums live in
-[Data objects](/php-steam-api-sdk/dto-reference). Each helper but `newsFeed()`, a lazy
-collection paging through `appNews()`, is a shortcut for the
-[resource](/laravel-steam-api-sdk/api-reference#resources) method of the same name, so
-`Steam::users()->summaries([$id])` sends the same request.
+The resources are the base SDK's own, handed back as the connector builds them, while
+`newsFeed()`, a lazy collection paging through `appNews()`, is the bridge's. The
+[API reference](/laravel-steam-api-sdk/api-reference) lists what each returns; the DTO
+properties and enums live in [Data objects](/php-steam-api-sdk/dto-reference).
+
+`supportedApis()` sends the key when one is configured and goes out without it otherwise, so it
+lists the methods your key can call on top of the anonymous ones. Steam answers a rejected key
+with a `403`, which the base SDK raises as `InvalidApiKeyException`.
 
 <Aside type="caution" title="A hidden profile has no creation date">
 Steam withholds `timecreated` along with the rest of the details, so
-`PlayerSummary::$timeCreated` is null for a private profile. Check it before formatting
-the date.
+`PlayerSummary::$timeCreated` is null for a private profile and a friends-only one alike. Since
+0.9.0 `communityVisibility` tells the two apart: Steam reports the second as
+`CommunityVisibility::FriendsOnly`.
 </Aside>
 
 ## Concurrent requests
@@ -109,13 +115,13 @@ Pools work with raw Saloon requests, so you decode each `Response` yourself with
 reports in a `200` payload included, such as a hidden games list.
 
 <Aside title="Pooled requests still cost quota">
-Every request in a pool draws on the same daily budget as a helper call — see
-[Rate limiting](/laravel-steam-api-sdk/configuration#rate-limiting).
+Every request in a pool draws on the same limits as any other call — see
+[Rate limiting](/laravel-steam-api-sdk/rate-limiting).
 </Aside>
 
 ## Escape hatch
 
-For a custom request the helpers don't cover, reach for the connector directly:
+For a custom request the resources don't cover, reach for the connector directly:
 
 ```php
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
@@ -124,11 +130,13 @@ $connector = Steam::connector();     // the underlying SteamConnector
 $response  = Steam::send($request);  // send any Saloon Request, get the raw Response
 ```
 
-`send()` raises what the helpers raise, inside the call: a `GetOwnedGamesRequest` for a hidden
+`send()` raises what the resources raise, inside the call: a `GetOwnedGamesRequest` for a hidden
 profile throws there, though Steam answers it with a `200`. `Steam::connector()->debug()` dumps
 every request after it with the key masked as `key=***` — see
 [Debugging](/php-steam-api-sdk/hooks-and-debugging#debugging). A hook added on the connector dies with it, so
-listen to the [events](/laravel-steam-api-sdk/events) instead.
+listen to the [events](/laravel-steam-api-sdk/events) instead. `Steam::connector()->sender()` is the
+base SDK's `SteamSender` wrapper, so Guzzle middleware goes on a
+[sender of your own](/laravel-steam-api-sdk/configuration#sender).
 
 <Aside type="caution">
 The connector binding is **scoped** — one instance per request. Do not hold it
@@ -143,30 +151,30 @@ SDK exception, so a non-2xx response never reaches you as a DTO. All of them
 extend `SteamApiException`, so one catch handles the lot:
 
 ```text frame="none"
-SteamApiException                        (root, extends RuntimeException)
-├── ApiKeyNotConfiguredException         No key configured for a request that needs one.
-├── AppNewsUnavailableException          App whose news Steam does not publish, or an unknown app.
-├── AppNotFoundException                 App ID Steam does not know.
-├── AppVersionUnavailableException       No server version to check, or an unknown app.
-├── InvalidApiKeyException               Steam rejected the key, or received none.
-├── InvalidServerAddressException        Address is neither IPv4 nor IPv4:queryport.
-├── InvalidSteamIdException              Malformed SteamID64.
-├── ProfileNotPublicException            Profile, games list, or stats are private.
-├── StatsUnavailableException            No stats for that game, or the profile hides them.
-├── SteamConnectionException             Steam never answered: timeout, DNS, TLS, refused.
-├── SteamRateLimitException              Daily quota reached; exposes the offending Limit.
-├── SteamUserNotFoundException           Vanity URL unresolved or profile missing.
-├── TooManySteamIdsException             More than 100 IDs in a batch request.
-├── FakeNotInstalledException            Facade assertion without Steam::fake(). (Laravel bridge)
-├── FakeOutsideTestsException            Steam::fake() outside tests. (Laravel bridge)
-├── InvalidSteamHttpOptionException      Timeout or retry value the connector rejects. (Laravel bridge)
-├── InvalidSteamLanguageException        Language code Steam does not accept. (Laravel bridge)
-├── InvalidSteamLoggingOptionException   Log channel or flag the config cannot use. (Laravel bridge)
-└── InvalidSteamRateLimitStoreException  Store cache.stores does not define. (Laravel bridge)
+SteamApiException                         (root, extends RuntimeException)
+├── ApiKeyNotConfiguredException          No key configured for a request that needs one.
+├── AppNewsUnavailableException           App whose news Steam does not publish, or an unknown app.
+├── AppNotFoundException                  App ID Steam does not know.
+├── AppVersionUnavailableException        No server version to check, or an unknown app.
+├── InvalidApiKeyException                Steam rejected the key, or received none.
+├── InvalidServerAddressException         Address is neither IPv4 nor IPv4:queryport.
+├── InvalidSteamIdException               Malformed SteamID64.
+├── ProfileNotPublicException             Profile, games list, or stats are private.
+├── StatsUnavailableException             No stats for that game, or the profile hides them.
+├── SteamConnectionException              Steam never answered: timeout, DNS, TLS, refused.
+├── SteamRateLimitException               A local limit ran out, or Steam answered 429; exposes the Limit.
+├── SteamUserNotFoundException            Vanity URL unresolved or profile missing.
+├── TooManySteamIdsException              More than 100 IDs in a batch request.
+├── FakeNotInstalledException             Facade assertion without Steam::fake(). (Laravel bridge)
+├── FakeOutsideTestsException             Steam::fake() outside tests. (Laravel bridge)
+├── InvalidSteamHttpOptionException       Timeout, retry or sender value the connector rejects. (Laravel bridge)
+├── InvalidSteamLanguageException         Language code Steam does not accept. (Laravel bridge)
+├── InvalidSteamLoggingOptionException    Log channel or flag the config cannot use. (Laravel bridge)
+└── InvalidSteamRateLimitOptionException  Store, limit or cool-down the config cannot use. (Laravel bridge)
 ```
 
 Catch the leaf you care about, or the root. The
-[API reference](/laravel-steam-api-sdk/api-reference) notes which helper raises which.
+[API reference](/laravel-steam-api-sdk/api-reference) notes which endpoint raises which.
 
 A message built from a Steam response opens with the Steam method:
 `GetNumberOfCurrentPlayers: No Steam app found for app ID 1.` Such an exception, and
@@ -202,9 +210,9 @@ to, rather than a blanket 500:
 | `StatsUnavailableException` | 404 — the cause is ambiguous, so the status says nothing about which |
 | `ProfileNotPublicException` | 403 |
 | `InvalidServerAddressException` | 422 — the address is input, typically a route parameter |
-| `SteamRateLimitException` | 429, with `Retry-After` counting down the daily window |
+| `SteamRateLimitException` | 429, with `Retry-After` counting down what is left of the limit's window, or of the cool-down after Steam's own `429` |
 | `SteamConnectionException`, and `SteamApiException` for a `5xx` | 503, the body saying only `Service Unavailable` |
-| `InvalidApiKeyException`, `TooManySteamIdsException`, `ApiKeyNotConfiguredException`, `InvalidSteamLanguageException`, `InvalidSteamHttpOptionException`, `InvalidSteamRateLimitStoreException`, `InvalidSteamLoggingOptionException`, `FakeOutsideTestsException` | 500 |
+| `InvalidApiKeyException`, `TooManySteamIdsException`, `ApiKeyNotConfiguredException`, `InvalidSteamLanguageException`, `InvalidSteamHttpOptionException`, `InvalidSteamRateLimitOptionException`, `InvalidSteamLoggingOptionException`, `FakeOutsideTestsException` | 500 |
 
 The 404, 403 and 422 bodies carry the exception's message, which opens with the Steam method.
 
