@@ -129,7 +129,7 @@ $response  = Steam::send($request);  // send any Saloon Request, get the raw Res
 `send()` raises what the helpers raise, inside the call: a `GetOwnedGamesRequest` for a hidden
 profile throws there, though Steam answers it with a `200`. `Steam::connector()->debug()` dumps
 every request after it with the key masked as `key=***` — see
-[Debugging](/php-steam-api-sdk/guide#debugging). A hook added on the connector dies with it, so
+[Debugging](/php-steam-api-sdk/hooks-and-debugging#debugging). A hook added on the connector dies with it, so
 listen to the [events](/laravel-steam-api-sdk/events) instead.
 
 <Aside type="caution">

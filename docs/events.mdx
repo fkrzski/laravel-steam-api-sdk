@@ -6,7 +6,7 @@ description: Listen to Steam traffic through Laravel events — a request going 
 import { Aside } from '@astrojs/starlight/components';
 
 The base SDK reports its traffic through
-[hooks on the connector](/php-steam-api-sdk/guide#request-and-response-hooks), but the
+[hooks on the connector](/php-steam-api-sdk/hooks-and-debugging#request-and-response-hooks), but the
 bridge's connector is [scoped](/laravel-steam-api-sdk/configuration#the-connector-binding): a
 hook added through `Steam::connector()` is gone once the request, queued job or test that
 built it ends. The bridge hooks every connector it builds instead, and dispatches each hook as
