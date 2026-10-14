@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-14
+
 ### Added
 
 - `Steam::webApi()` — the base SDK's `WebApiResource`, handed back the same way as `players()`, `users()`, `stats()`, `apps()` and `news()`, whose `serverTime()` returns Steam's clock as a UTC `DateTimeImmutable` and never sends the key. `supportedApis()` sends the key when one is configured, which adds the methods it can call, and goes out without it otherwise, while a key Steam rejects raises `InvalidApiKeyException`, rendered as a 500 ([#131](https://github.com/fkrzski/laravel-steam-api-sdk/issues/131)).
@@ -206,7 +208,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Steam` facade for static access to the manager.
 - `Steam::fake()` — attaches a Saloon `MockClient` to the singleton connector and returns it for assertions, removing per-test connector wiring.
 
-[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.8.0...HEAD
+[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.9.0...HEAD
+[0.9.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.8.0...0.9.0
 [0.8.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.7.0...0.8.0
 [0.7.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.5.0...0.6.0
