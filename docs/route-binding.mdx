@@ -38,7 +38,7 @@ are yours.
    use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 
    Route::get('/players/{steamId}', function (SteamId $steamId) {
-       return Steam::summaries([$steamId]);
+       return Steam::users()->summaries([$steamId]);
    });
    ```
 
@@ -97,7 +97,7 @@ final readonly class VanityAwareSteamIdBinding implements SteamIdBinder
         }
 
         try {
-            return Steam::resolveVanityUrl($value);
+            return Steam::users()->resolveVanityUrl($value);
         } catch (SteamUserNotFoundException) {
             throw new NotFoundHttpException(sprintf('"%s" is not a Steam profile.', $value));
         }
