@@ -17,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `steam-api.rate_limit.cooldown` — the seconds a 429 without `Retry-After` holds requests back, read from `STEAM_API_RATE_LIMIT_COOLDOWN` and 60 when left unset ([#125](https://github.com/fkrzski/laravel-steam-api-sdk/issues/125)).
 - `php artisan about` — a "429 Cool-down" row, marked `(default)` at 60 ([#125](https://github.com/fkrzski/laravel-steam-api-sdk/issues/125)).
 - `steam-api.http.sender` — a class implementing `Saloon\Contracts\Sender`, read from `STEAM_API_SENDER` and resolved through the container each time the connector is built, so a binding of that class decides how, while leaving it unset keeps Guzzle. A value naming no such class raises `InvalidSteamHttpOptionException` naming the key, rendered as a 500 ([#126](https://github.com/fkrzski/laravel-steam-api-sdk/issues/126)).
-- `php artisan about` — a "Sender" row, `Guzzle (default)` until one is configured ([#126](https://github.com/fkrzski/laravel-steam-api-sdk/issues/126)).
+- `php artisan about` — a "Sender" row, `Guzzle (default)` until one is configured, or `Guzzle + Nightwatch (default)` while Nightwatch is reporting ([#126](https://github.com/fkrzski/laravel-steam-api-sdk/issues/126), [#127](https://github.com/fkrzski/laravel-steam-api-sdk/issues/127)).
+- Steam requests show up in Laravel Nightwatch's outgoing requests while `laravel/nightwatch` is installed and enabled and `steam-api.http.sender` is unset, with `saloonphp/laravel-plugin` or without it, since the plugin skips the base SDK's `SteamSender`. The API key is stripped from every Steam URL Nightwatch records, while a sender of your own reports only once `Nightwatch::guzzleMiddleware()` is attached to it ([#127](https://github.com/fkrzski/laravel-steam-api-sdk/issues/127)).
 
 ### Changed
 
