@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `Steam::users()->summaries()` and `Steam::users()->bans()` take any number of Steam IDs, sent 100 a request and `concurrency` requests at a time ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
+- `Steam::fake()->tooManyRequests()` — a 429 for every request without a response of its own, locking the later ones out for `Retry-After` seconds, or `steam-api.rate_limit.cooldown` without one. The lock lives in `steam-api.rate_limit.store`, so a second `Steam::fake()` in the same test does not lift it ([#143](https://github.com/fkrzski/laravel-steam-api-sdk/issues/143)).
 
 ### Changed
 
@@ -17,9 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BC break.** `Steam::stats()->userStats()` takes no `language`, and neither `steam-api.language` nor the app locale reaches it, so a call passing `language:` drops the argument ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
 - **BC break.** `PersonaState`, `CommunityVisibility` and `CommentPermission` map a value they do not list to `Unknown` and `PersonaState` gains `Invisible`, so a `match` over them needs the new cases. `Friend`, `NewsItem` and `PlayerSummary` times come back in UTC, and `PlayerSummary::$primaryClanId` is `null` for a player with no primary group ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
 - **BC break.** `AsSteamId` refuses a stored Steam ID with a trailing newline, as `SteamId::fromSteamId64()` does from 1.0, so a value an earlier version stored with one throws `InvalidSteamIdException` on read until the column is trimmed ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
+- **BC break.** The DTO factories, `SteamFake` and the resource fakes are the base SDK's, under `Fkrzski\SteamApiSdk\Testing` with each factory under its interface, so `Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory` becomes `Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerSummaryFactory`. A `SteamManager` implementation returns the base `SteamFake` from `fake()` ([#143](https://github.com/fkrzski/laravel-steam-api-sdk/issues/143)).
+- **BC break.** `->webApi()->serverInfo()`, `->webApi()->supportedApiList()` and `->webApi()->supportedApiListInvalidKey()` on `SteamFake` are `serverTime()`, `supportedApis()` and `supportedApisInvalidKey()`, after the `WebApiResource` methods they fake ([#143](https://github.com/fkrzski/laravel-steam-api-sdk/issues/143)).
 - DTO constructors and `fromArray()`, hook payload constructors and the exceptions' named constructors are `@internal`, so tests build DTOs with the factories ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
 - `HttpOptions`, `RateLimitOptions`, `UtcDayLimit`, `LoggingOptions`, `SteamTrafficLogger`, `NightwatchReporting`, `AboutSection`, `SteamExceptionRenderer` and `InstallCommand`, the `SteamManager` constructor and the bridge exceptions' constructors and named constructors are `@internal`, outside SemVer from 1.0.0, since only the provider and `about` build them ([#154](https://github.com/fkrzski/laravel-steam-api-sdk/issues/154)).
 - A `SteamRateLimitException` raised by Steam's 429 carries the response and code 429, which the `steam-api.logging` channel records in the warning's context ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
+- The faked `users()->summaries()` and `users()->bans()` answer each request with the players it asks for, and a request asking for none of them with the ones no request has had yet, so a lookup over 100 Steam IDs gets each player once ([#143](https://github.com/fkrzski/laravel-steam-api-sdk/issues/143)).
+- The IPlayerService `…NotPublic()` fakes answer with Steam's empty `response` object instead of an empty list, so a test pinning the recorded body moves ([#143](https://github.com/fkrzski/laravel-steam-api-sdk/issues/143)).
+
+### Removed
+
+- **BC break.** `SteamResponse` is gone without a successor, so a body the fluent fake cannot give goes into `Steam::fake()` as a `MockResponse` keyed by its request class ([#143](https://github.com/fkrzski/laravel-steam-api-sdk/issues/143)).
 
 ### Fixed
 
