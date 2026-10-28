@@ -66,6 +66,21 @@ it('reads a timeout however it is written', function (mixed $value, float $secon
     'zero, for no limit' => ['0', 0.0],
 ]);
 
+it('hands the connector a timeout at either end of what it takes', function (string $value, float $seconds): void {
+    config()->set([
+        'steam-api.http.connect_timeout' => $value,
+        'steam-api.http.request_timeout' => $value,
+    ]);
+
+    $config = app(SteamConnector::class)->steamConfig;
+
+    expect($config->connectTimeout)->toBe($seconds)
+        ->and($config->requestTimeout)->toBe($seconds);
+})->with([
+    'a millisecond' => ['0.001', 0.001],
+    'just under PHP_INT_MAX / 1000' => ['9223372036854774', 9223372036854774.0],
+]);
+
 it('reads the tries and the interval however they are written', function (mixed $value, int $number): void {
     config()->set([
         'steam-api.http.retry.tries' => $value,
@@ -233,6 +248,22 @@ it('throws when a timeout is not a number of seconds', function (string $option,
     'an array' => [[]],
 ]);
 
+it('throws its own exception for a timeout the base sdk refuses', function (string $option, string $value): void {
+    config()->set('steam-api.http.'.$option, $value);
+
+    expect(fn (): SteamConnector => app(SteamConnector::class))
+        ->toThrow(InvalidSteamHttpOptionException::class);
+})->with([
+    'connect' => 'connect_timeout',
+    'request' => 'request_timeout',
+])->with([
+    'under a millisecond' => '0.0001',
+    'just under a millisecond' => '0.0009999',
+    'PHP_INT_MAX / 1000' => '9223372036854775.807',
+    'past PHP_INT_MAX / 1000' => '1e20',
+    'infinite' => '1e400',
+]);
+
 it('throws when the tries are not a whole number of at least one', function (mixed $value): void {
     config()->set('steam-api.http.retry.tries', $value);
 
@@ -303,13 +334,15 @@ it('names the config key, the env var and what to set it to', function (string $
         'connect_timeout',
         'abc',
         'The configured Steam HTTP option "steam-api.http.connect_timeout" cannot be "abc". Set '
-        .'STEAM_API_CONNECT_TIMEOUT in your .env file, or that config value, to a number of seconds, 0 for no limit.',
+        .'STEAM_API_CONNECT_TIMEOUT in your .env file, or that config value, to a number of seconds from 0.001, '
+        .'0 for no limit.',
     ],
     'request timeout' => [
         'request_timeout',
         -1,
         'The configured Steam HTTP option "steam-api.http.request_timeout" cannot be -1. Set '
-        .'STEAM_API_REQUEST_TIMEOUT in your .env file, or that config value, to a number of seconds, 0 for no limit.',
+        .'STEAM_API_REQUEST_TIMEOUT in your .env file, or that config value, to a number of seconds from 0.001, '
+        .'0 for no limit.',
     ],
     'tries' => [
         'retry.tries',

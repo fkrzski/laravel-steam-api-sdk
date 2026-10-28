@@ -355,13 +355,20 @@ it('drops the default once the request timeout alone is set', function (): void 
     expect(steamAboutSection()['timeouts'])->toBe('connect 10s, request 60s');
 });
 
-it('reports a rejected timeout as invalid', function (string $option): void {
-    config()->set('steam-api.http.'.$option, 'abc');
+it('reports a rejected timeout as invalid', function (string $option, string $value): void {
+    config()->set('steam-api.http.'.$option, $value);
 
-    expect(steamAboutSection()['timeouts'])->toBe('INVALID');
+    expect(steamAboutSection())->toMatchArray([
+        'timeouts' => 'INVALID',
+        'requests_remaining' => 'UNKNOWN',
+    ]);
 })->with([
     'connect' => 'connect_timeout',
     'request' => 'request_timeout',
+])->with([
+    'not a number' => 'abc',
+    'under a millisecond' => '0.0001',
+    'past PHP_INT_MAX / 1000' => '1e20',
 ]);
 
 it('reports no retries as the default', function (): void {

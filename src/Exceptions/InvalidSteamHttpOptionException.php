@@ -31,7 +31,7 @@ final class InvalidSteamHttpOptionException extends SteamApiException
                 'retry.interval' => 'the milliseconds between attempts, 0 for no pause',
                 'retry.exponential_backoff' => 'true or false',
                 'sender' => 'the name of a class implementing Saloon\Contracts\Sender, or leave it unset for Guzzle',
-                default => 'a number of seconds, 0 for no limit',
+                default => 'a number of seconds from 0.001, 0 for no limit',
             },
         ));
     }
