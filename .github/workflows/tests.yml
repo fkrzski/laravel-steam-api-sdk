@@ -83,6 +83,9 @@ jobs:
 
     - name: Checkout
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        # A pull request checks out its merge commit, whose first parent is the base branch.
+        fetch-depth: 2
 
     - name: Setup extension cache
       id: extcache
@@ -121,5 +124,21 @@ jobs:
     - name: Install Composer dependencies
       run: composer update --prefer-stable --no-interaction --prefer-dist
 
+    # Pull requests mutate only what they touch; master still runs everything after the merge.
+    - name: Mutation Scope
+      id: scope
+      if: github.event_name == 'pull_request'
+      run: |
+        classes=$(php .github/scripts/mutation-scope.php HEAD^1 HEAD)
+        echo "classes=$classes" >> $GITHUB_OUTPUT
+
     - name: Mutation Tests
-      run: composer test:mutate -- --ci
+      if: steps.scope.outputs.classes != 'none'
+      env:
+        CLASSES: ${{ steps.scope.outputs.classes }}
+      run: |
+        if [ -z "$CLASSES" ] || [ "$CLASSES" = all ]; then
+          composer test:mutate -- --ci
+        else
+          composer test:mutate -- --ci "--class=$CLASSES" --ignore-min-score-on-zero-mutations
+        fi
