@@ -3,33 +3,7 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppNewsFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppVersionCheckFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameSchemaFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameServerFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\NewsItemFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBadgesFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGameFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrConfigFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\WebApiInterfaceFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\AppsFake;
-use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\NewsFake;
-use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\PlayersFake;
-use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\StatsFake;
-use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\UsersFake;
-use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\WebApiFake;
-use Fkrzski\LaravelSteamApiSdk\Testing\SteamFake;
+use Fkrzski\LaravelSteamApiSdk\SteamManager;
 use Fkrzski\SteamApiSdk\Dto\AppNews;
 use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
 use Fkrzski\SteamApiSdk\Dto\GameSchema;
@@ -49,10 +23,31 @@ use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamConnectionException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamUserNotFoundException;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
+use Fkrzski\SteamApiSdk\Testing\Factories\IPlayerService\CommunityBadgeQuestFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\IPlayerService\OwnedGameFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\IPlayerService\PlayerBadgesFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\IPlayerService\RecentlyPlayedGameFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\IPlayerService\RecentlyPlayedGamesFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamApps\AppVersionCheckFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamApps\GameServerFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamApps\SdrConfigFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamNews\AppNewsFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamNews\NewsItemFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\FriendFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerBanFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerSummaryFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\UserGroupFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUserStats\GameSchemaFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUserStats\GlobalAchievementFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUserStats\PlayerAchievementFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUserStats\PlayerAchievementsFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUserStats\UserStatsFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamWebAPIUtil\WebApiInterfaceFactory;
+use Fkrzski\SteamApiSdk\Testing\SteamFake;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Saloon\Http\Faking\MockResponse;
 
-mutates(SteamFake::class, UsersFake::class, PlayersFake::class, StatsFake::class, AppsFake::class, NewsFake::class, WebApiFake::class);
+mutates(SteamManager::class);
 
 it('attaches the steam fake it returns', function (): void {
     $fake = Steam::fake();
@@ -91,10 +86,10 @@ it('hands the same mock back from every endpoint', function (Closure $fakeEndpoi
     'sdr config' => [fn (SteamFake $fake): SteamFake => $fake->apps()->sdrConfig(SdrConfigFactory::new())],
     'app news' => [fn (SteamFake $fake): SteamFake => $fake->news()->appNews(AppNewsFactory::new())],
     'news feed' => [fn (SteamFake $fake): SteamFake => $fake->news()->newsFeed(NewsItemFactory::new())],
-    'server info' => [
-        fn (SteamFake $fake): SteamFake => $fake->webApi()->serverInfo(new DateTimeImmutable('2026-10-08 19:59:38 UTC')),
+    'server time' => [
+        fn (SteamFake $fake): SteamFake => $fake->webApi()->serverTime(new DateTimeImmutable('2026-10-08 19:59:38 UTC')),
     ],
-    'supported api list' => [fn (SteamFake $fake): SteamFake => $fake->webApi()->supportedApiList()],
+    'supported apis' => [fn (SteamFake $fake): SteamFake => $fake->webApi()->supportedApis()],
 ]);
 
 it('fakes every users endpoint through the chain', function (): void {
@@ -216,8 +211,8 @@ it('fakes a whole news feed through the chain', function (): void {
 
 it('fakes every web api endpoint through the chain', function (): void {
     Steam::fake()
-        ->webApi()->serverInfo(new DateTimeImmutable('2026-10-08 19:59:38 UTC'))
-        ->webApi()->supportedApiList(WebApiInterfaceFactory::new(), WebApiInterfaceFactory::new()->name('IGCVersion_440'));
+        ->webApi()->serverTime(new DateTimeImmutable('2026-10-08 19:59:38 UTC'))
+        ->webApi()->supportedApis(WebApiInterfaceFactory::new(), WebApiInterfaceFactory::new()->name('IGCVersion_440'));
 
     $interfaces = Steam::webApi()->supportedApis();
 
@@ -342,8 +337,8 @@ it('raises what the base sdk raises for a named failure', function (
         fn (): AppNews => Steam::news()->appNews(appId: 480),
         AppNewsUnavailableException::class,
     ],
-    'supported api list invalid key' => [
-        fn (SteamFake $fake): SteamFake => $fake->webApi()->supportedApiListInvalidKey(),
+    'supported apis invalid key' => [
+        fn (SteamFake $fake): SteamFake => $fake->webApi()->supportedApisInvalidKey(),
         fn (): array => Steam::webApi()->supportedApis(),
         InvalidApiKeyException::class,
     ],

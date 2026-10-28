@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\NewsItemFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamNews\NewsItemFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerSummaryFactory;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\Psr7\Response;

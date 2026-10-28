@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Queue\Middleware\RespectsSteamRateLimit;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\SteamApiSdk\Exceptions\ProfileNotPublicException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerSummaryFactory;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Jobs\FakeJob;
 use Saloon\Http\Faking\MockResponse;

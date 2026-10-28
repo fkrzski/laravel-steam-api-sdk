@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Fkrzski\SteamApiSdk\Http\Resources\NewsResource news()
  * @method static \Fkrzski\SteamApiSdk\Http\Resources\WebApiResource webApi()
  * @method static \Illuminate\Support\LazyCollection<int, \Fkrzski\SteamApiSdk\Dto\NewsItem> newsFeed(int $appId, int $perPage = 20, ?int $maxLength = null, ?\DateTimeInterface $endDate = null, list<string> $feeds = [], list<string> $tags = [])
- * @method static \Fkrzski\LaravelSteamApiSdk\Testing\SteamFake fake(array<array-key, (callable(\Saloon\Http\PendingRequest): mixed)|\Saloon\Http\Faking\Fixture|\Saloon\Http\Faking\MockResponse> $responses = [])
+ * @method static \Fkrzski\SteamApiSdk\Testing\SteamFake fake(array<array-key, (callable(\Saloon\Http\PendingRequest): mixed)|\Saloon\Http\Faking\Fixture|\Saloon\Http\Faking\MockResponse> $responses = [])
  * @method static void assertSent(string|callable $value)
  * @method static void assertNotSent(string|callable $request)
  * @method static void assertNothingSent()

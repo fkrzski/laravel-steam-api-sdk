@@ -9,11 +9,11 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitOptionException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerSummaryFactory;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Foundation\Exceptions\Handler;
 use Illuminate\Support\Facades\Route;
@@ -252,7 +252,7 @@ it('renders a rejected api key as a 500, not the status steam sent', function ()
 it('renders a key the supported api list rejects as a 500', function (): void {
     config()->set('app.debug', false);
 
-    Steam::fake()->webApi()->supportedApiListInvalidKey();
+    Steam::fake()->webApi()->supportedApisInvalidKey();
 
     Route::get('steam/apis', fn (): array => Steam::webApi()->supportedApis());
 

@@ -8,27 +8,6 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppNewsFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppVersionCheckFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\BadgeFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\CommunityBadgeQuestFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\FriendFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameSchemaFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GameServerFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\GlobalAchievementFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\NewsItemFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\OwnedGameFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerAchievementsFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBadgesFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerBanFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGameFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\RecentlyPlayedGamesFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrConfigFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\SdrPointOfPresenceFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserGroupFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\WebApiInterfaceFactory;
 use Fkrzski\SteamApiSdk\Dto\AppNews;
 use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
 use Fkrzski\SteamApiSdk\Dto\SdrConfig;
@@ -60,6 +39,27 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamWebAPIUtil\GetServerInfoRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamWebAPIUtil\GetSupportedApiListRequest;
 use Fkrzski\SteamApiSdk\SteamConnector;
+use Fkrzski\SteamApiSdk\Testing\Factories\IPlayerService\BadgeFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\IPlayerService\CommunityBadgeQuestFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\IPlayerService\OwnedGameFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\IPlayerService\PlayerBadgesFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\IPlayerService\RecentlyPlayedGameFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\IPlayerService\RecentlyPlayedGamesFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamApps\AppVersionCheckFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamApps\GameServerFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamApps\SdrConfigFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamApps\SdrPointOfPresenceFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamNews\AppNewsFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamNews\NewsItemFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\FriendFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerBanFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerSummaryFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\UserGroupFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUserStats\GameSchemaFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUserStats\GlobalAchievementFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUserStats\PlayerAchievementsFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUserStats\UserStatsFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamWebAPIUtil\WebApiInterfaceFactory;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Illuminate\Support\LazyCollection;
 use Saloon\Http\Faking\MockClient;
@@ -148,8 +148,8 @@ it('sends an anonymous request with no key configured', function (Closure $call,
         ->apps()->serversAtAddress(GameServerFactory::new())
         ->apps()->sdrConfig(SdrConfigFactory::new())
         ->news()->appNews(AppNewsFactory::new())
-        ->webApi()->serverInfo(new DateTimeImmutable('2026-10-08 19:59:38 UTC'))
-        ->webApi()->supportedApiList(WebApiInterfaceFactory::new());
+        ->webApi()->serverTime(new DateTimeImmutable('2026-10-08 19:59:38 UTC'))
+        ->webApi()->supportedApis(WebApiInterfaceFactory::new());
 
     $call();
 
@@ -853,7 +853,7 @@ it('raises unavailable news once the feed is walked', function (): void {
 });
 
 it('fetches the steam server time', function (): void {
-    $mock = Steam::fake()->webApi()->serverInfo(new DateTimeImmutable('2026-10-08 19:59:38 UTC'));
+    $mock = Steam::fake()->webApi()->serverTime(new DateTimeImmutable('2026-10-08 19:59:38 UTC'));
 
     $time = Steam::webApi()->serverTime();
 
@@ -864,7 +864,7 @@ it('fetches the steam server time', function (): void {
 });
 
 it('fetches the supported apis', function (): void {
-    $mock = Steam::fake()->webApi()->supportedApiList(
+    $mock = Steam::fake()->webApi()->supportedApis(
         WebApiInterfaceFactory::new(),
         WebApiInterfaceFactory::new()->name('IGCVersion_440'),
     );
@@ -879,7 +879,7 @@ it('fetches the supported apis', function (): void {
 });
 
 it('keeps the configured key out of the server time request', function (): void {
-    Steam::fake()->webApi()->serverInfo(new DateTimeImmutable('2026-10-08 19:59:38 UTC'));
+    Steam::fake()->webApi()->serverTime(new DateTimeImmutable('2026-10-08 19:59:38 UTC'));
 
     Steam::webApi()->serverTime();
 
@@ -887,7 +887,7 @@ it('keeps the configured key out of the server time request', function (): void 
 });
 
 it('sends the configured key with the supported api list', function (): void {
-    Steam::fake()->webApi()->supportedApiList(WebApiInterfaceFactory::new());
+    Steam::fake()->webApi()->supportedApis(WebApiInterfaceFactory::new());
 
     Steam::webApi()->supportedApis();
 
