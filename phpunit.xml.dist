@@ -13,4 +13,7 @@
             <directory suffix=".php">./tests</directory>
         </testsuite>
     </testsuites>
+    <php>
+        <env name="LOG_DEPRECATIONS_WHILE_TESTING" value="false"/>
+    </php>
 </phpunit>

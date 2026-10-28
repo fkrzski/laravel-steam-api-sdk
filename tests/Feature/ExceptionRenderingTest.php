@@ -185,6 +185,26 @@ it('renders a 5xx that outlasted the retries as a 503', function (): void {
     Steam::assertSentCount(2);
 });
 
+it('renders an answer that is not json as a 503 that keeps the reason out', function (): void {
+    config()->set('app.debug', false);
+
+    Steam::fake([GetPlayerSummariesRequest::class => MockResponse::make('<html><body>Service Unavailable</body></html>')]);
+
+    Route::get('steam/summaries', fn (): array => Steam::users()->summaries([steamId()]));
+
+    $this->getJson('steam/summaries')
+        ->assertServiceUnavailable()
+        ->assertExactJson(['message' => 'Service Unavailable']);
+});
+
+it('renders an answer missing its envelope as a 503', function (): void {
+    Steam::fake([GetPlayerSummariesRequest::class => MockResponse::make(['response' => []])]);
+
+    Route::get('steam/summaries', fn (): array => Steam::users()->summaries([steamId()]));
+
+    $this->getJson('steam/summaries')->assertServiceUnavailable();
+});
+
 it('still renders an unreachable steam as a 503 while debugging', function (): void {
     config()->set('app.debug', true);
 
@@ -347,6 +367,18 @@ it('leaves an unreachable steam alone once rendering is turned off', function ()
     bootExceptionRenderers();
 
     Steam::fake([GetPlayerSummariesRequest::class => SteamResponse::connectionFailed()]);
+
+    Route::get('steam/summaries', fn (): array => Steam::users()->summaries([steamId()]));
+
+    $this->getJson('steam/summaries')->assertStatus(500);
+});
+
+it('leaves an unreadable answer alone once rendering is turned off', function (): void {
+    config()->set(['app.debug' => false, 'steam-api.exceptions.render' => false]);
+
+    bootExceptionRenderers();
+
+    Steam::fake([GetPlayerSummariesRequest::class => MockResponse::make(['response' => []])]);
 
     Route::get('steam/summaries', fn (): array => Steam::users()->summaries([steamId()]));
 
