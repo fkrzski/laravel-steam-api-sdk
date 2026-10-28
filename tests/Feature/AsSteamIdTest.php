@@ -75,6 +75,10 @@ it('serializes a steam id 64 string on set', function (): void {
     expect(asSteamId()->set(castModel(), 'steam_id', STEAM_ID_64, []))->toBe(STEAM_ID_64);
 });
 
+it('trims a padded steam id 64 on set', function (): void {
+    expect(asSteamId()->set(castModel(), 'steam_id', '  '.STEAM_ID_64."\n", []))->toBe(STEAM_ID_64);
+});
+
 it('throws when the value is not a valid steam id 64 on set', function (): void {
     asSteamId()->set(castModel(), 'steam_id', 'not-a-steam-id', []);
 })->throws(InvalidSteamIdException::class);
