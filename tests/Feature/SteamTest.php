@@ -584,28 +584,16 @@ it('fetches player achievements', function (): void {
     $mock->assertSent(GetPlayerAchievementsRequest::class);
 });
 
-it('sends no language with the user stats request by default', function (): void {
-    $mock = Steam::fake([
+it('keeps the configured language off the user stats request', function (): void {
+    config()->set('steam-api.language', 'polish');
+
+    Steam::fake([
         GetUserStatsForGameRequest::class => SteamResponse::userStats(UserStatsFactory::new()),
     ]);
 
     Steam::stats()->userStats(steamId(), appId: 381210);
 
-    $mock->assertSent(
-        fn (GetUserStatsForGameRequest $request): bool => ! $request->language instanceof Language,
-    );
-});
-
-it('localises the user stats request', function (): void {
-    $mock = Steam::fake([
-        GetUserStatsForGameRequest::class => SteamResponse::userStats(UserStatsFactory::new()),
-    ]);
-
-    Steam::stats()->userStats(steamId(), appId: 381210, language: Language::Polish);
-
-    $mock->assertSent(
-        fn (GetUserStatsForGameRequest $request): bool => $request->language === Language::Polish,
-    );
+    expect(Steam::lastResponse()?->getPendingRequest()->query()->all())->not->toHaveKey('l');
 });
 
 it('sends no language with the achievements request by default', function (): void {

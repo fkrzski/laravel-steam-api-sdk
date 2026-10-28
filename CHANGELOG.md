@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Steam::users()->summaries()` and `Steam::users()->bans()` take any number of Steam IDs, sent 100 a request and `concurrency` requests at a time ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
+
+### Changed
+
+- **BC break.** `fkrzski/php-steam-api-sdk` `^1.0` is required, and its `SteamConnector` is final, so a subclass moves its overrides to `SteamConfig` (`rateLimits`, `rateLimitStore`, `sender`, `tooManyRequestsCooldown`), which the bridge fills from `steam-api.*` ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
+- **BC break.** `Steam::stats()->userStats()` takes no `language`, and neither `steam-api.language` nor the app locale reaches it, so a call passing `language:` drops the argument ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
+- **BC break.** `PersonaState`, `CommunityVisibility` and `CommentPermission` map a value they do not list to `Unknown` and `PersonaState` gains `Invisible`, so a `match` over them needs the new cases. `Friend`, `NewsItem` and `PlayerSummary` times come back in UTC, and `PlayerSummary::$primaryClanId` is `null` for a player with no primary group ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
+- **BC break.** `AsSteamId` refuses a stored Steam ID with a trailing newline, as `SteamId::fromSteamId64()` does from 1.0, so a value an earlier version stored with one throws `InvalidSteamIdException` on read until the column is trimmed ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
+- DTO constructors and `fromArray()`, hook payload constructors and the exceptions' named constructors are `@internal`, so tests build DTOs with the factories ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
+- A `SteamRateLimitException` raised by Steam's 429 carries the response and code 429, which the `steam-api.logging` channel records in the warning's context ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
+
+### Fixed
+
+- A keyless request is limited apart from the key, so it no longer spends the key's daily budget or waits out its lock, and `RespectsSteamRateLimit` releases a job at the first one the limiter refuses ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
+- A read timeout or a connection reset after the headers raises `SteamConnectionException`, rendered as 503, instead of passing as an empty answer ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
+- An answer that is not JSON or lacks its envelope raises `UnreadableResponseException`, and a DTO the SDK cannot build fails the call, with `SteamRequestFailed` dispatched once for both ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146), [#153](https://github.com/fkrzski/laravel-steam-api-sdk/issues/153)).
+- A 429 without `Retry-After` holds requests back for the whole `steam-api.rate_limit.cooldown`, and `Retry-After: 0` for a second ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
+- `AsSteamId` stores a padded Steam ID trimmed, as `SteamIdRule` checks it, where a value `->strict()` let through threw `InvalidSteamIdException` on set ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
+
 ## [0.9.0] - 2026-10-14
 
 ### Added

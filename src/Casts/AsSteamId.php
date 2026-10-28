@@ -49,7 +49,7 @@ final class AsSteamId implements CastsAttributes, SerializesCastableAttributes
             throw new InvalidSteamIdException(sprintf('"%s" is not a valid 64-bit Steam ID.', get_debug_type($value)));
         }
 
-        return SteamId::fromSteamId64((string) $value)->value;
+        return SteamId::fromSteamId64(trim((string) $value))->value;
     }
 
     /**

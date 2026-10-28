@@ -116,8 +116,8 @@ it('releases the job for the window a 429 names', function (?string $key): void 
     'without one' => null,
 ]);
 
-it('holds the next job back for the rest of a 429 window', function (?string $key): void {
-    config()->set('steam-api.key', $key);
+it('holds the next job back for the rest of a 429 window', function (): void {
+    config()->set('steam-api.key');
 
     throttleCurrentPlayers();
 
@@ -136,10 +136,27 @@ it('holds the next job back for the rest of a 429 window', function (?string $ke
         ->and(releaseDelay($job))->toBeGreaterThanOrEqual(119)->toBeLessThanOrEqual(120);
 
     Steam::assertSentCount(1);
-})->with([
-    'with a key' => 'test-steam-api-key',
-    'without one' => null,
-]);
+});
+
+it('runs the next job under a key and releases it at the keyless request the limiter refuses', function (): void {
+    throttleCurrentPlayers();
+
+    new RespectsSteamRateLimit()->handle(queuedJob(), fn (): int => Steam::stats()->currentPlayers(440));
+
+    $job = queuedJob();
+    $ran = false;
+
+    new RespectsSteamRateLimit()->handle($job, function () use (&$ran): void {
+        $ran = true;
+
+        Steam::stats()->currentPlayers(440);
+    });
+
+    expect($ran)->toBeTrue()
+        ->and(releaseDelay($job))->toBeGreaterThanOrEqual(119)->toBeLessThanOrEqual(120);
+
+    Steam::assertSentCount(1);
+});
 
 it('floors a window that already closed at a second', function (): void {
     $job = queuedJob();

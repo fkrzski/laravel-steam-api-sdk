@@ -50,6 +50,10 @@ it('throws when the stored value is not a valid steam id 64 on get', function ()
     asSteamId()->get(castModel(), 'steam_id', 'not-a-steam-id', []);
 })->throws(InvalidSteamIdException::class);
 
+it('throws when the stored steam id 64 carries a trailing newline on get', function (): void {
+    asSteamId()->get(castModel(), 'steam_id', STEAM_ID_64."\n", []);
+})->throws(InvalidSteamIdException::class);
+
 it('casts a stored integer steam id 64 to a SteamId value object on get', function (): void {
     $result = asSteamId()->get(castModel(), 'steam_id', 76561198000000000, []);
 
@@ -73,6 +77,10 @@ it('serializes a SteamId value object to its id 64 string on set', function (): 
 
 it('serializes a steam id 64 string on set', function (): void {
     expect(asSteamId()->set(castModel(), 'steam_id', STEAM_ID_64, []))->toBe(STEAM_ID_64);
+});
+
+it('trims a padded steam id 64 on set', function (): void {
+    expect(asSteamId()->set(castModel(), 'steam_id', '  '.STEAM_ID_64."\n", []))->toBe(STEAM_ID_64);
 });
 
 it('throws when the value is not a valid steam id 64 on set', function (): void {

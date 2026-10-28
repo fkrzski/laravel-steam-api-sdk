@@ -151,7 +151,7 @@ it('logs a 429 before the rate limit failure it raises', function (): void {
             [
                 'WARNING',
                 $steamRateLimitException->getMessage(),
-                ['exception' => SteamRateLimitException::class, 'code' => 0],
+                ['exception' => SteamRateLimitException::class, 'code' => 429],
             ],
         ]);
 
