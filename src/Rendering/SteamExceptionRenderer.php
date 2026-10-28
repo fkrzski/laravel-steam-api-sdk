@@ -23,6 +23,7 @@ use Fkrzski\SteamApiSdk\Exceptions\SteamConnectionException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamUserNotFoundException;
 use Fkrzski\SteamApiSdk\Exceptions\TooManySteamIdsException;
+use Fkrzski\SteamApiSdk\Exceptions\UnreadableResponseException;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Request;
@@ -118,17 +119,21 @@ final readonly class SteamExceptionRenderer
     }
 
     /**
-     * Steam never answered, or answered with a 5xx until the retries ran out.
+     * Steam never answered, answered with a 5xx until the retries ran out, or
+     * answered with a body the SDK cannot read.
      *
-     * The base SDK raises the second as the root type, so this callback sees
+     * The base SDK raises the 5xx as the root type, so this callback sees
      * every subclass nothing else rendered and has to hand each of them back.
+     * An unreadable body would be a 502 more precisely, but a client backs off
+     * from every failure on Steam's side the same way.
      */
     public function unavailable(SteamApiException $e, Request $request): ?Response
     {
-        $unreachable = $e instanceof SteamConnectionException
+        $unavailable = $e instanceof SteamConnectionException
+            || $e instanceof UnreadableResponseException
             || ($e::class === SteamApiException::class && $e->response?->serverError() === true);
 
-        if (! $unreachable) {
+        if (! $unavailable) {
             return null;
         }
 
