@@ -14,7 +14,6 @@ use Illuminate\Support\Composer;
 use Illuminate\Support\Facades\Artisan;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\Senders\GuzzleSender;
-use Saloon\RateLimitPlugin\Limit;
 
 mutates(AboutSection::class);
 
@@ -229,16 +228,7 @@ it('reports the budget as not metered when the api key is missing', function (mi
 ]);
 
 it('reports an unknown budget when the connector declares no upfront limit', function (): void {
-    app()->instance(SteamConnector::class, new class(new SteamConfig('test-steam-api-key')) extends SteamConnector
-    {
-        /**
-         * @return array<Limit>
-         */
-        protected function resolveLimits(): array
-        {
-            return [];
-        }
-    });
+    app()->instance(SteamConnector::class, new SteamConnector(new SteamConfig('test-steam-api-key', rateLimits: [])));
 
     expect(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
 });
