@@ -5,9 +5,12 @@ declare(strict_types=1);
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\NewsItemFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
+use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\Psr7\Response;
+use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\Senders\GuzzleSender;
 use Saloon\RateLimitPlugin\Limit;
 use Tests\NightwatchTestCase;
@@ -53,6 +56,27 @@ function spendDailyBudget(): void
     );
 
     $limit?->hit(100_000)->save($connector->rateLimitStore());
+}
+
+/**
+ * The failure a faked 429 raises, read after its window has closed.
+ */
+function closedRateLimitWindow(): SteamRateLimitException
+{
+    Steam::fake([
+        GetNumberOfCurrentPlayersRequest::class => MockResponse::make([], 429, ['Retry-After' => '60']),
+    ]);
+
+    try {
+        Steam::stats()->currentPlayers(440);
+    } catch (SteamRateLimitException $steamRateLimitException) {
+        // travelTo() does not reach the plugin's clock, so the window is closed by hand.
+        $steamRateLimitException->limit->setExpiryTimestamp(time() - 30);
+
+        return $steamRateLimitException;
+    }
+
+    throw new LogicException('Expected the faked 429 to raise.');
 }
 
 function fakeSteamEndpoints(): void

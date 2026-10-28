@@ -11,7 +11,6 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersR
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Jobs\FakeJob;
 use Saloon\Http\Faking\MockResponse;
-use Saloon\RateLimitPlugin\Limit;
 
 mutates(RespectsSteamRateLimit::class);
 
@@ -157,9 +156,7 @@ it('floors a window that already closed at a second', function (): void {
     $job = queuedJob();
 
     new RespectsSteamRateLimit()->handle($job, function (): never {
-        throw SteamRateLimitException::fromLimit(
-            Limit::allow(1)->everySeconds(60)->setExpiryTimestamp(time() - 30),
-        );
+        throw closedRateLimitWindow();
     });
 
     $job->assertReleased(delay: 1);

@@ -3,21 +3,20 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLoggingOptionException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitOptionException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
-use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
 use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
-use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
+use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Foundation\Exceptions\Handler;
 use Illuminate\Support\Facades\Route;
 use Saloon\Http\Faking\MockResponse;
-use Saloon\RateLimitPlugin\Limit;
 use Symfony\Component\HttpFoundation\Response;
 
 mutates(SteamExceptionRenderer::class);
@@ -39,15 +38,6 @@ function bootExceptionRenderers(): void
 function renderer(): SteamExceptionRenderer
 {
     return app(SteamExceptionRenderer::class);
-}
-
-/**
- * A limit whose window closes in an hour, so `Retry-After` has something to
- * count down from.
- */
-function limitExpiringIn(int $seconds): Limit
-{
-    return Limit::allow(100)->everySeconds(3600)->setExpiryTimestamp(time() + $seconds);
 }
 
 beforeEach(function (): void {
@@ -130,9 +120,11 @@ it('renders a rejected server address as a 422', function (): void {
 });
 
 it('renders a spent quota as a 429 carrying Retry-After', function (): void {
-    Route::get('steam/quota', function (): never {
-        throw SteamRateLimitException::fromLimit(limitExpiringIn(3600));
-    });
+    Steam::fake([
+        GetNumberOfCurrentPlayersRequest::class => MockResponse::make([], 429, ['Retry-After' => '3600']),
+    ]);
+
+    Route::get('steam/quota', fn (): int => Steam::stats()->currentPlayers(440));
 
     $response = $this->getJson('steam/quota')->assertStatus(429);
 
@@ -143,9 +135,7 @@ it('renders a spent quota as a 429 carrying Retry-After', function (): void {
 });
 
 it('still sends a Retry-After for a window that already closed', function (): void {
-    $exception = SteamRateLimitException::fromLimit(limitExpiringIn(-30));
-
-    $response = renderer()->rateLimited($exception, request());
+    $response = renderer()->rateLimited(closedRateLimitWindow(), request());
 
     expect($response->getStatusCode())->toBe(429)
         ->and($response->headers->get('Retry-After'))->toBe('1');
@@ -328,7 +318,7 @@ it('renders a rejected logging option as a 500', function (): void {
 it('leaves a misconfiguration to the debug page while debugging', function (): void {
     config()->set('app.debug', true);
 
-    expect(renderer()->misconfigured(ApiKeyNotConfiguredException::blank(), request()))->toBeNull();
+    expect(renderer()->misconfigured(new InvalidSteamLanguageException('klingon'), request()))->toBeNull();
 });
 
 it('renders a misconfiguration whatever the flag says', function (): void {
@@ -336,7 +326,7 @@ it('renders a misconfiguration whatever the flag says', function (): void {
 
     bootExceptionRenderers();
 
-    $response = renderer()->misconfigured(ApiKeyNotConfiguredException::blank(), request());
+    $response = renderer()->misconfigured(new InvalidSteamLanguageException('klingon'), request());
 
     expect($response?->getStatusCode())->toBe(500);
 });
