@@ -139,7 +139,7 @@ it('logs every response at debug with the key-free query in context', function (
 
 it('logs a 429 before the rate limit failure it raises', function (): void {
     $handler = logSteamTraffic(responses: true);
-    Steam::fake([MockResponse::make('', 429)]);
+    Steam::fake()->tooManyRequests();
 
     try {
         Steam::users()->summaries([steamId()]);

@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Queue\Middleware\RespectsSteamRateLimit;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\SteamApiSdk\Exceptions\ProfileNotPublicException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerSummaryFactory;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Jobs\FakeJob;
-use Saloon\Http\Faking\MockResponse;
 
 mutates(RespectsSteamRateLimit::class);
 
@@ -35,13 +33,6 @@ function releaseDelay(QueuedSteamJob $job): int
     }
 
     return $job->job->releaseDelay;
-}
-
-function throttleCurrentPlayers(): void
-{
-    Steam::fake([
-        GetNumberOfCurrentPlayersRequest::class => MockResponse::make([], 429, ['Retry-After' => '120']),
-    ]);
 }
 
 it('runs the job while the budget has room', function (): void {
@@ -98,7 +89,7 @@ it('releases the job for what is left of a configured window', function (): void
 it('releases the job for the window a 429 names', function (?string $key): void {
     config()->set('steam-api.key', $key);
 
-    throttleCurrentPlayers();
+    Steam::fake()->tooManyRequests(120);
 
     $job = queuedJob();
 
@@ -113,7 +104,7 @@ it('releases the job for the window a 429 names', function (?string $key): void 
 it('holds the next job back for the rest of a 429 window', function (): void {
     config()->set('steam-api.key');
 
-    throttleCurrentPlayers();
+    Steam::fake()->tooManyRequests(120);
 
     new RespectsSteamRateLimit()->handle(queuedJob(), fn (): int => Steam::stats()->currentPlayers(440));
 
@@ -133,7 +124,7 @@ it('holds the next job back for the rest of a 429 window', function (): void {
 });
 
 it('runs the next job under a key and releases it at the keyless request the limiter refuses', function (): void {
-    throttleCurrentPlayers();
+    Steam::fake()->tooManyRequests(120);
 
     new RespectsSteamRateLimit()->handle(queuedJob(), fn (): int => Steam::stats()->currentPlayers(440));
 

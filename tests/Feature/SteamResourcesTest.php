@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppNewsFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppVersionCheckFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetSteamLevelRequest;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamApps\AppVersionCheckFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamNews\AppNewsFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerSummaryFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUserStats\UserStatsFactory;
 
 mutates(SteamManager::class);
 
@@ -19,7 +19,7 @@ it('sends through the connector the fake sits on', function (): void {
         ->stats()->userStats(UserStatsFactory::new()->gameName('Dead by Daylight'))
         ->apps()->upToDateCheck(AppVersionCheckFactory::new())
         ->news()->appNews(AppNewsFactory::new()->total(3939))
-        ->webApi()->serverInfo(new DateTimeImmutable('2026-10-08 19:59:38 UTC'));
+        ->webApi()->serverTime(new DateTimeImmutable('2026-10-08 19:59:38 UTC'));
 
     expect(Steam::players()->steamLevel(steamId()))->toBe(42)
         ->and(Steam::users()->summaries([steamId()])[0]->personaName)->toBe('Gabe')

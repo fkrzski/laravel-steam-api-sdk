@@ -7,10 +7,8 @@ use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Support\Facades\Cache;
-use Saloon\Http\Faking\MockResponse;
 use Saloon\RateLimitPlugin\Limit;
 use Saloon\RateLimitPlugin\Stores\LaravelCacheStore;
 
@@ -336,7 +334,7 @@ it('rejects a cool-down that is not a whole number of seconds', function (mixed 
 it('refuses requests for the configured cool-down after a 429 without Retry-After', function (): void {
     config()->set('steam-api.rate_limit.cooldown', '300');
 
-    Steam::fake([GetNumberOfCurrentPlayersRequest::class => MockResponse::make([], 429)]);
+    Steam::fake()->tooManyRequests();
 
     $limit = refusedLimit(fn (): int => Steam::stats()->currentPlayers(440));
 

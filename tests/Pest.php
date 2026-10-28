@@ -3,14 +3,12 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\NewsItemFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamNews\NewsItemFactory;
+use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerSummaryFactory;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\Psr7\Response;
-use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\Senders\GuzzleSender;
 use Saloon\RateLimitPlugin\Limit;
 use Tests\NightwatchTestCase;
@@ -63,9 +61,7 @@ function spendDailyBudget(): void
  */
 function closedRateLimitWindow(): SteamRateLimitException
 {
-    Steam::fake([
-        GetNumberOfCurrentPlayersRequest::class => MockResponse::make([], 429, ['Retry-After' => '60']),
-    ]);
+    Steam::fake()->tooManyRequests(60);
 
     try {
         Steam::stats()->currentPlayers(440);
