@@ -30,7 +30,6 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\StatsFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\UsersFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\Fakes\WebApiFake;
 use Fkrzski\LaravelSteamApiSdk\Testing\SteamFake;
-use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Dto\AppNews;
 use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
 use Fkrzski\SteamApiSdk\Dto\GameSchema;
@@ -51,6 +50,7 @@ use Fkrzski\SteamApiSdk\Exceptions\SteamConnectionException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamUserNotFoundException;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
+use Saloon\Http\Faking\MockResponse;
 
 mutates(SteamFake::class, UsersFake::class, PlayersFake::class, StatsFake::class, AppsFake::class, NewsFake::class, WebApiFake::class);
 
@@ -230,7 +230,9 @@ it('fakes every web api endpoint through the chain', function (): void {
 
 it('chains from the array form', function (): void {
     Steam::fake([
-        ResolveVanityUrlRequest::class => SteamResponse::vanityUrl(steamId()),
+        ResolveVanityUrlRequest::class => MockResponse::make([
+            'response' => ['success' => 1, 'steamid' => '76561198000000000'],
+        ]),
     ])->players()->steamLevel(42);
 
     expect(Steam::users()->resolveVanityUrl('gabelogannewell')->value)->toBe('76561198000000000')
