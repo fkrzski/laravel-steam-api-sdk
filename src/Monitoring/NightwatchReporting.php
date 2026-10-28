@@ -19,6 +19,8 @@ use Saloon\Http\Senders\GuzzleSender;
  * GuzzleSender, and the base SDK wraps every sender in its own, so the bridge
  * attaches it instead. The provider picks the sender through this class and
  * `about` reports it the same way, so the two cannot disagree.
+ *
+ * @internal
  */
 final readonly class NightwatchReporting
 {

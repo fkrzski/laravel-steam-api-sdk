@@ -17,6 +17,8 @@ use Saloon\Contracts\Sender;
  * than left to {@see SteamConfig}, whose exceptions name its own properties
  * instead of the config key an application sets. The provider builds the
  * connector from these and `about` reports them, so the two cannot disagree.
+ *
+ * @internal
  */
 final readonly class HttpOptions
 {

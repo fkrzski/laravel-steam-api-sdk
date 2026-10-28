@@ -15,6 +15,8 @@ use Saloon\RateLimitPlugin\Limit;
  * The provider builds it once per connector, so midnight is taken when the
  * window opens: pinned at build time, a job running past midnight would open
  * the next window 24 hours from its first request instead.
+ *
+ * @internal
  */
 final class UtcDayLimit extends Limit
 {

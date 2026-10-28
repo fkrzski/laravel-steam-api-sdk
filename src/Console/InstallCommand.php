@@ -12,6 +12,8 @@ use Illuminate\Support\Str;
 /**
  * The `steam:install` command — publishes the config file and puts the API key
  * in `.env`. Neither step overwrites anything without asking.
+ *
+ * @internal
  */
 final class InstallCommand extends Command
 {

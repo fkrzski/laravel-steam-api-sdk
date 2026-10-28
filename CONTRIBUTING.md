@@ -18,6 +18,7 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 * Send a coherent commit history, making sure each individual commit in your pull request is meaningful.
 * You may need to [rebase](https://git-scm.com/book/en/v2/Git-Branching-Rebasing) to avoid merge conflicts.
 * Please remember that we follow [SemVer](http://semver.org/).
+* **Mark what the bridge builds `@internal`:** a class only the provider or `about` builds, and an exception's constructors. `InternalApiTest` fails without it.
 
 ## Changelog
 

@@ -12,6 +12,8 @@ use Illuminate\Contracts\Config\Repository as ConfigRepository;
  *
  * The listeners log through these and `about` reports them, so the two cannot
  * disagree.
+ *
+ * @internal
  */
 final readonly class LoggingOptions
 {

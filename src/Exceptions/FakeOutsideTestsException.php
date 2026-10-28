@@ -14,6 +14,7 @@ use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
  */
 final class FakeOutsideTestsException extends SteamApiException
 {
+    /** @internal */
     public function __construct()
     {
         parent::__construct(

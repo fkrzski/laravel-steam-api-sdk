@@ -15,6 +15,8 @@ use Saloon\RateLimitPlugin\Limit;
  * `env()` hands back strings, so every value is cast and checked here rather
  * than left to {@see SteamConfig}. The provider builds the connector from these
  * and `about` reports them, so the two cannot disagree.
+ *
+ * @internal
  */
 final readonly class RateLimitOptions
 {
