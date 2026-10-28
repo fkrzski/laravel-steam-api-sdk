@@ -12,7 +12,6 @@ use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
 use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
 use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerSummaryFactory;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Foundation\Exceptions\Handler;
@@ -121,9 +120,7 @@ it('renders a rejected server address as a 422', function (): void {
 });
 
 it('renders a spent quota as a 429 carrying Retry-After', function (): void {
-    Steam::fake([
-        GetNumberOfCurrentPlayersRequest::class => MockResponse::make([], 429, ['Retry-After' => '3600']),
-    ]);
+    Steam::fake()->tooManyRequests(3600);
 
     Route::get('steam/quota', fn (): int => Steam::stats()->currentPlayers(440));
 

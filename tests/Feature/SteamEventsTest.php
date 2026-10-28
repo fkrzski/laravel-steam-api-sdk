@@ -114,7 +114,7 @@ it('dispatches one failure carrying the exception the caller gets', function ():
 
 it('receives a 429 before it fails as a rate limit', function (): void {
     $events = recordSteamTraffic();
-    Steam::fake([MockResponse::make('', 429)]);
+    Steam::fake()->tooManyRequests();
 
     expect(fn (): array => Steam::users()->summaries([steamId()]))->toThrow(SteamRateLimitException::class)
         ->and(steamTraffic($events))->toBe([
