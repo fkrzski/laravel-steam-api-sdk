@@ -9,6 +9,7 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitOptionException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
+use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
@@ -260,12 +261,18 @@ it('renders a key the supported api list rejects as a 500', function (): void {
         ->assertExactJson(['message' => 'Server Error']);
 });
 
-it('renders an oversized batch as a 500', function (): void {
+it('renders an oversized batch built by hand as a 500', function (): void {
     config()->set('app.debug', false);
 
-    Route::get('steam/batch', fn (): array => Steam::users()->summaries(array_fill(0, 101, steamId())));
+    Steam::fake()->users()->summaries(PlayerSummaryFactory::new());
+
+    Route::get('steam/batch', fn (): int => Steam::send(
+        new GetPlayerSummariesRequest(array_fill(0, 101, steamId())),
+    )->status());
 
     $this->getJson('steam/batch')->assertStatus(500);
+
+    Steam::assertNothingSent();
 });
 
 it('keeps the missing key message out of the response body', function (): void {
