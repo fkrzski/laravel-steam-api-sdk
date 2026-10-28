@@ -8,29 +8,18 @@ use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppNewsFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\AppVersionCheckFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\UserStatsFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Http\Requests\IPlayerService\GetSteamLevelRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamApps\UpToDateCheckRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamNews\GetNewsForAppRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetUserStatsForGameRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamWebAPIUtil\GetServerInfoRequest;
 
 mutates(SteamManager::class);
 
 it('sends through the connector the fake sits on', function (): void {
-    Steam::fake([
-        GetSteamLevelRequest::class => SteamResponse::steamLevel(42),
-        GetPlayerSummariesRequest::class => SteamResponse::playerSummaries(
-            PlayerSummaryFactory::new()->personaName('Gabe'),
-        ),
-        GetUserStatsForGameRequest::class => SteamResponse::userStats(
-            UserStatsFactory::new()->gameName('Dead by Daylight'),
-        ),
-        UpToDateCheckRequest::class => SteamResponse::upToDateCheck(AppVersionCheckFactory::new()),
-        GetNewsForAppRequest::class => SteamResponse::appNews(AppNewsFactory::new()->total(3939)),
-        GetServerInfoRequest::class => SteamResponse::serverInfo(new DateTimeImmutable('2026-10-08 19:59:38 UTC')),
-    ]);
+    Steam::fake()
+        ->players()->steamLevel(42)
+        ->users()->summaries(PlayerSummaryFactory::new()->personaName('Gabe'))
+        ->stats()->userStats(UserStatsFactory::new()->gameName('Dead by Daylight'))
+        ->apps()->upToDateCheck(AppVersionCheckFactory::new())
+        ->news()->appNews(AppNewsFactory::new()->total(3939))
+        ->webApi()->serverInfo(new DateTimeImmutable('2026-10-08 19:59:38 UTC'));
 
     expect(Steam::players()->steamLevel(steamId()))->toBe(42)
         ->and(Steam::users()->summaries([steamId()])[0]->personaName)->toBe('Gabe')
@@ -47,9 +36,7 @@ it('sends through the connector the fake sits on', function (): void {
 it('honours a fake installed after the resource was reached', function (): void {
     $players = Steam::players();
 
-    Steam::fake([
-        GetSteamLevelRequest::class => SteamResponse::steamLevel(42),
-    ]);
+    Steam::fake()->players()->steamLevel(42);
 
     expect($players->steamLevel(steamId()))->toBe(42);
 

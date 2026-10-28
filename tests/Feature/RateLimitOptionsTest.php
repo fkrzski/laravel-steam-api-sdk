@@ -6,7 +6,6 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitOptionException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
-use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
 use Fkrzski\SteamApiSdk\SteamConnector;
@@ -179,7 +178,7 @@ it('meters a connector without an api key once limits are configured', function 
         'steam-api.rate_limit.limits' => [['allow' => 1, 'every' => 60]],
     ]);
 
-    Steam::fake([GetNumberOfCurrentPlayersRequest::class => SteamResponse::currentPlayers(12_345)]);
+    Steam::fake()->stats()->currentPlayers(12_345);
 
     Steam::stats()->currentPlayers(440);
 

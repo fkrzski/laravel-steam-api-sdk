@@ -5,11 +5,8 @@ declare(strict_types=1);
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Queue\Middleware\RespectsSteamRateLimit;
 use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Exceptions\ProfileNotPublicException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
-use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetUserGroupListRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUserStats\GetNumberOfCurrentPlayersRequest;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Jobs\FakeJob;
@@ -63,9 +60,7 @@ it('runs the job while the budget has room', function (): void {
 it('releases the job for what is left of a spent daily budget, sending nothing', function (): void {
     spendDailyBudget();
 
-    Steam::fake([
-        GetPlayerSummariesRequest::class => SteamResponse::playerSummaries(PlayerSummaryFactory::new()),
-    ]);
+    Steam::fake()->users()->summaries(PlayerSummaryFactory::new());
 
     $job = queuedJob();
     $ran = false;
@@ -171,7 +166,7 @@ it('floors a window that already closed at a second', function (): void {
 });
 
 it('lets every other steam failure through', function (): void {
-    Steam::fake([GetUserGroupListRequest::class => SteamResponse::profileNotPublic()]);
+    Steam::fake()->users()->groupsNotPublic();
 
     $job = queuedJob();
 
@@ -184,9 +179,7 @@ it('lets every other steam failure through', function (): void {
 it('leaves a job it cannot release to fail as it would without the middleware', function (): void {
     spendDailyBudget();
 
-    Steam::fake([
-        GetPlayerSummariesRequest::class => SteamResponse::playerSummaries(PlayerSummaryFactory::new()),
-    ]);
+    Steam::fake()->users()->summaries(PlayerSummaryFactory::new());
 
     $ran = false;
 
