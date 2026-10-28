@@ -16,6 +16,7 @@ use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
  */
 final class InvalidSteamLanguageException extends SteamApiException
 {
+    /** @internal */
     public function __construct(string $language)
     {
         parent::__construct(sprintf(

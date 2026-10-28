@@ -13,6 +13,8 @@ use Illuminate\Log\LogManager;
  *
  * A failure goes out at warning rather than error: the application may well
  * catch it, and one it does not still reaches the exception handler.
+ *
+ * @internal
  */
 final readonly class SteamTrafficLogger
 {

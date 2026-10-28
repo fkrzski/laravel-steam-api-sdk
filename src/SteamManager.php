@@ -39,6 +39,8 @@ use Saloon\Http\Response;
 final readonly class SteamManager implements SteamManagerContract
 {
     /**
+     * @internal
+     *
      * @param  Closure(): SteamConnector  $connectorResolver
      */
     public function __construct(

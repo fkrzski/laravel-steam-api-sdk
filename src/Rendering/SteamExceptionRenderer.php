@@ -39,13 +39,14 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
  * Turns an unhandled Steam failure into the HTTP response it deserves.
  *
  * Each method is registered as a render callback by {@see SteamServiceProvider},
- * which reflects on the parameter type to decide what it handles. Rebind this
- * class to swap the mapping; the provider resolves it from the container.
+ * which reflects on the parameter type to decide what it handles.
  *
  * Nothing is rendered here by hand — every method wraps the failure in the
  * matching {@see HttpException} and hands it back to Laravel's own handler, so
  * the application's error views, JSON negotiation and `Retry-After` header all
  * work exactly as they do for an `abort()`.
+ *
+ * @internal
  */
 final readonly class SteamExceptionRenderer
 {

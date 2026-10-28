@@ -15,6 +15,7 @@ use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
  */
 final class InvalidSteamLoggingOptionException extends SteamApiException
 {
+    /** @internal */
     public function __construct(string $option, mixed $value)
     {
         [$env, $expected] = match ($option) {

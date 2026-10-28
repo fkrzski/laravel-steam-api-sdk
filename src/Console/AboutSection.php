@@ -32,6 +32,8 @@ use Saloon\RateLimitPlugin\Stores\LaravelCacheStore;
  * Every value is a closure, and the section itself is registered by class name,
  * so nothing here runs until the command renders. Resolving the connector and
  * reading the rate-limit counter out of the cache must never happen on boot.
+ *
+ * @internal
  */
 final readonly class AboutSection
 {
