@@ -95,7 +95,12 @@ final readonly class HttpOptions
             ? filter_var($value, FILTER_VALIDATE_FLOAT, ['options' => ['min_range' => 0]])
             : false;
 
-        return $seconds === false ? throw new InvalidSteamHttpOptionException($option, $value) : $seconds;
+        // Guzzle counts whole milliseconds in an int, so the base SDK refuses what rounds to none or overflows it.
+        if ($seconds === false || ($seconds > 0 && $seconds < 0.001) || $seconds * 1000 >= PHP_INT_MAX) {
+            throw new InvalidSteamHttpOptionException($option, $value);
+        }
+
+        return $seconds;
     }
 
     private function wholeNumber(string $option, int $min): ?int

@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - An answer that is not JSON or lacks its envelope raises `UnreadableResponseException`, and a DTO the SDK cannot build fails the call, with `SteamRequestFailed` dispatched once for both ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146), [#153](https://github.com/fkrzski/laravel-steam-api-sdk/issues/153)).
 - A 429 without `Retry-After` holds requests back for the whole `steam-api.rate_limit.cooldown`, and `Retry-After: 0` for a second ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
 - `AsSteamId` stores a padded Steam ID trimmed, as `SteamIdRule` checks it, where a value `->strict()` let through threw `InvalidSteamIdException` on set ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
+- A positive `steam-api.http` timeout under a millisecond, or of `PHP_INT_MAX / 1000` seconds or more, raises `InvalidSteamHttpOptionException` naming its key and reads `INVALID` in `php artisan about`, since Guzzle cannot count it in whole milliseconds ([#152](https://github.com/fkrzski/laravel-steam-api-sdk/issues/152)).
 
 ## [0.9.0] - 2026-10-14
 
