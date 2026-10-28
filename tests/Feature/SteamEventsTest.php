@@ -6,8 +6,6 @@ use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestFailed;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestSending;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamResponseReceived;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
@@ -58,7 +56,7 @@ it('dispatches a sending and a received event for every attempt', function (): v
     $events = recordSteamTraffic();
     Steam::fake([
         MockResponse::make('', 500),
-        SteamResponse::playerSummaries(PlayerSummaryFactory::new()),
+        MockResponse::make(['response' => ['players' => []]]),
     ]);
 
     Steam::users()->summaries([steamId()]);

@@ -8,8 +8,6 @@ use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLoggingOptionException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
 use Fkrzski\LaravelSteamApiSdk\Logging\SteamTrafficLogger;
-use Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory;
-use Fkrzski\LaravelSteamApiSdk\Testing\SteamResponse;
 use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
@@ -128,7 +126,7 @@ it('logs every response at debug with the key-free query in context', function (
     $handler = logSteamTraffic(responses: true);
     Steam::fake([
         MockResponse::make('', 500),
-        SteamResponse::playerSummaries(PlayerSummaryFactory::new()),
+        MockResponse::make(['response' => ['players' => []]]),
     ]);
 
     Steam::users()->summaries([steamId()]);
