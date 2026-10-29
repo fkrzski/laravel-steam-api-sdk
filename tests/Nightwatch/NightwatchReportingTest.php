@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Fkrzski\LaravelSteamApiSdk\Console\AboutSection;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
+use Fkrzski\LaravelSteamApiSdk\SteamSettings;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\Http\Senders\SteamSender;
 use GuzzleHttp\Handler\MockHandler;
@@ -13,7 +14,7 @@ use Laravel\Nightwatch\Facades\Nightwatch;
 use Laravel\Nightwatch\Records\OutgoingRequest;
 use Saloon\Http\Senders\GuzzleSender;
 
-mutates(NightwatchReporting::class, AboutSection::class);
+mutates(NightwatchReporting::class, AboutSection::class, SteamSettings::class);
 
 /**
  * The URLs Nightwatch records from here on, read after the bridge's redaction.
@@ -76,6 +77,15 @@ it('reports to nightwatch while it is enabled', function (mixed $enabled): void 
     'true' => true,
     'set to null' => null,
     'a truthy string' => '1',
+]);
+
+it('sends through nightwatch only while no sender of your own is configured', function (mixed $sender, bool $sends): void {
+    config()->set('steam-api.http.sender', $sender);
+
+    expect(steamSettings()->sendsThroughNightwatch())->toBe($sends);
+})->with([
+    'unset' => [null, true],
+    'a sender of your own' => [GuzzleSender::class, false],
 ]);
 
 it('sends through the base sdk guzzle while nightwatch is disabled', function (mixed $enabled): void {

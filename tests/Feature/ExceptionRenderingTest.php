@@ -2,10 +2,7 @@
 
 declare(strict_types=1);
 
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLoggingOptionException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitOptionException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
@@ -295,26 +292,10 @@ it('renders a rejected language as a 500', function (): void {
 });
 
 // Called directly: through a route, an exception nothing renders is the same bare 500.
-it('renders a rejected http option as a 500', function (): void {
+it('renders a rejected config value as a 500', function (): void {
     config()->set('app.debug', false);
 
-    $response = renderer()->misconfigured(new InvalidSteamHttpOptionException('retry.tries', '0'), request());
-
-    expect($response?->getStatusCode())->toBe(500);
-});
-
-it('renders a rejected rate limit option as a 500', function (): void {
-    config()->set('app.debug', false);
-
-    $response = renderer()->misconfigured(InvalidSteamRateLimitOptionException::store('redis-x'), request());
-
-    expect($response?->getStatusCode())->toBe(500);
-});
-
-it('renders a rejected logging option as a 500', function (): void {
-    config()->set('app.debug', false);
-
-    $response = renderer()->misconfigured(new InvalidSteamLoggingOptionException('channel', 'papertrail-x'), request());
+    $response = renderer()->misconfigured(InvalidSteamConfigException::option('http.retry.tries', '0'), request());
 
     expect($response?->getStatusCode())->toBe(500);
 });
@@ -322,7 +303,7 @@ it('renders a rejected logging option as a 500', function (): void {
 it('leaves a misconfiguration to the debug page while debugging', function (): void {
     config()->set('app.debug', true);
 
-    expect(renderer()->misconfigured(new InvalidSteamLanguageException('klingon'), request()))->toBeNull();
+    expect(renderer()->misconfigured(InvalidSteamConfigException::language('klingon'), request()))->toBeNull();
 });
 
 it('renders a misconfiguration whatever the flag says', function (): void {
@@ -330,7 +311,7 @@ it('renders a misconfiguration whatever the flag says', function (): void {
 
     bootExceptionRenderers();
 
-    $response = renderer()->misconfigured(new InvalidSteamLanguageException('klingon'), request());
+    $response = renderer()->misconfigured(InvalidSteamConfigException::language('klingon'), request());
 
     expect($response?->getStatusCode())->toBe(500);
 });

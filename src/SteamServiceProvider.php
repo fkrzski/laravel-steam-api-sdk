@@ -12,16 +12,11 @@ use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestFailed;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestSending;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamResponseReceived;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
-use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
 use Fkrzski\LaravelSteamApiSdk\Localization\LocaleLanguageResolver;
-use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
 use Fkrzski\LaravelSteamApiSdk\Logging\SteamTrafficLogger;
 use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
-use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\Hooks\RequestSending;
 use Fkrzski\SteamApiSdk\Hooks\ResponseReceived;
 use Fkrzski\SteamApiSdk\SteamConfig;
@@ -48,22 +43,21 @@ final class SteamServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/steam-api.php', 'steam-api');
 
         $this->app->scoped(SteamConnector::class, function (Application $app): SteamConnector {
-            $http = $app->make(HttpOptions::class);
-            $rateLimit = $app->make(RateLimitOptions::class);
-            $app->make(LoggingOptions::class)->validate();
+            $settings = $app->make(SteamSettings::class);
+            $settings->validateLogging();
 
             return $this->dispatchEvents(new SteamConnector(new SteamConfig(
-                apiKey: $this->steamApiKey(),
-                rateLimitStore: new LaravelCacheStore(Cache::store($rateLimit->store())),
-                language: $this->steamLanguage(),
-                connectTimeout: $http->connectTimeout(),
-                requestTimeout: $http->requestTimeout(),
-                tries: $http->tries(),
-                retryInterval: $http->retryInterval(),
-                exponentialBackoff: $http->exponentialBackoff(),
-                rateLimits: $rateLimit->limits(),
-                sender: $this->steamSender($app, $http->sender()),
-                tooManyRequestsCooldown: $rateLimit->cooldown(),
+                apiKey: $settings->apiKey(),
+                rateLimitStore: new LaravelCacheStore(Cache::store($settings->rateLimitStore())),
+                language: $settings->language(),
+                connectTimeout: $settings->connectTimeout(),
+                requestTimeout: $settings->requestTimeout(),
+                tries: $settings->tries(),
+                retryInterval: $settings->retryInterval(),
+                exponentialBackoff: $settings->exponentialBackoff(),
+                rateLimits: $settings->rateLimits(),
+                sender: $this->steamSender($app, $settings),
+                tooManyRequestsCooldown: $settings->rateLimitCooldown(),
             )), $app);
         });
 
@@ -188,7 +182,7 @@ final class SteamServiceProvider extends ServiceProvider
 
             $handler->renderable($renderer->misconfigured(...));
 
-            if (config('steam-api.exceptions.render', true) === false) {
+            if (! $this->app->make(SteamSettings::class)->rendersExceptions()) {
                 return;
             }
 
@@ -201,34 +195,22 @@ final class SteamServiceProvider extends ServiceProvider
     }
 
     /**
-     * The configured Steam Web API key, null when none is set.
-     *
-     * A key that is unset, blank or not a string is not an error here: the
-     * connector still has to be built for the endpoints Steam serves
-     * anonymously, and it refuses the requests that do need one itself.
-     * Null rather than blank, because {@see SteamConfig} rejects a blank key.
-     */
-    private function steamApiKey(): ?string
-    {
-        $apiKey = config('steam-api.key');
-        $apiKey = is_string($apiKey) ? trim($apiKey) : '';
-
-        return $apiKey === '' ? null : $apiKey;
-    }
-
-    /**
      * The configured sender, built by the container each time the connector is,
-     * so a binding of its class decides how. Left unset, it is a GuzzleSender
-     * reporting to Nightwatch while Nightwatch is enabled, or null for the base SDK's.
+     * so a binding of its class decides how. Left unset, it is Nightwatch's
+     * GuzzleSender while the settings say so, or null for the base SDK's.
      *
      * @throws UnexpectedValueException when a binding hands back something else
      */
-    private function steamSender(Application $app, ?string $class): ?Sender
+    private function steamSender(Application $app, SteamSettings $settings): ?Sender
     {
-        if ($class === null) {
-            $nightwatch = $app->make(NightwatchReporting::class);
+        if ($settings->sendsThroughNightwatch()) {
+            return $app->make(NightwatchReporting::class)->sender();
+        }
 
-            return $nightwatch->enabled() ? $nightwatch->sender() : null;
+        $class = $settings->sender();
+
+        if ($class === null) {
+            return null;
         }
 
         $sender = $app->make($class);
@@ -242,44 +224,6 @@ final class SteamServiceProvider extends ServiceProvider
     }
 
     /**
-     * The default language, sent on every request that localises its payload.
-     *
-     * A configured code wins, an unset value falls to the locale, and one blanked
-     * out on purpose sends no language at all. Resolved from config alongside the
-     * key, so a rejected code surfaces on the first Steam call rather than at boot.
-     *
-     * @throws InvalidSteamLanguageException when the value is not one of Steam's codes
-     */
-    private function steamLanguage(): ?Language
-    {
-        $language = config('steam-api.language');
-
-        if ($language === null) {
-            return $this->localeLanguage();
-        }
-
-        $code = is_string($language) ? trim($language) : '';
-
-        if ($code === '') {
-            return null;
-        }
-
-        return Language::tryFrom($code) ?? throw new InvalidSteamLanguageException($code);
-    }
-
-    /**
-     * The locale is read once, when the connector is first resolved — the
-     * connector is scoped, so a later `setLocale()` does not reach it. Switching
-     * mid-request means passing the language to the call.
-     */
-    private function localeLanguage(): ?Language
-    {
-        $resolver = $this->app->make(SteamLanguageResolver::class);
-
-        return $resolver($this->app->getLocale());
-    }
-
-    /**
      * Bind the configured route parameter to a {@see SteamId} value object.
      *
      * The binder is resolved from the container so its behaviour can be swapped
@@ -287,12 +231,11 @@ final class SteamServiceProvider extends ServiceProvider
      */
     private function registerRouteBinding(): void
     {
-        if (config('steam-api.route_binding.enabled', false) !== true) {
+        $parameter = $this->app->make(SteamSettings::class)->routeParameter();
+
+        if ($parameter === null) {
             return;
         }
-
-        /** @var string $parameter */
-        $parameter = config('steam-api.route_binding.parameter', 'steamId');
 
         /** @var Router $router */
         $router = $this->app->make('router');

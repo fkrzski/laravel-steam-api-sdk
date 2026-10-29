@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+use Fkrzski\LaravelSteamApiSdk\SteamSettings;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
 use Fkrzski\SteamApiSdk\Testing\Factories\ISteamNews\NewsItemFactory;
 use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerSummaryFactory;
@@ -23,6 +24,11 @@ pest()->tia()->locally();
 function steamId(): SteamId
 {
     return SteamId::fromSteamId64('76561198000000000');
+}
+
+function steamSettings(): SteamSettings
+{
+    return app(SteamSettings::class);
 }
 
 /**

@@ -7,26 +7,22 @@ use Fkrzski\LaravelSteamApiSdk\Console\InstallCommand;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestFailed;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestSending;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamResponseReceived;
-use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
-use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
 use Fkrzski\LaravelSteamApiSdk\Logging\SteamTrafficLogger;
 use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
+use Fkrzski\LaravelSteamApiSdk\SteamSettings;
 
 dataset('classes only the bridge builds', function (): iterable {
     $classes = [
         AboutSection::class,
         InstallCommand::class,
-        HttpOptions::class,
-        LoggingOptions::class,
         SteamTrafficLogger::class,
         NightwatchReporting::class,
-        RateLimitOptions::class,
         UtcDayLimit::class,
         SteamExceptionRenderer::class,
+        SteamSettings::class,
     ];
 
     foreach ($classes as $class) {

@@ -2,26 +2,21 @@
 
 declare(strict_types=1);
 
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitOptionException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
+use Fkrzski\LaravelSteamApiSdk\SteamSettings;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Support\Facades\Cache;
 use Saloon\RateLimitPlugin\Limit;
 use Saloon\RateLimitPlugin\Stores\LaravelCacheStore;
 
-mutates(RateLimitOptions::class, InvalidSteamRateLimitOptionException::class, UtcDayLimit::class);
-
-function rateLimitOptions(): RateLimitOptions
-{
-    return app(RateLimitOptions::class);
-}
+mutates(SteamSettings::class, UtcDayLimit::class);
 
 function configuredLimit(int|string $key = 0): Limit
 {
-    return rateLimitOptions()->limits()[$key] ?? throw new LogicException(sprintf('No limit is configured under %s.', $key));
+    return steamSettings()->rateLimits()[$key] ?? throw new LogicException(sprintf('No limit is configured under %s.', $key));
 }
 
 /**
@@ -107,13 +102,13 @@ it('reads the trimmed store name', function (): void {
         'steam-api.rate_limit.store' => '  steam  ',
     ]);
 
-    expect(rateLimitOptions()->store())->toBe('steam');
+    expect(steamSettings()->rateLimitStore())->toBe('steam');
 });
 
 it('falls back to the default store for a store left unset', function (mixed $store): void {
     config()->set('steam-api.rate_limit.store', $store);
 
-    expect(rateLimitOptions()->store())->toBeNull();
+    expect(steamSettings()->rateLimitStore())->toBeNull();
 })->with([
     'null' => null,
     'empty string' => '',
@@ -123,16 +118,16 @@ it('falls back to the default store for a store left unset', function (mixed $st
 it('falls back to the defaults when the published config drops the options', function (): void {
     config()->set('steam-api.rate_limit', []);
 
-    expect(rateLimitOptions()->store())->toBeNull()
-        ->and(rateLimitOptions()->limits())->toBeNull()
-        ->and(rateLimitOptions()->cooldown())->toBe(60);
+    expect(steamSettings()->rateLimitStore())->toBeNull()
+        ->and(steamSettings()->rateLimits())->toBeNull()
+        ->and(steamSettings()->rateLimitCooldown())->toBe(60);
 });
 
 it('throws when the cache config defines no such store', function (mixed $store): void {
     config()->set('steam-api.rate_limit.store', $store);
 
     expect(fn (): SteamConnector => app(SteamConnector::class))
-        ->toThrow(InvalidSteamRateLimitOptionException::class, '"steam-api.rate_limit.store"');
+        ->toThrow(InvalidSteamConfigException::class, '"steam-api.rate_limit.store"');
 })->with([
     'an undefined name' => 'redis-x',
     'the null store' => 'null',
@@ -142,7 +137,7 @@ it('throws when the cache config defines no such store', function (mixed $store)
 ]);
 
 it('keeps the base sdk daily budget while limits are unset', function (): void {
-    expect(rateLimitOptions()->limits())->toBeNull()
+    expect(steamSettings()->rateLimits())->toBeNull()
         ->and(sendCountedRequest())->toEndWith(':100000_every_utc_midnight');
 });
 
@@ -273,7 +268,7 @@ it('rejects a limit it cannot build, naming the config key', function (mixed $li
     config()->set('steam-api.rate_limit.limits', $limits);
 
     expect(fn (): SteamConnector => app(SteamConnector::class))
-        ->toThrow(InvalidSteamRateLimitOptionException::class, $message);
+        ->toThrow(InvalidSteamConfigException::class, $message);
 })->with([
     'limits not a list' => ['ten', '"steam-api.rate_limit.limits" cannot be "ten".'],
     'an entry not an array' => [[5], '"steam-api.rate_limit.limits.0" cannot be 5.'],
@@ -304,13 +299,13 @@ it('keeps a rolling day apart from the one reset at 00:00 UTC', function (): voi
         ['allow' => 5, 'every' => 'day'],
     ]);
 
-    expect(rateLimitOptions()->limits())->toHaveCount(2);
+    expect(steamSettings()->rateLimits())->toHaveCount(2);
 });
 
 it('reads the cool-down', function (mixed $cooldown, int $seconds): void {
     config()->set('steam-api.rate_limit.cooldown', $cooldown);
 
-    expect(rateLimitOptions()->cooldown())->toBe($seconds);
+    expect(steamSettings()->rateLimitCooldown())->toBe($seconds);
 })->with([
     'unset' => [null, 60],
     'blank' => ['  ', 60],
@@ -322,7 +317,7 @@ it('rejects a cool-down that is not a whole number of seconds', function (mixed 
     config()->set('steam-api.rate_limit.cooldown', $cooldown);
 
     expect(fn (): SteamConnector => app(SteamConnector::class))
-        ->toThrow(InvalidSteamRateLimitOptionException::class, '"steam-api.rate_limit.cooldown"');
+        ->toThrow(InvalidSteamConfigException::class, '"steam-api.rate_limit.cooldown"');
 })->with([
     'zero' => '0',
     'negative' => '-5',
@@ -343,55 +338,3 @@ it('refuses requests for the configured cool-down after a 429 without Retry-Afte
 
     Steam::assertSentCount(1);
 });
-
-it('names the config key, the env var and the fix', function (Closure $exception, string $message): void {
-    expect($exception())->getMessage()->toBe($message);
-})->with([
-    'store' => [
-        fn (): InvalidSteamRateLimitOptionException => InvalidSteamRateLimitOptionException::store('redis-x'),
-        'The configured Steam rate limit option "steam-api.rate_limit.store" cannot be "redis-x". Set '
-        .'STEAM_API_RATE_LIMIT_STORE in your .env file, or that config value, to a store name from "cache.stores", '
-        .'or leave it unset for the default store.',
-    ],
-    'cool-down' => [
-        fn (): InvalidSteamRateLimitOptionException => InvalidSteamRateLimitOptionException::cooldown('0'),
-        'The configured Steam rate limit option "steam-api.rate_limit.cooldown" cannot be "0". Set '
-        .'STEAM_API_RATE_LIMIT_COOLDOWN in your .env file, or that config value, to the seconds a 429 without '
-        .'Retry-After holds requests back, at least 1.',
-    ],
-    'limits' => [
-        fn (): InvalidSteamRateLimitOptionException => InvalidSteamRateLimitOptionException::limits('ten'),
-        'The configured Steam rate limit option "steam-api.rate_limit.limits" cannot be "ten". Set that config value '
-        ."to a list of limits, [] to meter nothing locally, or null for Steam's daily budget.",
-    ],
-    'entry' => [
-        fn (): InvalidSteamRateLimitOptionException => InvalidSteamRateLimitOptionException::entry(0, 5),
-        'The configured Steam rate limit option "steam-api.rate_limit.limits.0" cannot be 5. Set that config value '
-        .'to an array of "allow", "every" and an optional "sleep".',
-    ],
-    'unknown key' => [
-        fn (): InvalidSteamRateLimitOptionException => InvalidSteamRateLimitOptionException::unknownKey(0, 'evry', 60),
-        'The configured Steam rate limit option "steam-api.rate_limit.limits.0.evry" cannot be 60. Remove it, '
-        .'since a limit takes only "allow", "every" and "sleep".',
-    ],
-    'allow' => [
-        fn (): InvalidSteamRateLimitOptionException => InvalidSteamRateLimitOptionException::allow('daily', 0),
-        'The configured Steam rate limit option "steam-api.rate_limit.limits.daily.allow" cannot be 0. Set that '
-        .'config value to the requests the window allows, at least 1.',
-    ],
-    'every' => [
-        fn (): InvalidSteamRateLimitOptionException => InvalidSteamRateLimitOptionException::every(0, 'week'),
-        'The configured Steam rate limit option "steam-api.rate_limit.limits.0.every" cannot be "week". Set that '
-        .'config value to the window in seconds, at least 1, or "day" for one that resets at 00:00 UTC.',
-    ],
-    'sleep' => [
-        fn (): InvalidSteamRateLimitOptionException => InvalidSteamRateLimitOptionException::sleep(0, 'maybe'),
-        'The configured Steam rate limit option "steam-api.rate_limit.limits.0.sleep" cannot be "maybe". Set that '
-        .'config value to true to wait the window out, or false to throw.',
-    ],
-    'duplicate' => [
-        fn (): InvalidSteamRateLimitOptionException => InvalidSteamRateLimitOptionException::duplicate(2, 0),
-        'The configured Steam rate limits "steam-api.rate_limit.limits.0" and "steam-api.rate_limit.limits.2" share '
-        .'"allow" and "every", so they would count as one. Remove one, or change either.',
-    ],
-]);

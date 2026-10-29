@@ -5,17 +5,9 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk\Console;
 
 use Closure;
-use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLoggingOptionException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitOptionException;
-use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
-use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
-use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
-use Fkrzski\SteamApiSdk\Enums\Language;
+use Fkrzski\LaravelSteamApiSdk\SteamSettings;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Container\BindingResolutionException;
@@ -71,10 +63,7 @@ final readonly class AboutSection
     public function __construct(
         private Application $app,
         private ConfigRepository $config,
-        private HttpOptions $http,
-        private RateLimitOptions $rateLimit,
-        private LoggingOptions $logging,
-        private NightwatchReporting $nightwatch,
+        private SteamSettings $settings,
     ) {}
 
     /**
@@ -98,75 +87,47 @@ final readonly class AboutSection
 
     /**
      * Whether the binding claims a route parameter, and which one.
-     *
-     * Repeats the provider's strict check so the row cannot report a state the
-     * provider does not act on.
      */
     private function routeBinding(): string
     {
-        if ($this->config->get('steam-api.route_binding.enabled') !== true) {
-            return self::DISABLED;
-        }
+        $parameter = $this->settings->routeParameter();
 
-        $parameter = $this->config->get('steam-api.route_binding.parameter');
-
-        return sprintf('enabled (%s)', is_string($parameter) ? $parameter : self::UNKNOWN);
+        return $parameter === null ? self::DISABLED : sprintf('enabled (%s)', $parameter);
     }
 
     /**
      * The default language every localised request carries, and which of the two
      * answers it is — a resolved language and a configured one are not the same.
-     *
-     * Repeats the provider's rule so the row cannot report a state the provider
-     * does not act on. `INVALID` names no source because only config can carry one.
+     * `INVALID` names no source because only config can carry one.
      */
     private function language(): string
     {
-        $language = $this->config->get('steam-api.language');
-
-        if ($language === null) {
-            return $this->localeLanguage();
+        try {
+            $language = $this->settings->language();
+        } catch (InvalidSteamConfigException) {
+            return self::INVALID;
         }
-
-        $code = is_string($language) ? trim($language) : '';
-
-        if ($code === '') {
-            return self::MISSING.' (config)';
-        }
-
-        return Language::tryFrom($code) instanceof Language ? $code.' (config)' : self::INVALID;
-    }
-
-    /**
-     * Resolved through the container rather than built here, so the row reports
-     * the table the connector is actually handed.
-     */
-    private function localeLanguage(): string
-    {
-        $locale = $this->app->getLocale();
-        $resolver = $this->app->make(SteamLanguageResolver::class);
-        $language = $resolver($locale);
 
         return sprintf(
-            '%s (locale: %s)',
-            $language instanceof Language ? $language->value : self::MISSING,
-            $locale,
+            '%s (%s)',
+            $language->value ?? self::MISSING,
+            $this->settings->languageFollowsLocale() ? 'locale: '.$this->app->getLocale() : 'config',
         );
     }
 
     /**
      * How long the connector waits to connect, then for the whole request.
      *
-     * Read through the {@see HttpOptions} the provider builds the connector from,
+     * Read through the {@see SteamSettings} the provider builds the connector from,
      * so the row cannot report a timeout the connector is not given. An unset one
      * falls back to Saloon's default, as it does on the connector.
      */
     private function timeouts(): string
     {
         try {
-            $connect = $this->http->connectTimeout();
-            $request = $this->http->requestTimeout();
-        } catch (InvalidSteamHttpOptionException) {
+            $connect = $this->settings->connectTimeout();
+            $request = $this->settings->requestTimeout();
+        } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 
@@ -193,10 +154,10 @@ final readonly class AboutSection
     private function retries(): string
     {
         try {
-            $tries = $this->http->tries();
-            $interval = $this->http->retryInterval();
-            $backoff = $this->http->exponentialBackoff();
-        } catch (InvalidSteamHttpOptionException) {
+            $tries = $this->settings->tries();
+            $interval = $this->settings->retryInterval();
+            $backoff = $this->settings->exponentialBackoff();
+        } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 
@@ -219,26 +180,27 @@ final readonly class AboutSection
     private function sender(): string
     {
         try {
-            $sender = $this->http->sender();
-        } catch (InvalidSteamHttpOptionException) {
+            $sender = $this->settings->sender();
+            $nightwatch = $this->settings->sendsThroughNightwatch();
+        } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 
-        return $sender ?? ($this->nightwatch->enabled() ? self::NIGHTWATCH_SENDER : self::DEFAULT_SENDER).' (default)';
+        return $sender ?? ($nightwatch ? self::NIGHTWATCH_SENDER : self::DEFAULT_SENDER).' (default)';
     }
 
     /**
      * The channel Steam traffic is logged to, and whether responses go there too.
      *
-     * Read through the {@see LoggingOptions} the listeners log through, so the row
+     * Read through the {@see SteamSettings} the listeners log through, so the row
      * cannot name a channel the traffic does not reach.
      */
     private function logging(): string
     {
         try {
-            $channel = $this->logging->channel();
-            $responses = $this->logging->responses();
-        } catch (InvalidSteamLoggingOptionException) {
+            $channel = $this->settings->logChannel();
+            $responses = $this->settings->logResponses();
+        } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 
@@ -257,7 +219,7 @@ final readonly class AboutSection
      */
     private function maskedApiKey(): string
     {
-        $key = $this->configuredApiKey();
+        $key = $this->settings->apiKey();
 
         if ($key === null) {
             return self::MISSING;
@@ -273,31 +235,17 @@ final readonly class AboutSection
     }
 
     /**
-     * The configured key, null when none is set.
-     *
-     * Repeats the provider's rule so neither row can report a key the connector
-     * is not built with.
-     */
-    private function configuredApiKey(): ?string
-    {
-        $key = $this->config->get('steam-api.key');
-        $key = is_string($key) ? trim($key) : '';
-
-        return $key === '' ? null : $key;
-    }
-
-    /**
      * The cache store the rate-limit counter is kept in.
      *
-     * Read through the {@see RateLimitOptions} the provider builds the plugin's
+     * Read through the {@see SteamSettings} the provider builds the plugin's
      * {@see LaravelCacheStore} from, so the row cannot name a store the counter
      * is not in. `(default)` while the option is unset and `cache.default` decides.
      */
     private function rateLimitStore(): string
     {
         try {
-            $store = $this->rateLimit->store();
-        } catch (InvalidSteamRateLimitOptionException) {
+            $store = $this->settings->rateLimitStore();
+        } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 
@@ -320,8 +268,8 @@ final readonly class AboutSection
     private function remainingRequests(): string
     {
         try {
-            $configured = $this->rateLimit->limits();
-        } catch (InvalidSteamRateLimitOptionException) {
+            $configured = $this->settings->rateLimits();
+        } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 
@@ -329,7 +277,7 @@ final readonly class AboutSection
             return self::NOT_METERED;
         }
 
-        if ($configured === null && $this->configuredApiKey() === null) {
+        if ($configured === null && $this->settings->apiKey() === null) {
             return self::NOT_METERED.' (no API key)';
         }
 
@@ -378,8 +326,7 @@ final readonly class AboutSection
 
             return array_map(static fn (Limit $limit): Limit => $limit->update($store), $limits);
         } catch (
-            InvalidSteamLanguageException|InvalidSteamHttpOptionException|InvalidSteamRateLimitOptionException
-            |InvalidSteamLoggingOptionException|BindingResolutionException|LimitException|JsonException
+            InvalidSteamConfigException|BindingResolutionException|LimitException|JsonException
         ) {
             return null;
         }
@@ -391,11 +338,11 @@ final readonly class AboutSection
     private function cooldown(): string
     {
         try {
-            $seconds = $this->rateLimit->cooldown();
-        } catch (InvalidSteamRateLimitOptionException) {
+            $seconds = $this->settings->rateLimitCooldown();
+        } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 
-        return $seconds === RateLimitOptions::DEFAULT_COOLDOWN ? $seconds.'s (default)' : $seconds.'s';
+        return $seconds === SteamSettings::DEFAULT_COOLDOWN ? $seconds.'s (default)' : $seconds.'s';
     }
 }
