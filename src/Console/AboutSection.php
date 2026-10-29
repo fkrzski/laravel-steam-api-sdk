@@ -6,10 +6,7 @@ namespace Fkrzski\LaravelSteamApiSdk\Console;
 
 use Closure;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLoggingOptionException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitOptionException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
 use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
 use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
@@ -167,7 +164,7 @@ final readonly class AboutSection
         try {
             $connect = $this->http->connectTimeout();
             $request = $this->http->requestTimeout();
-        } catch (InvalidSteamHttpOptionException) {
+        } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 
@@ -197,7 +194,7 @@ final readonly class AboutSection
             $tries = $this->http->tries();
             $interval = $this->http->retryInterval();
             $backoff = $this->http->exponentialBackoff();
-        } catch (InvalidSteamHttpOptionException) {
+        } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 
@@ -221,7 +218,7 @@ final readonly class AboutSection
     {
         try {
             $sender = $this->http->sender();
-        } catch (InvalidSteamHttpOptionException) {
+        } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 
@@ -239,7 +236,7 @@ final readonly class AboutSection
         try {
             $channel = $this->logging->channel();
             $responses = $this->logging->responses();
-        } catch (InvalidSteamLoggingOptionException) {
+        } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 
@@ -298,7 +295,7 @@ final readonly class AboutSection
     {
         try {
             $store = $this->rateLimit->store();
-        } catch (InvalidSteamRateLimitOptionException) {
+        } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 
@@ -322,7 +319,7 @@ final readonly class AboutSection
     {
         try {
             $configured = $this->rateLimit->limits();
-        } catch (InvalidSteamRateLimitOptionException) {
+        } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 
@@ -379,8 +376,7 @@ final readonly class AboutSection
 
             return array_map(static fn (Limit $limit): Limit => $limit->update($store), $limits);
         } catch (
-            InvalidSteamLanguageException|InvalidSteamHttpOptionException|InvalidSteamRateLimitOptionException
-            |InvalidSteamLoggingOptionException|BindingResolutionException|LimitException|JsonException
+            InvalidSteamConfigException|BindingResolutionException|LimitException|JsonException
         ) {
             return null;
         }
@@ -393,7 +389,7 @@ final readonly class AboutSection
     {
         try {
             $seconds = $this->rateLimit->cooldown();
-        } catch (InvalidSteamRateLimitOptionException) {
+        } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 

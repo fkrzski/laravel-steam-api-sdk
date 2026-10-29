@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Fkrzski\LaravelSteamApiSdk\Http;
 
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamHttpOptionException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use ReflectionClass;
@@ -58,7 +58,7 @@ final readonly class HttpOptions
 
         // filter_var() reads an unset value as false, which is the default.
         return filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE)
-            ?? throw new InvalidSteamHttpOptionException('retry.exponential_backoff', $value);
+            ?? throw InvalidSteamConfigException::option('http.retry.exponential_backoff', $value);
     }
 
     /**
@@ -77,7 +77,7 @@ final readonly class HttpOptions
         $class = is_string($value) ? trim($value) : $value;
 
         if (! is_string($class) || ! is_subclass_of($class, Sender::class)) {
-            throw new InvalidSteamHttpOptionException('sender', $value);
+            throw InvalidSteamConfigException::option('http.sender', $value);
         }
 
         // The container keys bindings by the declared name, which "\App\…" or another casing would miss.
@@ -99,7 +99,7 @@ final readonly class HttpOptions
 
         // Guzzle counts whole milliseconds in an int, so the base SDK refuses what rounds to none or overflows it.
         if ($seconds === false || ($seconds > 0 && $seconds < 0.001) || $seconds * 1000 >= PHP_INT_MAX) {
-            throw new InvalidSteamHttpOptionException($option, $value);
+            throw InvalidSteamConfigException::option('http.'.$option, $value);
         }
 
         return $seconds;
@@ -117,7 +117,7 @@ final readonly class HttpOptions
             ? filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => $min]])
             : false;
 
-        return $number === false ? throw new InvalidSteamHttpOptionException($option, $value) : $number;
+        return $number === false ? throw InvalidSteamConfigException::option('http.'.$option, $value) : $number;
     }
 
     /**

@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
 use Fkrzski\SteamApiSdk\Dto\AppNews;
@@ -267,7 +267,7 @@ it('throws when the configured language is not one of steams codes', function (s
     config()->set('steam-api.language', $language);
 
     expect(fn (): SteamConnector => app(SteamConnector::class))
-        ->toThrow(InvalidSteamLanguageException::class);
+        ->toThrow(InvalidSteamConfigException::class);
 })->with([
     'an iso code' => 'en',
     'a case name' => 'Korean',
@@ -279,9 +279,9 @@ it('names the env var, the config key and the rejected code in the exception', f
 
     $resolve = fn (): SteamConnector => app(SteamConnector::class);
 
-    expect($resolve)->toThrow(InvalidSteamLanguageException::class, 'STEAM_API_LANGUAGE')
-        ->and($resolve)->toThrow(InvalidSteamLanguageException::class, 'steam-api.language')
-        ->and($resolve)->toThrow(InvalidSteamLanguageException::class, 'klingon');
+    expect($resolve)->toThrow(InvalidSteamConfigException::class, 'STEAM_API_LANGUAGE')
+        ->and($resolve)->toThrow(InvalidSteamConfigException::class, 'steam-api.language')
+        ->and($resolve)->toThrow(InvalidSteamConfigException::class, 'klingon');
 });
 
 it('does not require the api key to reach the connector', function (): void {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestFailed;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamResponseReceived;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLoggingOptionException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
 use Fkrzski\LaravelSteamApiSdk\Logging\SteamTrafficLogger;
@@ -19,7 +19,7 @@ use Monolog\Logger;
 use Monolog\LogRecord;
 use Saloon\Http\Faking\MockResponse;
 
-mutates(LoggingOptions::class, SteamTrafficLogger::class, InvalidSteamLoggingOptionException::class);
+mutates(LoggingOptions::class, SteamTrafficLogger::class);
 
 function loggingOptions(): LoggingOptions
 {
@@ -224,7 +224,7 @@ it('throws when the logging config defines no such channel', function (mixed $ch
     config()->set('steam-api.logging.channel', $channel);
 
     expect(fn (): SteamConnector => app(SteamConnector::class))
-        ->toThrow(InvalidSteamLoggingOptionException::class);
+        ->toThrow(InvalidSteamConfigException::class);
 })->with([
     'an undefined name' => 'papertrail-x',
     'a number' => 123,
@@ -236,23 +236,8 @@ it('throws when responses is not a boolean, even with no channel set', function 
     config()->set('steam-api.logging.responses', $value);
 
     expect(fn (): SteamConnector => app(SteamConnector::class))
-        ->toThrow(InvalidSteamLoggingOptionException::class);
+        ->toThrow(InvalidSteamConfigException::class);
 })->with([
     'a word' => 'maybe',
     'a number' => 2,
 ]);
-
-it('names the config key, the env var and the rejected channel', function (): void {
-    expect(new InvalidSteamLoggingOptionException('channel', 'papertrail-x'))->getMessage()->toBe(
-        'The configured Steam logging option "steam-api.logging.channel" cannot be "papertrail-x". Set '
-        .'STEAM_API_LOG_CHANNEL in your .env file, or that config value, to a channel name from '
-        .'"logging.channels", or leave it unset to log nothing.',
-    );
-});
-
-it('names the config key, the env var and the rejected responses value', function (): void {
-    expect(new InvalidSteamLoggingOptionException('responses', 'maybe'))->getMessage()->toBe(
-        'The configured Steam logging option "steam-api.logging.responses" cannot be "maybe". Set '
-        .'STEAM_API_LOG_RESPONSES in your .env file, or that config value, to true or false.',
-    );
-});

@@ -12,7 +12,7 @@ use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestFailed;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestSending;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamResponseReceived;
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLanguageException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
 use Fkrzski\LaravelSteamApiSdk\Localization\LocaleLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
@@ -248,7 +248,7 @@ final class SteamServiceProvider extends ServiceProvider
      * out on purpose sends no language at all. Resolved from config alongside the
      * key, so a rejected code surfaces on the first Steam call rather than at boot.
      *
-     * @throws InvalidSteamLanguageException when the value is not one of Steam's codes
+     * @throws InvalidSteamConfigException when the value is not one of Steam's codes
      */
     private function steamLanguage(): ?Language
     {
@@ -264,7 +264,7 @@ final class SteamServiceProvider extends ServiceProvider
             return null;
         }
 
-        return Language::tryFrom($code) ?? throw new InvalidSteamLanguageException($code);
+        return Language::tryFrom($code) ?? throw InvalidSteamConfigException::language($code);
     }
 
     /**

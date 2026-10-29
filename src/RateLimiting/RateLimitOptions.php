@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Fkrzski\LaravelSteamApiSdk\RateLimiting;
 
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamRateLimitOptionException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Saloon\RateLimitPlugin\Limit;
@@ -34,7 +34,7 @@ final readonly class RateLimitOptions
      * Checked against `cache.stores` before the cache manager sees the name, so
      * a typo is reported against this key rather than as a missing store.
      *
-     * @throws InvalidSteamRateLimitOptionException when the cache config defines no such store
+     * @throws InvalidSteamConfigException when the cache config defines no such store
      */
     public function store(): ?string
     {
@@ -47,7 +47,7 @@ final readonly class RateLimitOptions
 
         return is_string($name) && is_array($this->config->get('cache.stores.'.$name))
             ? $name
-            : throw InvalidSteamRateLimitOptionException::store($store);
+            : throw InvalidSteamConfigException::option('rate_limit.store', $store);
     }
 
     /**
@@ -67,7 +67,7 @@ final readonly class RateLimitOptions
         }
 
         if (! is_array($entries)) {
-            throw InvalidSteamRateLimitOptionException::limits($entries);
+            throw InvalidSteamConfigException::option('rate_limit.limits', $entries);
         }
 
         $limits = [];
@@ -80,7 +80,7 @@ final readonly class RateLimitOptions
             $earlier = $keys[$limit->getName()] ?? null;
 
             if ($earlier !== null) {
-                throw InvalidSteamRateLimitOptionException::duplicate($key, $earlier);
+                throw InvalidSteamConfigException::duplicateLimits($key, $earlier);
             }
 
             $keys[$limit->getName()] = $key;
@@ -102,37 +102,37 @@ final readonly class RateLimitOptions
             return self::DEFAULT_COOLDOWN;
         }
 
-        return $this->wholeNumber($value) ?? throw InvalidSteamRateLimitOptionException::cooldown($value);
+        return $this->wholeNumber($value) ?? throw InvalidSteamConfigException::option('rate_limit.cooldown', $value);
     }
 
     private function limit(int|string $key, mixed $entry): Limit
     {
         if (! is_array($entry)) {
-            throw InvalidSteamRateLimitOptionException::entry($key, $entry);
+            throw InvalidSteamConfigException::limit($key, null, $entry);
         }
 
         $unknown = array_key_first(array_diff_key($entry, self::ENTRY_KEYS));
 
         if ($unknown !== null) {
-            throw InvalidSteamRateLimitOptionException::unknownKey($key, $unknown, $entry[$unknown]);
+            throw InvalidSteamConfigException::limit($key, $unknown, $entry[$unknown]);
         }
 
         $allow = $entry['allow'] ?? null;
-        $requests = $this->wholeNumber($allow) ?? throw InvalidSteamRateLimitOptionException::allow($key, $allow);
+        $requests = $this->wholeNumber($allow) ?? throw InvalidSteamConfigException::limit($key, 'allow', $allow);
 
         $every = $entry['every'] ?? null;
 
         $limit = $every === 'day'
             ? UtcDayLimit::requests($requests)
             : Limit::allow($requests)->everySeconds(
-                $this->wholeNumber($every) ?? throw InvalidSteamRateLimitOptionException::every($key, $every),
+                $this->wholeNumber($every) ?? throw InvalidSteamConfigException::limit($key, 'every', $every),
             );
 
         $sleep = $entry['sleep'] ?? null;
 
         // filter_var() reads an unset value as false, which is the default.
         $sleeps = filter_var($sleep, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE)
-            ?? throw InvalidSteamRateLimitOptionException::sleep($key, $sleep);
+            ?? throw InvalidSteamConfigException::limit($key, 'sleep', $sleep);
 
         return $sleeps ? $limit->sleep() : $limit;
     }

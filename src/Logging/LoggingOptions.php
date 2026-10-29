@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Fkrzski\LaravelSteamApiSdk\Logging;
 
-use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamLoggingOptionException;
+use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 
 /**
@@ -50,7 +50,7 @@ final readonly class LoggingOptions
 
         return is_string($name) && is_array($this->config->get('logging.channels.'.$name))
             ? $name
-            : throw new InvalidSteamLoggingOptionException('channel', $channel);
+            : throw InvalidSteamConfigException::option('logging.channel', $channel);
     }
 
     /**
@@ -62,6 +62,6 @@ final readonly class LoggingOptions
 
         // filter_var() reads an unset value as false, which is the default.
         return filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE)
-            ?? throw new InvalidSteamLoggingOptionException('responses', $value);
+            ?? throw InvalidSteamConfigException::option('logging.responses', $value);
     }
 }
