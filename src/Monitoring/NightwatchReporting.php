@@ -17,8 +17,7 @@ use Saloon\Http\Senders\GuzzleSender;
  *
  * `saloonphp/laravel-plugin` only attaches Nightwatch's middleware to a bare
  * GuzzleSender, and the base SDK wraps every sender in its own, so the bridge
- * attaches it instead. The provider picks the sender through this class and
- * `about` reports it the same way, so the two cannot disagree.
+ * attaches it instead, whenever the settings say the connector sends through it.
  *
  * @internal
  */

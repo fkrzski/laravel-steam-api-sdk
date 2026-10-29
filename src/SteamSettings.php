@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace Fkrzski\LaravelSteamApiSdk;
 
+use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
+use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
+use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\SteamConfig;
+use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
+use Illuminate\Contracts\Foundation\Application;
 use ReflectionClass;
 use Saloon\Contracts\Sender;
 use Saloon\RateLimitPlugin\Limit;
@@ -27,11 +32,90 @@ final readonly class SteamSettings
 {
     public const int DEFAULT_COOLDOWN = 60;
 
+    private const string DEFAULT_ROUTE_PARAMETER = 'steamId';
+
     private const array LIMIT_KEYS = ['allow' => true, 'every' => true, 'sleep' => true];
 
     public function __construct(
         private ConfigRepository $config,
+        private Application $app,
+        private NightwatchReporting $nightwatch,
     ) {}
+
+    /**
+     * The configured Steam Web API key, null when none is set.
+     *
+     * A key that is unset, blank or not a string is not an error here: the
+     * connector still has to be built for the endpoints Steam serves
+     * anonymously, and it refuses the requests that do need one itself.
+     * Null rather than blank, because {@see SteamConfig} rejects a blank key.
+     */
+    public function apiKey(): ?string
+    {
+        $key = $this->value('key');
+
+        return is_string($key) ? $key : null;
+    }
+
+    /**
+     * The default language, sent on every request that localises its payload.
+     *
+     * A configured code wins, an unset value falls to the locale, and one blanked
+     * out on purpose sends no language at all. The locale is read when this is
+     * called, and the scoped connector calls it once, so a later `setLocale()`
+     * does not reach it — switching mid-request means passing the language to the call.
+     *
+     * @throws InvalidSteamConfigException when the value is not one of Steam's codes
+     */
+    public function language(): ?Language
+    {
+        if ($this->languageFollowsLocale()) {
+            $resolver = $this->app->make(SteamLanguageResolver::class);
+
+            return $resolver($this->app->getLocale());
+        }
+
+        $code = $this->value('language');
+
+        if (! is_string($code)) {
+            return null;
+        }
+
+        return Language::tryFrom($code) ?? throw InvalidSteamConfigException::language($code);
+    }
+
+    /**
+     * Whether the language is left to the locale rather than set, or blanked out, in config.
+     */
+    public function languageFollowsLocale(): bool
+    {
+        return $this->config->get('steam-api.language') === null;
+    }
+
+    /**
+     * The route parameter resolved to a {@see SteamId}, null while the binding is off.
+     *
+     * The name is claimed application-wide, so only a literal `true` opts in.
+     */
+    public function routeParameter(): ?string
+    {
+        if ($this->config->get('steam-api.route_binding.enabled') !== true) {
+            return null;
+        }
+
+        $parameter = $this->value('route_binding.parameter');
+
+        return is_string($parameter) ? $parameter : self::DEFAULT_ROUTE_PARAMETER;
+    }
+
+    /**
+     * Whether a Steam failure renders as the status it maps to. Only a literal
+     * `false` turns it off.
+     */
+    public function rendersExceptions(): bool
+    {
+        return $this->config->get('steam-api.exceptions.render') !== false;
+    }
 
     /**
      * Null leaves Saloon's own default in place.
@@ -83,6 +167,15 @@ final readonly class SteamSettings
 
         // The container keys bindings by the declared name, which "\App\…" or another casing would miss.
         return new ReflectionClass($class)->getName();
+    }
+
+    /**
+     * Whether the connector sends through Nightwatch's GuzzleSender: a sender
+     * left unset reports to Nightwatch while that is enabled.
+     */
+    public function sendsThroughNightwatch(): bool
+    {
+        return $this->sender() === null && $this->nightwatch->enabled();
     }
 
     /**

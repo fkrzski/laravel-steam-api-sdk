@@ -5,12 +5,9 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk\Console;
 
 use Closure;
-use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
-use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
 use Fkrzski\LaravelSteamApiSdk\SteamSettings;
-use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Container\BindingResolutionException;
@@ -67,7 +64,6 @@ final readonly class AboutSection
         private Application $app,
         private ConfigRepository $config,
         private SteamSettings $settings,
-        private NightwatchReporting $nightwatch,
     ) {}
 
     /**
@@ -91,60 +87,31 @@ final readonly class AboutSection
 
     /**
      * Whether the binding claims a route parameter, and which one.
-     *
-     * Repeats the provider's strict check so the row cannot report a state the
-     * provider does not act on.
      */
     private function routeBinding(): string
     {
-        if ($this->config->get('steam-api.route_binding.enabled') !== true) {
-            return self::DISABLED;
-        }
+        $parameter = $this->settings->routeParameter();
 
-        $parameter = $this->config->get('steam-api.route_binding.parameter');
-        $parameter = is_string($parameter) ? trim($parameter) : '';
-
-        return sprintf('enabled (%s)', $parameter === '' ? 'steamId' : $parameter);
+        return $parameter === null ? self::DISABLED : sprintf('enabled (%s)', $parameter);
     }
 
     /**
      * The default language every localised request carries, and which of the two
      * answers it is — a resolved language and a configured one are not the same.
-     *
-     * Repeats the provider's rule so the row cannot report a state the provider
-     * does not act on. `INVALID` names no source because only config can carry one.
+     * `INVALID` names no source because only config can carry one.
      */
     private function language(): string
     {
-        $language = $this->config->get('steam-api.language');
-
-        if ($language === null) {
-            return $this->localeLanguage();
+        try {
+            $language = $this->settings->language();
+        } catch (InvalidSteamConfigException) {
+            return self::INVALID;
         }
-
-        $code = is_string($language) ? trim($language) : '';
-
-        if ($code === '') {
-            return self::MISSING.' (config)';
-        }
-
-        return Language::tryFrom($code) instanceof Language ? $code.' (config)' : self::INVALID;
-    }
-
-    /**
-     * Resolved through the container rather than built here, so the row reports
-     * the table the connector is actually handed.
-     */
-    private function localeLanguage(): string
-    {
-        $locale = $this->app->getLocale();
-        $resolver = $this->app->make(SteamLanguageResolver::class);
-        $language = $resolver($locale);
 
         return sprintf(
-            '%s (locale: %s)',
-            $language instanceof Language ? $language->value : self::MISSING,
-            $locale,
+            '%s (%s)',
+            $language->value ?? self::MISSING,
+            $this->settings->languageFollowsLocale() ? 'locale: '.$this->app->getLocale() : 'config',
         );
     }
 
@@ -214,11 +181,12 @@ final readonly class AboutSection
     {
         try {
             $sender = $this->settings->sender();
+            $nightwatch = $this->settings->sendsThroughNightwatch();
         } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 
-        return $sender ?? ($this->nightwatch->enabled() ? self::NIGHTWATCH_SENDER : self::DEFAULT_SENDER).' (default)';
+        return $sender ?? ($nightwatch ? self::NIGHTWATCH_SENDER : self::DEFAULT_SENDER).' (default)';
     }
 
     /**
@@ -251,7 +219,7 @@ final readonly class AboutSection
      */
     private function maskedApiKey(): string
     {
-        $key = $this->configuredApiKey();
+        $key = $this->settings->apiKey();
 
         if ($key === null) {
             return self::MISSING;
@@ -264,20 +232,6 @@ final readonly class AboutSection
         }
 
         return $mask.mb_substr($key, -self::VISIBLE_KEY_CHARACTERS);
-    }
-
-    /**
-     * The configured key, null when none is set.
-     *
-     * Repeats the provider's rule so neither row can report a key the connector
-     * is not built with.
-     */
-    private function configuredApiKey(): ?string
-    {
-        $key = $this->config->get('steam-api.key');
-        $key = is_string($key) ? trim($key) : '';
-
-        return $key === '' ? null : $key;
     }
 
     /**
@@ -323,7 +277,7 @@ final readonly class AboutSection
             return self::NOT_METERED;
         }
 
-        if ($configured === null && $this->configuredApiKey() === null) {
+        if ($configured === null && $this->settings->apiKey() === null) {
             return self::NOT_METERED.' (no API key)';
         }
 

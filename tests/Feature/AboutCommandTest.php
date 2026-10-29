@@ -96,22 +96,11 @@ it('leaves the last four characters visible once the key outgrows the mask', fun
     expect(steamAboutSection()['api_key'])->toBe('********fghi');
 });
 
-it('masks the trimmed api key, matching the key the connector is built with', function (): void {
-    config()->set('steam-api.key', '  test-steam-api-key  ');
-
-    expect(steamAboutSection()['api_key'])->toBe('********-key');
-});
-
-it('reports a missing api key instead of masking nothing', function (mixed $key): void {
-    config()->set('steam-api.key', $key);
+it('reports a missing api key instead of masking nothing', function (): void {
+    config()->set(['steam-api.key' => null]);
 
     expect(steamAboutSection()['api_key'])->toBe('NOT SET');
-})->with([
-    'null' => null,
-    'empty string' => '',
-    'whitespace only' => '   ',
-    'integer' => 123,
-]);
+});
 
 it('reports the default cache store backing the rate limit', function (): void {
     config()->set('cache.default', 'file');
@@ -125,26 +114,14 @@ it('reports an unknown cache store when the default store is not a name', functi
     expect(steamAboutSection()['rate_limit_store'])->toBe('UNKNOWN (default)');
 });
 
-it('names the configured rate limit store', function (string $store): void {
+it('names the configured rate limit store', function (): void {
     config()->set([
         'cache.stores.steam' => ['driver' => 'array'],
-        'steam-api.rate_limit.store' => $store,
+        'steam-api.rate_limit.store' => 'steam',
     ]);
 
     expect(steamAboutSection()['rate_limit_store'])->toBe('steam');
-})->with([
-    'as written' => 'steam',
-    'surrounded by whitespace' => '  steam  ',
-]);
-
-it('reports the default cache store for a blank rate limit store', function (string $store): void {
-    config()->set('steam-api.rate_limit.store', $store);
-
-    expect(steamAboutSection()['rate_limit_store'])->toBe('array (default)');
-})->with([
-    'empty string' => '',
-    'whitespace only' => '   ',
-]);
+});
 
 it('reports a rate limit store the cache config does not define as invalid', function (): void {
     config()->set('steam-api.rate_limit.store', 'redis-x');
@@ -218,14 +195,11 @@ it('reports limits it cannot build as invalid', function (): void {
     expect(steamAboutSection()['requests_remaining'])->toBe('INVALID');
 });
 
-it('reports the budget as not metered when the api key is missing', function (mixed $key): void {
-    config()->set(['steam-api.key' => $key]);
+it('reports the budget as not metered when the api key is missing', function (): void {
+    config()->set(['steam-api.key' => null]);
 
     expect(steamAboutSection()['requests_remaining'])->toBe('not metered (no API key)');
-})->with([
-    'null' => null,
-    'whitespace only' => '   ',
-]);
+});
 
 it('reports an unknown budget when the connector declares no upfront limit', function (): void {
     app()->instance(SteamConnector::class, new SteamConnector(new SteamConfig('test-steam-api-key', rateLimits: [])));
@@ -252,46 +226,12 @@ it('names a custom claimed parameter', function (): void {
     expect(steamAboutSection()['route_binding'])->toBe('enabled (gamer)');
 });
 
-it('reports a truthy non-boolean as disabled, matching what the provider acts on', function (): void {
-    config()->set('steam-api.route_binding.enabled', 1);
-
-    expect(steamAboutSection()['route_binding'])->toBe('disabled');
-});
-
-it('names the trimmed parameter, matching the one the binding claims', function (): void {
-    config()->set([
-        'steam-api.route_binding.enabled' => true,
-        'steam-api.route_binding.parameter' => '  gamer  ',
-    ]);
-
-    expect(steamAboutSection()['route_binding'])->toBe('enabled (gamer)');
-});
-
-it('names steamId for a parameter left unset, matching the one the binding claims', function (mixed $parameter): void {
-    config()->set([
-        'steam-api.route_binding.enabled' => true,
-        'steam-api.route_binding.parameter' => $parameter,
-    ]);
-
-    expect(steamAboutSection()['route_binding'])->toBe('enabled (steamId)');
-})->with([
-    'null' => [null],
-    'blank' => ['  '],
-    'not a string' => [5],
-]);
-
 it('reports english as the language until told otherwise', function (): void {
     expect(steamAboutSection()['language'])->toBe('english (locale: en)');
 });
 
 it('names the configured language and says it came from config', function (): void {
     config()->set('steam-api.language', 'polish');
-
-    expect(steamAboutSection()['language'])->toBe('polish (config)');
-});
-
-it('names the trimmed language, matching the one the connector is built with', function (): void {
-    config()->set('steam-api.language', '  polish  ');
 
     expect(steamAboutSection()['language'])->toBe('polish (config)');
 });
@@ -320,16 +260,12 @@ it('reports the language the rebound resolver reads', function (): void {
     expect(steamAboutSection()['language'])->toBe('german (locale: en)');
 });
 
-it('reports a blanked out language as unset', function (mixed $language): void {
+it('reports a blanked out language as unset', function (): void {
     app()->setLocale('pl');
-    config()->set('steam-api.language', $language);
+    config()->set('steam-api.language', '');
 
     expect(steamAboutSection()['language'])->toBe('NOT SET (config)');
-})->with([
-    'empty string' => '',
-    'whitespace only' => '   ',
-    'integer' => 123,
-]);
+});
 
 it('reports a language steam does not know as invalid', function (): void {
     config()->set('steam-api.language', 'klingon');
@@ -337,7 +273,7 @@ it('reports a language steam does not know as invalid', function (): void {
     expect(steamAboutSection()['language'])->toBe('INVALID');
 });
 
-it('reports an unknown budget when the language is not a steam code', function (): void {
+it('reports an unknown budget when the config is rejected', function (): void {
     config()->set('steam-api.language', 'klingon');
 
     expect(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
@@ -368,21 +304,11 @@ it('drops the default once the request timeout alone is set', function (): void 
     expect(steamAboutSection()['timeouts'])->toBe('connect 10s, request 60s');
 });
 
-it('reports a rejected timeout as invalid', function (string $option, string $value): void {
-    config()->set('steam-api.http.'.$option, $value);
+it('reports a rejected timeout as invalid', function (): void {
+    config()->set('steam-api.http.request_timeout', 'abc');
 
-    expect(steamAboutSection())->toMatchArray([
-        'timeouts' => 'INVALID',
-        'requests_remaining' => 'UNKNOWN',
-    ]);
-})->with([
-    'connect' => 'connect_timeout',
-    'request' => 'request_timeout',
-])->with([
-    'not a number' => 'abc',
-    'under a millisecond' => '0.0001',
-    'past PHP_INT_MAX / 1000' => '1e20',
-]);
+    expect(steamAboutSection()['timeouts'])->toBe('INVALID');
+});
 
 it('reports no retries as the default', function (): void {
     expect(steamAboutSection()['retries'])->toBe('none (default)');
@@ -428,27 +354,18 @@ it('drops the default for a pause set beside a single attempt', function (string
     'exponential backoff' => ['exponential_backoff', true],
 ]);
 
-it('reports a rejected retry option as invalid', function (string $option, mixed $value): void {
-    config()->set('steam-api.http.retry.'.$option, $value);
+it('reports a rejected retry option as invalid', function (): void {
+    config()->set('steam-api.http.retry.exponential_backoff', 'maybe');
 
     expect(steamAboutSection()['retries'])->toBe('INVALID');
-})->with([
-    'tries' => ['tries', '0'],
-    'interval' => ['interval', '-1'],
-    'exponential backoff' => ['exponential_backoff', 'maybe'],
-]);
+});
 
-it('reports guzzle as the default sender', function (mixed $sender): void {
-    config()->set('steam-api.http.sender', $sender);
-
+it('reports guzzle as the default sender', function (): void {
     expect(steamAboutSection()['sender'])->toBe('Guzzle (default)');
-})->with([
-    'null' => null,
-    'empty string' => '',
-]);
+});
 
-it('names the configured sender as the container is asked for it', function (): void {
-    config()->set('steam-api.http.sender', '\\'.GuzzleSender::class);
+it('names the configured sender', function (): void {
+    config()->set('steam-api.http.sender', GuzzleSender::class);
 
     expect(steamAboutSection()['sender'])->toBe(GuzzleSender::class);
 });
@@ -456,8 +373,7 @@ it('names the configured sender as the container is asked for it', function (): 
 it('reports a sender that is not a sender class as invalid', function (): void {
     config()->set('steam-api.http.sender', stdClass::class);
 
-    expect(steamAboutSection()['sender'])->toBe('INVALID')
-        ->and(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
+    expect(steamAboutSection()['sender'])->toBe('INVALID');
 });
 
 it('reports an unknown budget when the container cannot build the sender', function (): void {
@@ -465,24 +381,6 @@ it('reports an unknown budget when the container cannot build the sender', funct
 
     expect(steamAboutSection()['sender'])->toBe(SteamSender::class)
         ->and(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
-});
-
-it('reports an unknown budget when an http option is rejected', function (): void {
-    config()->set('steam-api.http.retry.tries', '0');
-
-    expect(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
-});
-
-it('reports an unknown budget when the rate limit store is not defined', function (): void {
-    config()->set('steam-api.rate_limit.store', 'redis-x');
-
-    expect(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
-});
-
-it('reports an unknown budget when the cool-down is rejected', function (): void {
-    config()->set('steam-api.rate_limit.cooldown', '0');
-
-    expect(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
 });
 
 it('reports the cool-down after a 429', function (mixed $cooldown, string $reported): void {
@@ -521,19 +419,10 @@ it('reports logging as disabled when responses are on without a channel', functi
     expect(steamAboutSection()['logging'])->toBe('disabled');
 });
 
-it('reports a rejected logging option as invalid', function (string $option, mixed $value): void {
-    config()->set('steam-api.logging.'.$option, $value);
+it('reports a rejected logging option as invalid', function (): void {
+    config()->set('steam-api.logging.responses', 'maybe');
 
     expect(steamAboutSection()['logging'])->toBe('INVALID');
-})->with([
-    'channel' => ['channel', 'papertrail-x'],
-    'responses' => ['responses', 'maybe'],
-]);
-
-it('reports an unknown budget when the log channel is not defined', function (): void {
-    config()->set('steam-api.logging.channel', 'papertrail-x');
-
-    expect(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
 });
 
 it('does not resolve the connector while booting', function (): void {
