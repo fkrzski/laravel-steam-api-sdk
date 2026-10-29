@@ -162,3 +162,35 @@ it('registers the binding under a custom parameter name', function (): void {
     expect($router->getBindingCallback('gamer'))->not->toBeNull()
         ->and($router->getBindingCallback('steamId'))->toBeNull();
 });
+
+it('registers the binding under the trimmed parameter name', function (): void {
+    config()->set([
+        'steam-api.route_binding.enabled' => true,
+        'steam-api.route_binding.parameter' => '  gamer  ',
+    ]);
+
+    $router = new Router(new Dispatcher, app());
+    app()->instance('router', $router);
+
+    new SteamServiceProvider(app())->boot();
+
+    expect($router->getBindingCallback('gamer'))->not->toBeNull();
+});
+
+it('registers the binding under steamId for a parameter left unset', function (mixed $parameter): void {
+    config()->set([
+        'steam-api.route_binding.enabled' => true,
+        'steam-api.route_binding.parameter' => $parameter,
+    ]);
+
+    $router = new Router(new Dispatcher, app());
+    app()->instance('router', $router);
+
+    new SteamServiceProvider(app())->boot();
+
+    expect($router->getBindingCallback('steamId'))->not->toBeNull();
+})->with([
+    'null' => [null],
+    'blank' => ['  '],
+    'not a string' => [5],
+]);

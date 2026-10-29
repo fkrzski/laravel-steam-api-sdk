@@ -291,8 +291,9 @@ final class SteamServiceProvider extends ServiceProvider
             return;
         }
 
-        /** @var string $parameter */
-        $parameter = config('steam-api.route_binding.parameter', 'steamId');
+        $parameter = config('steam-api.route_binding.parameter');
+        $parameter = is_string($parameter) ? trim($parameter) : '';
+        $parameter = $parameter === '' ? 'steamId' : $parameter;
 
         /** @var Router $router */
         $router = $this->app->make('router');

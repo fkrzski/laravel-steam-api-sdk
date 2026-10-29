@@ -258,14 +258,27 @@ it('reports a truthy non-boolean as disabled, matching what the provider acts on
     expect(steamAboutSection()['route_binding'])->toBe('disabled');
 });
 
-it('reports an unknown parameter when the configured name is not a string', function (): void {
+it('names the trimmed parameter, matching the one the binding claims', function (): void {
     config()->set([
         'steam-api.route_binding.enabled' => true,
-        'steam-api.route_binding.parameter' => null,
+        'steam-api.route_binding.parameter' => '  gamer  ',
     ]);
 
-    expect(steamAboutSection()['route_binding'])->toBe('enabled (UNKNOWN)');
+    expect(steamAboutSection()['route_binding'])->toBe('enabled (gamer)');
 });
+
+it('names steamId for a parameter left unset, matching the one the binding claims', function (mixed $parameter): void {
+    config()->set([
+        'steam-api.route_binding.enabled' => true,
+        'steam-api.route_binding.parameter' => $parameter,
+    ]);
+
+    expect(steamAboutSection()['route_binding'])->toBe('enabled (steamId)');
+})->with([
+    'null' => [null],
+    'blank' => ['  '],
+    'not a string' => [5],
+]);
 
 it('reports english as the language until told otherwise', function (): void {
     expect(steamAboutSection()['language'])->toBe('english (locale: en)');

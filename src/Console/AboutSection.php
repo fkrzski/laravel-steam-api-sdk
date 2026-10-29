@@ -109,8 +109,9 @@ final readonly class AboutSection
         }
 
         $parameter = $this->config->get('steam-api.route_binding.parameter');
+        $parameter = is_string($parameter) ? trim($parameter) : '';
 
-        return sprintf('enabled (%s)', is_string($parameter) ? $parameter : self::UNKNOWN);
+        return sprintf('enabled (%s)', $parameter === '' ? 'steamId' : $parameter);
     }
 
     /**
