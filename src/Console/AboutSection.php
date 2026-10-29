@@ -7,11 +7,9 @@ namespace Fkrzski\LaravelSteamApiSdk\Console;
 use Closure;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
-use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
-use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
 use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
+use Fkrzski\LaravelSteamApiSdk\SteamSettings;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
@@ -68,9 +66,7 @@ final readonly class AboutSection
     public function __construct(
         private Application $app,
         private ConfigRepository $config,
-        private HttpOptions $http,
-        private RateLimitOptions $rateLimit,
-        private LoggingOptions $logging,
+        private SteamSettings $settings,
         private NightwatchReporting $nightwatch,
     ) {}
 
@@ -155,15 +151,15 @@ final readonly class AboutSection
     /**
      * How long the connector waits to connect, then for the whole request.
      *
-     * Read through the {@see HttpOptions} the provider builds the connector from,
+     * Read through the {@see SteamSettings} the provider builds the connector from,
      * so the row cannot report a timeout the connector is not given. An unset one
      * falls back to Saloon's default, as it does on the connector.
      */
     private function timeouts(): string
     {
         try {
-            $connect = $this->http->connectTimeout();
-            $request = $this->http->requestTimeout();
+            $connect = $this->settings->connectTimeout();
+            $request = $this->settings->requestTimeout();
         } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
@@ -191,9 +187,9 @@ final readonly class AboutSection
     private function retries(): string
     {
         try {
-            $tries = $this->http->tries();
-            $interval = $this->http->retryInterval();
-            $backoff = $this->http->exponentialBackoff();
+            $tries = $this->settings->tries();
+            $interval = $this->settings->retryInterval();
+            $backoff = $this->settings->exponentialBackoff();
         } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
@@ -217,7 +213,7 @@ final readonly class AboutSection
     private function sender(): string
     {
         try {
-            $sender = $this->http->sender();
+            $sender = $this->settings->sender();
         } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
@@ -228,14 +224,14 @@ final readonly class AboutSection
     /**
      * The channel Steam traffic is logged to, and whether responses go there too.
      *
-     * Read through the {@see LoggingOptions} the listeners log through, so the row
+     * Read through the {@see SteamSettings} the listeners log through, so the row
      * cannot name a channel the traffic does not reach.
      */
     private function logging(): string
     {
         try {
-            $channel = $this->logging->channel();
-            $responses = $this->logging->responses();
+            $channel = $this->settings->logChannel();
+            $responses = $this->settings->logResponses();
         } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
@@ -287,14 +283,14 @@ final readonly class AboutSection
     /**
      * The cache store the rate-limit counter is kept in.
      *
-     * Read through the {@see RateLimitOptions} the provider builds the plugin's
+     * Read through the {@see SteamSettings} the provider builds the plugin's
      * {@see LaravelCacheStore} from, so the row cannot name a store the counter
      * is not in. `(default)` while the option is unset and `cache.default` decides.
      */
     private function rateLimitStore(): string
     {
         try {
-            $store = $this->rateLimit->store();
+            $store = $this->settings->rateLimitStore();
         } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
@@ -318,7 +314,7 @@ final readonly class AboutSection
     private function remainingRequests(): string
     {
         try {
-            $configured = $this->rateLimit->limits();
+            $configured = $this->settings->rateLimits();
         } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
@@ -388,11 +384,11 @@ final readonly class AboutSection
     private function cooldown(): string
     {
         try {
-            $seconds = $this->rateLimit->cooldown();
+            $seconds = $this->settings->rateLimitCooldown();
         } catch (InvalidSteamConfigException) {
             return self::INVALID;
         }
 
-        return $seconds === RateLimitOptions::DEFAULT_COOLDOWN ? $seconds.'s (default)' : $seconds.'s';
+        return $seconds === SteamSettings::DEFAULT_COOLDOWN ? $seconds.'s (default)' : $seconds.'s';
     }
 }

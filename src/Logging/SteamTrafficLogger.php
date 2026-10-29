@@ -6,6 +6,7 @@ namespace Fkrzski\LaravelSteamApiSdk\Logging;
 
 use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestFailed;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamResponseReceived;
+use Fkrzski\LaravelSteamApiSdk\SteamSettings;
 use Illuminate\Log\LogManager;
 
 /**
@@ -19,13 +20,13 @@ use Illuminate\Log\LogManager;
 final readonly class SteamTrafficLogger
 {
     public function __construct(
-        private LoggingOptions $options,
+        private SteamSettings $settings,
         private LogManager $log,
     ) {}
 
     public function logFailure(SteamRequestFailed $event): void
     {
-        $channel = $this->options->channel();
+        $channel = $this->settings->logChannel();
 
         if ($channel === null) {
             return;
@@ -39,9 +40,9 @@ final readonly class SteamTrafficLogger
 
     public function logResponse(SteamResponseReceived $event): void
     {
-        $channel = $this->options->channel();
+        $channel = $this->settings->logChannel();
 
-        if ($channel === null || ! $this->options->responses()) {
+        if ($channel === null || ! $this->settings->logResponses()) {
             return;
         }
 

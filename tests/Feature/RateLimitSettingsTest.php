@@ -4,24 +4,19 @@ declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
+use Fkrzski\LaravelSteamApiSdk\SteamSettings;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Support\Facades\Cache;
 use Saloon\RateLimitPlugin\Limit;
 use Saloon\RateLimitPlugin\Stores\LaravelCacheStore;
 
-mutates(RateLimitOptions::class, UtcDayLimit::class);
-
-function rateLimitOptions(): RateLimitOptions
-{
-    return app(RateLimitOptions::class);
-}
+mutates(SteamSettings::class, UtcDayLimit::class);
 
 function configuredLimit(int|string $key = 0): Limit
 {
-    return rateLimitOptions()->limits()[$key] ?? throw new LogicException(sprintf('No limit is configured under %s.', $key));
+    return steamSettings()->rateLimits()[$key] ?? throw new LogicException(sprintf('No limit is configured under %s.', $key));
 }
 
 /**
@@ -107,13 +102,13 @@ it('reads the trimmed store name', function (): void {
         'steam-api.rate_limit.store' => '  steam  ',
     ]);
 
-    expect(rateLimitOptions()->store())->toBe('steam');
+    expect(steamSettings()->rateLimitStore())->toBe('steam');
 });
 
 it('falls back to the default store for a store left unset', function (mixed $store): void {
     config()->set('steam-api.rate_limit.store', $store);
 
-    expect(rateLimitOptions()->store())->toBeNull();
+    expect(steamSettings()->rateLimitStore())->toBeNull();
 })->with([
     'null' => null,
     'empty string' => '',
@@ -123,9 +118,9 @@ it('falls back to the default store for a store left unset', function (mixed $st
 it('falls back to the defaults when the published config drops the options', function (): void {
     config()->set('steam-api.rate_limit', []);
 
-    expect(rateLimitOptions()->store())->toBeNull()
-        ->and(rateLimitOptions()->limits())->toBeNull()
-        ->and(rateLimitOptions()->cooldown())->toBe(60);
+    expect(steamSettings()->rateLimitStore())->toBeNull()
+        ->and(steamSettings()->rateLimits())->toBeNull()
+        ->and(steamSettings()->rateLimitCooldown())->toBe(60);
 });
 
 it('throws when the cache config defines no such store', function (mixed $store): void {
@@ -142,7 +137,7 @@ it('throws when the cache config defines no such store', function (mixed $store)
 ]);
 
 it('keeps the base sdk daily budget while limits are unset', function (): void {
-    expect(rateLimitOptions()->limits())->toBeNull()
+    expect(steamSettings()->rateLimits())->toBeNull()
         ->and(sendCountedRequest())->toEndWith(':100000_every_utc_midnight');
 });
 
@@ -304,13 +299,13 @@ it('keeps a rolling day apart from the one reset at 00:00 UTC', function (): voi
         ['allow' => 5, 'every' => 'day'],
     ]);
 
-    expect(rateLimitOptions()->limits())->toHaveCount(2);
+    expect(steamSettings()->rateLimits())->toHaveCount(2);
 });
 
 it('reads the cool-down', function (mixed $cooldown, int $seconds): void {
     config()->set('steam-api.rate_limit.cooldown', $cooldown);
 
-    expect(rateLimitOptions()->cooldown())->toBe($seconds);
+    expect(steamSettings()->rateLimitCooldown())->toBe($seconds);
 })->with([
     'unset' => [null, 60],
     'blank' => ['  ', 60],

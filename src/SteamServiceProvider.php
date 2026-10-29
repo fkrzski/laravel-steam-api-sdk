@@ -13,12 +13,9 @@ use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestFailed;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestSending;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamResponseReceived;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
-use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
 use Fkrzski\LaravelSteamApiSdk\Localization\LocaleLanguageResolver;
-use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
 use Fkrzski\LaravelSteamApiSdk\Logging\SteamTrafficLogger;
 use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\RateLimitOptions;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\Routing\SteamIdRouteBinding;
 use Fkrzski\SteamApiSdk\Enums\Language;
@@ -48,22 +45,21 @@ final class SteamServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/steam-api.php', 'steam-api');
 
         $this->app->scoped(SteamConnector::class, function (Application $app): SteamConnector {
-            $http = $app->make(HttpOptions::class);
-            $rateLimit = $app->make(RateLimitOptions::class);
-            $app->make(LoggingOptions::class)->validate();
+            $settings = $app->make(SteamSettings::class);
+            $settings->validateLogging();
 
             return $this->dispatchEvents(new SteamConnector(new SteamConfig(
                 apiKey: $this->steamApiKey(),
-                rateLimitStore: new LaravelCacheStore(Cache::store($rateLimit->store())),
+                rateLimitStore: new LaravelCacheStore(Cache::store($settings->rateLimitStore())),
                 language: $this->steamLanguage(),
-                connectTimeout: $http->connectTimeout(),
-                requestTimeout: $http->requestTimeout(),
-                tries: $http->tries(),
-                retryInterval: $http->retryInterval(),
-                exponentialBackoff: $http->exponentialBackoff(),
-                rateLimits: $rateLimit->limits(),
-                sender: $this->steamSender($app, $http->sender()),
-                tooManyRequestsCooldown: $rateLimit->cooldown(),
+                connectTimeout: $settings->connectTimeout(),
+                requestTimeout: $settings->requestTimeout(),
+                tries: $settings->tries(),
+                retryInterval: $settings->retryInterval(),
+                exponentialBackoff: $settings->exponentialBackoff(),
+                rateLimits: $settings->rateLimits(),
+                sender: $this->steamSender($app, $settings->sender()),
+                tooManyRequestsCooldown: $settings->rateLimitCooldown(),
             )), $app);
         });
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\LaravelSteamApiSdk\Http\HttpOptions;
+use Fkrzski\LaravelSteamApiSdk\SteamSettings;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use GuzzleHttp\Exception\ConnectException;
@@ -13,12 +13,7 @@ use GuzzleHttp\Psr7\Request;
 use Saloon\Contracts\Sender;
 use Saloon\Http\Senders\GuzzleSender;
 
-mutates(HttpOptions::class);
-
-function httpOptions(): HttpOptions
-{
-    return app(HttpOptions::class);
-}
+mutates(SteamSettings::class);
 
 it('builds the connector with saloons timeouts and a single attempt until told otherwise', function (): void {
     $config = app(SteamConnector::class)->steamConfig;
@@ -55,8 +50,8 @@ it('reads a timeout however it is written', function (mixed $value, float $secon
         'steam-api.http.request_timeout' => $value,
     ]);
 
-    expect(httpOptions()->connectTimeout())->toBe($seconds)
-        ->and(httpOptions()->requestTimeout())->toBe($seconds);
+    expect(steamSettings()->connectTimeout())->toBe($seconds)
+        ->and(steamSettings()->requestTimeout())->toBe($seconds);
 })->with([
     'a string' => ['2.5', 2.5],
     'a float' => [2.5, 2.5],
@@ -87,8 +82,8 @@ it('reads the tries and the interval however they are written', function (mixed 
         'steam-api.http.retry.interval' => $value,
     ]);
 
-    expect(httpOptions()->tries())->toBe($number)
-        ->and(httpOptions()->retryInterval())->toBe($number);
+    expect(steamSettings()->tries())->toBe($number)
+        ->and(steamSettings()->retryInterval())->toBe($number);
 })->with([
     'a string' => ['3', 3],
     'an integer' => [3, 3],
@@ -101,14 +96,14 @@ it('takes a single try and no pause between attempts', function (): void {
         'steam-api.http.retry.interval' => '0',
     ]);
 
-    expect(httpOptions()->tries())->toBe(1)
-        ->and(httpOptions()->retryInterval())->toBe(0);
+    expect(steamSettings()->tries())->toBe(1)
+        ->and(steamSettings()->retryInterval())->toBe(0);
 });
 
 it('reads exponential backoff however it is written', function (mixed $value, bool $enabled): void {
     config()->set('steam-api.http.retry.exponential_backoff', $value);
 
-    expect(httpOptions()->exponentialBackoff())->toBe($enabled);
+    expect(steamSettings()->exponentialBackoff())->toBe($enabled);
 })->with([
     'true' => [true, true],
     'the string true' => ['true', true],
@@ -134,12 +129,12 @@ it('falls back to the default for an option left unset', function (mixed $value)
         'steam-api.http.sender' => $value,
     ]);
 
-    expect(httpOptions()->connectTimeout())->toBeNull()
-        ->and(httpOptions()->requestTimeout())->toBeNull()
-        ->and(httpOptions()->tries())->toBe(1)
-        ->and(httpOptions()->retryInterval())->toBe(0)
-        ->and(httpOptions()->exponentialBackoff())->toBeFalse()
-        ->and(httpOptions()->sender())->toBeNull();
+    expect(steamSettings()->connectTimeout())->toBeNull()
+        ->and(steamSettings()->requestTimeout())->toBeNull()
+        ->and(steamSettings()->tries())->toBe(1)
+        ->and(steamSettings()->retryInterval())->toBe(0)
+        ->and(steamSettings()->exponentialBackoff())->toBeFalse()
+        ->and(steamSettings()->sender())->toBeNull();
 })->with([
     'null' => null,
     'empty string' => '',
@@ -149,9 +144,9 @@ it('falls back to the default for an option left unset', function (mixed $value)
 it('falls back to the defaults when the published config drops the retry block', function (): void {
     config()->set('steam-api.http', ['connect_timeout' => '2.5']);
 
-    expect(httpOptions()->tries())->toBe(1)
-        ->and(httpOptions()->retryInterval())->toBe(0)
-        ->and(httpOptions()->exponentialBackoff())->toBeFalse();
+    expect(steamSettings()->tries())->toBe(1)
+        ->and(steamSettings()->retryInterval())->toBe(0)
+        ->and(steamSettings()->exponentialBackoff())->toBeFalse();
 });
 
 it('resolves the configured sender through the container', function (): void {
@@ -186,7 +181,7 @@ it('finds the binding however the sender is written', function (string $class): 
     $sender = bindGuzzleSender(new MockHandler);
     config()->set('steam-api.http.sender', $class);
 
-    expect(httpOptions()->sender())->toBe(GuzzleSender::class)
+    expect(steamSettings()->sender())->toBe(GuzzleSender::class)
         ->and(app(SteamConnector::class)->steamConfig->sender)->toBe($sender);
 })->with([
     'as declared' => GuzzleSender::class,

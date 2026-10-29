@@ -6,8 +6,8 @@ use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestFailed;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamResponseReceived;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\LaravelSteamApiSdk\Logging\LoggingOptions;
 use Fkrzski\LaravelSteamApiSdk\Logging\SteamTrafficLogger;
+use Fkrzski\LaravelSteamApiSdk\SteamSettings;
 use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
@@ -19,12 +19,7 @@ use Monolog\Logger;
 use Monolog\LogRecord;
 use Saloon\Http\Faking\MockResponse;
 
-mutates(LoggingOptions::class, SteamTrafficLogger::class);
-
-function loggingOptions(): LoggingOptions
-{
-    return app(LoggingOptions::class);
-}
+mutates(SteamSettings::class, SteamTrafficLogger::class);
 
 /**
  * Point the logging block at a `steam` channel and return the handler it writes to.
@@ -184,13 +179,13 @@ it('reads the trimmed channel name', function (): void {
     logSteamTraffic();
     config()->set('steam-api.logging.channel', '  steam  ');
 
-    expect(loggingOptions()->channel())->toBe('steam');
+    expect(steamSettings()->logChannel())->toBe('steam');
 });
 
 it('logs nothing for a channel left unset', function (mixed $channel): void {
     config()->set('steam-api.logging.channel', $channel);
 
-    expect(loggingOptions()->channel())->toBeNull();
+    expect(steamSettings()->logChannel())->toBeNull();
 })->with([
     'null' => null,
     'empty string' => '',
@@ -200,14 +195,14 @@ it('logs nothing for a channel left unset', function (mixed $channel): void {
 it('logs nothing when the published config empties the block', function (): void {
     config()->set('steam-api.logging', []);
 
-    expect(loggingOptions()->channel())->toBeNull()
-        ->and(loggingOptions()->responses())->toBeFalse();
+    expect(steamSettings()->logChannel())->toBeNull()
+        ->and(steamSettings()->logResponses())->toBeFalse();
 });
 
 it('reads responses however it is written', function (mixed $value, bool $enabled): void {
     config()->set('steam-api.logging.responses', $value);
 
-    expect(loggingOptions()->responses())->toBe($enabled);
+    expect(steamSettings()->logResponses())->toBe($enabled);
 })->with([
     'true' => [true, true],
     'the string true' => ['true', true],
