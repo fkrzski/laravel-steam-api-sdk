@@ -72,6 +72,10 @@ stored non-scalar, and an assigned value that is neither scalar nor `Stringable`
 one catchable domain exception, never a `TypeError` from inside the model. `null`
 is preserved in both directions, so a nullable column stays nullable.
 
+A write trims surrounding whitespace first, as [`SteamIdRule`](/laravel-steam-api-sdk/validation)
+does, but a read takes the column as stored: a Steam ID saved with a trailing newline throws until
+the column is trimmed.
+
 <Aside type="caution" title="A profile URL is rejected">
 Widening input is the job of the [validation rule](/laravel-steam-api-sdk/validation)
 and the [route binding](/laravel-steam-api-sdk/route-binding) — the cast takes the
