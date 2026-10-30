@@ -6,6 +6,7 @@ namespace Fkrzski\LaravelSteamApiSdk\Rendering;
 
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
+use Fkrzski\LaravelSteamApiSdk\RateLimiting\Budget;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
 use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
 use Fkrzski\SteamApiSdk\Exceptions\AppNewsUnavailableException;
@@ -65,6 +66,7 @@ final readonly class SteamExceptionRenderer
     public function __construct(
         private ExceptionHandler $handler,
         private ConfigRepository $config,
+        private Budget $budget,
     ) {}
 
     /**
@@ -102,15 +104,11 @@ final readonly class SteamExceptionRenderer
     /**
      * The daily quota is spent, so `Retry-After` carries what is left of the
      * window.
-     *
-     * The floor is a second rather than zero: a window that already closed
-     * counts down past it, and Symfony drops the header entirely for a falsy
-     * value — leaving the client nothing to back off on.
      */
     public function rateLimited(SteamRateLimitException $e, Request $request): Response
     {
         return $this->handler->render($request, new TooManyRequestsHttpException(
-            max(1, $e->limit->getRemainingSeconds()),
+            $this->budget->waitAfter($e),
             $e->getMessage(),
             $e,
         ));

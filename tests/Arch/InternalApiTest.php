@@ -9,6 +9,8 @@ use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestSending;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamResponseReceived;
 use Fkrzski\LaravelSteamApiSdk\Logging\SteamTrafficLogger;
 use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
+use Fkrzski\LaravelSteamApiSdk\RateLimiting\Allowance;
+use Fkrzski\LaravelSteamApiSdk\RateLimiting\Budget;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
@@ -21,6 +23,8 @@ dataset('classes only the bridge builds', function (): iterable {
         SteamTrafficLogger::class,
         NightwatchReporting::class,
         UtcDayLimit::class,
+        Budget::class,
+        Allowance::class,
         SteamExceptionRenderer::class,
         SteamSettings::class,
     ];

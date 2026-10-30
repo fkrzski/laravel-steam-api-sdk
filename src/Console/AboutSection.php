@@ -6,16 +6,15 @@ namespace Fkrzski\LaravelSteamApiSdk\Console;
 
 use Closure;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
+use Fkrzski\LaravelSteamApiSdk\RateLimiting\Allowance;
+use Fkrzski\LaravelSteamApiSdk\RateLimiting\Budget;
 use Fkrzski\LaravelSteamApiSdk\SteamSettings;
-use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Foundation\Application;
 use JsonException;
 use Saloon\Config as SaloonConfig;
 use Saloon\RateLimitPlugin\Exceptions\LimitException;
-use Saloon\RateLimitPlugin\Limit;
 use Saloon\RateLimitPlugin\Stores\LaravelCacheStore;
 
 /**
@@ -64,6 +63,7 @@ final readonly class AboutSection
         private Application $app,
         private ConfigRepository $config,
         private SteamSettings $settings,
+        private Budget $budget,
     ) {}
 
     /**
@@ -281,31 +281,31 @@ final readonly class AboutSection
             return self::NOT_METERED.' (no API key)';
         }
 
-        $limits = $this->localLimits();
+        $allowances = $this->allowances();
 
-        if ($limits === null || $limits === []) {
+        if ($allowances === null || $allowances === []) {
             return self::UNKNOWN;
         }
 
-        return implode(', ', array_map($this->remaining(...), $limits));
+        return implode(', ', array_map($this->remaining(...), $allowances));
     }
 
-    private function remaining(Limit $limit): string
+    private function remaining(Allowance $allowance): string
     {
         $remaining = sprintf(
             '%s of %s %s',
-            number_format($limit->getAllow() - $limit->getHits()),
-            number_format($limit->getAllow()),
-            str_ends_with($limit->getName(), UtcDayLimit::WINDOW)
+            number_format($allowance->left),
+            number_format($allowance->allow),
+            $allowance->seconds === null
                 ? 'per day'
-                : sprintf('per %ds', $limit->getReleaseInSeconds()),
+                : sprintf('per %ds', $allowance->seconds),
         );
 
-        return $limit->getShouldSleep() ? $remaining.' (sleeps)' : $remaining;
+        return $allowance->sleeps ? $remaining.' (sleeps)' : $remaining;
     }
 
     /**
-     * The connector's local limits, hydrated from the rate-limit store.
+     * What the budget says is left of the connector's local limits.
      *
      * `about` is a diagnostics command, so the states it is expected to run into
      * — an app the connector cannot be built for yet, a sender the container cannot
@@ -313,18 +313,12 @@ final readonly class AboutSection
      * instead of taking the whole command down. The rows above name the
      * misconfiguration this one cannot report.
      *
-     * @return array<Limit>|null
+     * @return array<Allowance>|null
      */
-    private function localLimits(): ?array
+    private function allowances(): ?array
     {
         try {
-            $connector = $this->app->make(SteamConnector::class);
-            $store = $connector->rateLimitStore();
-
-            // The 429 detector is response-driven and carries no budget of its own.
-            $limits = array_filter($connector->getLimits(), static fn (Limit $limit): bool => ! $limit->usesResponse());
-
-            return array_map(static fn (Limit $limit): Limit => $limit->update($store), $limits);
+            return $this->budget->remaining();
         } catch (
             InvalidSteamConfigException|BindingResolutionException|LimitException|JsonException
         ) {

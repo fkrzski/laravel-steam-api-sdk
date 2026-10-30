@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+use Fkrzski\LaravelSteamApiSdk\RateLimiting\Budget;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
 use Fkrzski\SteamApiSdk\Exceptions\AppNotFoundException;
@@ -16,7 +17,7 @@ use Illuminate\Support\Facades\Route;
 use Saloon\Http\Faking\MockResponse;
 use Symfony\Component\HttpFoundation\Response;
 
-mutates(SteamExceptionRenderer::class);
+mutates(SteamExceptionRenderer::class, Budget::class);
 
 /**
  * Re-register the renderers on a handler of our own.
