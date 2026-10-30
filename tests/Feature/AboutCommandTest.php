@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Fkrzski\LaravelSteamApiSdk\Console\AboutSection;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+use Fkrzski\LaravelSteamApiSdk\RateLimiting\Budget;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\Http\Senders\SteamSender;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\Artisan;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\Senders\GuzzleSender;
 
-mutates(AboutSection::class);
+mutates(AboutSection::class, Budget::class);
 
 // `about` shells out to `composer -V` on every call, ~80 ms a test.
 beforeEach(function (): void {

@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk\Queue\Middleware;
 
 use Closure;
+use Fkrzski\LaravelSteamApiSdk\RateLimiting\Budget;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
-use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Container\Container;
-use Saloon\RateLimitPlugin\Limit;
 
 /**
  * Releases a queued job for what is left of the Steam rate limit window,
@@ -16,8 +15,9 @@ use Saloon\RateLimitPlugin\Limit;
  *
  * The job is held back before it runs once the connector's limit is spent, and
  * released again when a request inside it raises {@see SteamRateLimitException}.
- * The limit is read off the connector rather than Laravel's `RateLimiter`, a
- * counter of its own that would drift from the one the plugin keeps.
+ * The wait is read off the connector's budget rather than Laravel's
+ * `RateLimiter`, a counter of its own that would drift from the one the plugin
+ * keeps.
  *
  * A release counts as an attempt, so a job waiting out a daily window wants
  * `retryUntil()` rather than a small `$tries`.
@@ -31,25 +31,17 @@ final readonly class RespectsSteamRateLimit
             return $next($job);
         }
 
-        $limit = Container::getInstance()->make(SteamConnector::class)->getExceededLimit();
+        $budget = Container::getInstance()->make(Budget::class);
+        $wait = $budget->wait();
 
-        if ($limit instanceof Limit) {
-            return $job->release($this->secondsLeft($limit));
+        if ($wait !== null) {
+            return $job->release($wait);
         }
 
         try {
             return $next($job);
         } catch (SteamRateLimitException $steamRateLimitException) {
-            return $job->release($this->secondsLeft($steamRateLimitException->limit));
+            return $job->release($budget->waitAfter($steamRateLimitException));
         }
-    }
-
-    /**
-     * A window closing this very second would release with no delay, and the job
-     * would be back before the counter rolls over.
-     */
-    private function secondsLeft(Limit $limit): int
-    {
-        return max(1, $limit->getRemainingSeconds());
     }
 }

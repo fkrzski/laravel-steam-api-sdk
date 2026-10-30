@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+use Fkrzski\LaravelSteamApiSdk\RateLimiting\Budget;
 use Fkrzski\LaravelSteamApiSdk\SteamSettings;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
 use Fkrzski\SteamApiSdk\Testing\Factories\ISteamNews\NewsItemFactory;
@@ -10,8 +11,8 @@ use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerSummaryFactory;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\Psr7\Response;
+use Illuminate\Foundation\Testing\Wormhole;
 use Saloon\Http\Senders\GuzzleSender;
-use Saloon\RateLimitPlugin\Limit;
 use Tests\NightwatchTestCase;
 use Tests\TestCase;
 
@@ -46,20 +47,9 @@ function newsFeedItems(int $count): array
     );
 }
 
-/**
- * Write a spent daily budget into the store the connector reads, as a day of
- * traffic would.
- */
 function spendDailyBudget(): void
 {
-    $connector = Steam::connector();
-
-    $limit = array_find(
-        $connector->getLimits(),
-        static fn (Limit $limit): bool => ! $limit->usesResponse(),
-    );
-
-    $limit?->hit(100_000)->save($connector->rateLimitStore());
+    app(Budget::class)->exhaust();
 }
 
 /**
@@ -72,8 +62,7 @@ function closedRateLimitWindow(): SteamRateLimitException
     try {
         Steam::stats()->currentPlayers(440);
     } catch (SteamRateLimitException $steamRateLimitException) {
-        // travelTo() does not reach the plugin's clock, so the window is closed by hand.
-        $steamRateLimitException->limit->setExpiryTimestamp(time() - 30);
+        new Wormhole(90)->seconds();
 
         return $steamRateLimitException;
     }
