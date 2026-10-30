@@ -42,10 +42,8 @@ silently.
 
 </Steps>
 
-<Aside type="danger" title="Never a bigint column">
-A 64-bit Steam ID overflows a signed `bigint`: it comes back mangled and the cast
-throws on a value it never stored.
-</Aside>
+A `bigInteger` column works too: a 17-digit Steam ID fits a signed 64-bit integer, and the cast
+reads the integer back as the same `SteamId`.
 
 ## Reading and writing
 
