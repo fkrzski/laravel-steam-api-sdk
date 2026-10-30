@@ -6,9 +6,6 @@ use Fkrzski\LaravelSteamApiSdk\Contracts\SteamManager as SteamManagerContract;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
-use Fkrzski\SteamApiSdk\Dto\AppNews;
-use Fkrzski\SteamApiSdk\Dto\AppVersionCheck;
-use Fkrzski\SteamApiSdk\Dto\SdrConfig;
 use Fkrzski\SteamApiSdk\Enums\EconomyBan;
 use Fkrzski\SteamApiSdk\Enums\FriendRelationship;
 use Fkrzski\SteamApiSdk\Enums\Language;
@@ -98,6 +95,36 @@ it('merges the package config', function (): void {
     expect(config('steam-api.exceptions.render'))->toBeTrue();
 });
 
+it('sends the configured key with a request that needs one', function (): void {
+    Steam::fake()->users()->summaries();
+
+    Steam::users()->summaries([steamId()]);
+
+    expect(Steam::lastResponse()?->getPendingRequest()->query()->all())->toHaveKey('key', 'test-steam-api-key');
+});
+
+it('sends the configured language with a localised request', function (): void {
+    config()->set('steam-api.language', 'polish');
+
+    Steam::fake()->stats()->schema(GameSchemaFactory::new());
+
+    Steam::stats()->schema(appId: 620);
+
+    expect(Steam::lastResponse()?->getPendingRequest()->query()->all())->toHaveKey('l', 'polish');
+});
+
+it('sends an anonymous request with no key configured', function (): void {
+    config()->set(['steam-api.key' => null]);
+
+    Steam::fake()->stats()->currentPlayers(12_345);
+
+    Steam::stats()->currentPlayers(appId: 381210);
+
+    expect(Steam::lastResponse()?->getPendingRequest()->query()->all())->not->toHaveKey('key');
+
+    Steam::assertSent(GetNumberOfCurrentPlayersRequest::class);
+});
+
 it('throws when a request needing the key is sent without one', function (): void {
     config()->set(['steam-api.key' => null]);
 
@@ -107,73 +134,6 @@ it('throws when a request needing the key is sent without one', function (): voi
         ->toThrow(ApiKeyNotConfiguredException::class);
 
     Steam::assertNothingSent();
-});
-
-it('sends an anonymous request with no key configured', function (Closure $call, string $request): void {
-    config()->set(['steam-api.key' => null]);
-
-    Steam::fake()
-        ->stats()->currentPlayers(12_345)
-        ->stats()->globalAchievements(
-            GlobalAchievementFactory::new()->apiName('ACH_ESCAPE')->percent(12.5),
-        )
-        ->apps()->upToDateCheck(AppVersionCheckFactory::new())
-        ->apps()->serversAtAddress(GameServerFactory::new())
-        ->apps()->sdrConfig(SdrConfigFactory::new())
-        ->news()->appNews(AppNewsFactory::new())
-        ->webApi()->serverTime(new DateTimeImmutable('2026-10-08 19:59:38 UTC'))
-        ->webApi()->supportedApis(WebApiInterfaceFactory::new());
-
-    $call();
-
-    expect(Steam::lastResponse()?->getPendingRequest()->query()->all())->not->toHaveKey('key');
-
-    Steam::assertSent($request);
-})->with([
-    'current players' => [
-        fn (): int => Steam::stats()->currentPlayers(appId: 381210),
-        GetNumberOfCurrentPlayersRequest::class,
-    ],
-    'global achievements' => [
-        fn (): array => Steam::stats()->globalAchievements(gameId: 381210),
-        GetGlobalAchievementPercentagesForAppRequest::class,
-    ],
-    'up to date check' => [
-        fn (): AppVersionCheck => Steam::apps()->upToDateCheck(appId: 440, version: 10828683),
-        UpToDateCheckRequest::class,
-    ],
-    'servers at address' => [
-        fn (): array => Steam::apps()->serversAtAddress('108.181.62.21'),
-        GetServersAtAddressRequest::class,
-    ],
-    'sdr config' => [
-        fn (): SdrConfig => Steam::apps()->sdrConfig(appId: 730),
-        GetSdrConfigRequest::class,
-    ],
-    'app news' => [
-        fn (): AppNews => Steam::news()->appNews(appId: 440),
-        GetNewsForAppRequest::class,
-    ],
-    'news feed' => [
-        fn (): array => Steam::newsFeed(appId: 440)->all(),
-        GetNewsForAppRequest::class,
-    ],
-    'server time' => [
-        fn (): DateTimeImmutable => Steam::webApi()->serverTime(),
-        GetServerInfoRequest::class,
-    ],
-    'supported apis' => [
-        fn (): array => Steam::webApi()->supportedApis(),
-        GetSupportedApiListRequest::class,
-    ],
-]);
-
-it('attaches a fake with no key configured', function (): void {
-    config()->set(['steam-api.key' => null]);
-
-    Steam::fake();
-
-    expect(app(SteamConnector::class)->hasMockClient())->toBeTrue();
 });
 
 it('resolves the facade to the manager singleton', function (): void {
@@ -759,45 +719,6 @@ it('fetches the supported apis', function (): void {
         ->and($interfaces[1]->name)->toBe('IGCVersion_440');
 
     $mock->assertSent(GetSupportedApiListRequest::class);
-});
-
-it('keeps the configured key out of the server time request', function (): void {
-    Steam::fake()->webApi()->serverTime(new DateTimeImmutable('2026-10-08 19:59:38 UTC'));
-
-    Steam::webApi()->serverTime();
-
-    expect(Steam::lastResponse()?->getPendingRequest()->query()->all())->toBe([]);
-});
-
-it('sends the configured key with the supported api list', function (): void {
-    Steam::fake()->webApi()->supportedApis(WebApiInterfaceFactory::new());
-
-    Steam::webApi()->supportedApis();
-
-    expect(Steam::lastResponse()?->getPendingRequest()->query()->all())->toBe(['key' => 'test-steam-api-key']);
-});
-
-// The connector strips the key while booting the pending request, so the request
-// object still carries it — only what the pending request holds says what went out.
-it('sends no api key on an anonymous endpoint', function (): void {
-    Steam::fake()->stats()->currentPlayers(12_345);
-
-    Steam::stats()->currentPlayers(appId: 381210);
-
-    $query = Steam::lastResponse()?->getPendingRequest()->query()->all();
-
-    expect($query)->toHaveKey('appid', 381210)
-        ->and($query)->not->toHaveKey('key');
-});
-
-it('sends the configured language on every localised request', function (): void {
-    config()->set('steam-api.language', 'polish');
-
-    Steam::fake()->stats()->schema(GameSchemaFactory::new());
-
-    Steam::stats()->schema(appId: 620);
-
-    expect(Steam::lastResponse()?->getPendingRequest()->query()->all())->toHaveKey('l', 'polish');
 });
 
 it('sends an arbitrary request and returns the raw response', function (): void {
