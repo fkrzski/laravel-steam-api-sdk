@@ -97,7 +97,7 @@ it('resolves the connector from the container that built the manager', function 
 });
 
 it('merges the package config', function (): void {
-    expect(config('steam-api.key'))->toBe('test-steam-api-key');
+    expect(config('steam-api.exceptions.render'))->toBeTrue();
 });
 
 it('configures the connector with the api key', function (): void {
