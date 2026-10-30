@@ -683,9 +683,9 @@ request; omit it to count everything the fake recorded.
 Steam::assertSentInOrder(array<Closure|class-string<Request>|string> $callbacks): void
 ```
 
-Asserts that these requests were sent, in this order, and nothing else with them.
-Saloon falls back to searching the whole history when a position does not match,
-so the count is the part it enforces strictly.
+Asserts that these requests were sent, in this order, and nothing else with them. A closure or a
+URL pattern has to match its position, while a class name Saloon also finds anywhere else in the
+history, so for those only the count is strict.
 
 ## Recorded traffic
 
