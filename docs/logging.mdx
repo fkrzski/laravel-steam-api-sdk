@@ -32,23 +32,26 @@ rotate and expire apart from the application's:
 ## What gets logged
 
 A failed call is a `warning`: the exception's message, which opens with the Steam method, with
-its class and code in context. It is not an `error` because the application may well catch the
-failure, and one it does not still reaches the exception handler:
+its class and code in context. An answer the SDK cannot read and a DTO it cannot build fail the
+call too, and a `summaries()` or `bans()` call over 100 IDs logs one for each request of 100 that
+fails. It is not an `error` because the application may well catch the failure, and one it
+does not still reaches the exception handler:
 
 ```text title="storage/logs/steam-2026-10-09.log"
 [2026-10-09 14:02:56] production.WARNING: GetPlayerSummaries: Steam API request failed with HTTP 500. {"exception":"Fkrzski\\SteamApiSdk\\Exceptions\\SteamApiException","code":500}
 ```
 
 With `responses` on, every response is a `debug` line too, one per attempt, with the query Steam
-received in context. A `429` is logged before the failure it raises:
+received in context, logged before the failure it raises:
 
 ```text title="storage/logs/steam-2026-10-09.log"
 [2026-10-09 14:02:56] production.DEBUG: ISteamUser/GetFriendList/v1: HTTP 401 in 187ms, attempt 1 {"query":{"steamid":"76561198000000000"}}
 [2026-10-09 14:02:56] production.WARNING: GetFriendList: Steam profile is not public. {"exception":"Fkrzski\\SteamApiSdk\\Exceptions\\ProfileNotPublicException","code":401}
 ```
 
-A call refused before it goes out, for a missing API key, a spent rate limit or the cool-down
-after a `429`, logs the warning alone.
+A `429` from Steam logs code `429`. A call refused before it goes out, for a missing API key, a
+spent rate limit or the cool-down after a `429`, logs the warning alone, a local refusal with code
+`0` and no Steam method in front.
 
 <Aside type="caution" title="The channel's level filters these too">
 A channel at `error` drops the warnings, and one at `info` drops the responses. Laravel's own
@@ -72,7 +75,7 @@ what got logged leaves those two unfaked.
 ## A rejected option
 
 A channel `logging.channels` does not define, or a `responses` that is not a boolean, raises
-`InvalidSteamLoggingOptionException` naming the key and the variable to set. It surfaces on your
+`InvalidSteamConfigException` naming the key and the variable to set. It surfaces on your
 first Steam call and renders as a 500, and `php artisan about` reads `INVALID` in its
 [Logging row](/laravel-steam-api-sdk/configuration#checking-your-setup).
 
