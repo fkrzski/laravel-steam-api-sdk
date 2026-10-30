@@ -27,6 +27,7 @@ it('has no api key while it is unset, blank or not a string', function (mixed $k
     'whitespace only' => ['   '],
     'integer' => [123],
     'array' => [[]],
+    'boolean' => [true],
 ]);
 
 it('follows the locale until a language is configured', function (): void {
@@ -43,6 +44,14 @@ it('follows the locale when the published config drops the language', function (
     expect(steamSettings())
         ->languageFollowsLocale()->toBeTrue()
         ->language()->toBe(Language::English);
+});
+
+it('sends no language for a locale steam publishes none for', function (): void {
+    app()->setLocale('sw');
+
+    expect(steamSettings())
+        ->languageFollowsLocale()->toBeTrue()
+        ->language()->toBeNull();
 });
 
 it('reads the locale through the rebound resolver', function (): void {
@@ -80,6 +89,8 @@ it('sends no language once the configured one is blanked out', function (mixed $
     'whitespace only' => ['   '],
     'integer' => [123],
     'false' => [false],
+    'true' => [true],
+    'array' => [[]],
 ]);
 
 it('throws when the configured language is not one of steams codes', function (string $language): void {
