@@ -40,12 +40,15 @@ carries. None of them carries the API key.
 | `SteamResponseReceived` | for every response Steam sends, a `4xx`, `5xx` or `429` included |
 | `SteamRequestFailed` | once per failed call, after the retries, with the exception the caller gets |
 
-A `429` is received before it fails as `SteamRateLimitException`. A call refused before it goes
-out, for a missing API key, a spent [rate limit](/laravel-steam-api-sdk/rate-limiting) or the
-cool-down after a `429`, dispatches `SteamRequestFailed` alone, and
-an attempt Steam never answers is not received. Requests in a
-[pool](/laravel-steam-api-sdk/guide#concurrent-requests) go out once, so `attempt` is always `1`
-there.
+A `429` is received before it fails as `SteamRateLimitException`, and so are an answer the SDK
+cannot read and one whose DTO it cannot build: `SteamRequestFailed` then carries
+`UnreadableResponseException`, or whatever building raised, such as PHP's `ValueError`. A call
+refused before it goes out, for a missing API key, a spent
+[rate limit](/laravel-steam-api-sdk/rate-limiting) or the cool-down after a `429`, dispatches
+`SteamRequestFailed` alone, and an attempt Steam never answers is not received. Requests in a
+[pool](/laravel-steam-api-sdk/guide#concurrent-requests), the ones `summaries()` and `bans()` cut
+a list over 100 IDs into included, go out once, so `attempt` is always `1` there. Such a call
+dispatches `SteamRequestFailed` for each request of 100 that fails, and the caller gets the first.
 
 ## Queued listeners
 
