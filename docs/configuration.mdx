@@ -406,10 +406,10 @@ php artisan about --only=steam_api
 - **Logging** — `disabled` until a channel is set, then its name, with `(+ responses)` once
   every response is logged too.
 - **Route Binding** — `disabled`, or `enabled` with the parameter name it claims.
-- **Timeouts** — the connect and request timeouts, Saloon's own marked `(default)`, and
-  `unlimited` for `0`.
-- **Retries** — `none (default)` for a single attempt, otherwise the attempts and the pause
-  between them.
+- **Timeouts** — the connect and request timeouts, `unlimited` for `0`, and `(default)` while
+  neither is set, so both are Saloon's.
+- **Retries** — `none (default)` for the single attempt the config ships with, `none` once an
+  interval or backoff is set beside it, otherwise the attempts and the pause between them.
 - **Sender** — the class `STEAM_API_SENDER` names, otherwise `Guzzle (default)`, or
   `Guzzle + Nightwatch (default)` while [Nightwatch](#nightwatch) is reporting.
 
