@@ -53,8 +53,9 @@ dispatches `SteamRequestFailed` for each request of 100 that fails, and the call
 ## Queued listeners
 
 `SteamRequestSending` and `SteamResponseReceived` carry strings, numbers and arrays, so a
-listener implementing `ShouldQueue` gets them on the queue. `SteamRequestFailed` is sync-only:
-its exception does not serialize, so a listener reads what it needs and hands that to a job:
+listener implementing `ShouldQueue` gets them on the queue. Keep a `SteamRequestFailed` listener
+sync: an exception carrying Steam's response does not serialize, so the listener reads what it
+needs and hands that to a job:
 
 ```php title="app/Providers/AppServiceProvider.php"
 use App\Jobs\ReportSteamFailure;
@@ -69,9 +70,11 @@ Event::listen(function (SteamRequestFailed $event): void {
 });
 ```
 
-<Aside type="caution" title="A queued failure listener never runs">
+<Aside type="caution" title="A queued failure listener misses failures">
 Serializing the exception fails while the listener is being queued, and the base SDK drops
-whatever a failure hook throws. No job is pushed, and nothing reports it.
+whatever a failure hook throws, so no job is pushed and nothing reports it. Only a failure raised
+before Steam answered gets through, and only with `zend.exception_ignore_args` on, as in PHP's
+production `php.ini`.
 </Aside>
 
 ## In tests
