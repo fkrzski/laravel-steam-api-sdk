@@ -35,9 +35,9 @@ Steam's own carries on. A store that evicts keys under memory pressure, such as 
 eviction policy or Memcached, can drop the counter too. A name `cache.stores` does not define
 raises `InvalidSteamConfigException` on your first Steam call, rendered as a 500.
 
-<Aside type="caution" title="The array and file drivers do not share">
-Those two keep the budget per process. That is fine locally, but pick a shared driver in
-production so the quota is enforced app-wide.
+<Aside type="caution" title="The array and file drivers do not share across servers">
+`array` keeps the budget per process and `file` per server. That is fine locally, but pick a
+driver every server reaches in production so the quota is enforced app-wide.
 </Aside>
 
 ## Your own limits
@@ -110,6 +110,7 @@ before it runs once a limit is spent, or when a request inside it raises
 `SteamRateLimitException`:
 
 ```php title="app/Jobs/SyncPlayerStats.php"
+use DateTime;
 use Fkrzski\LaravelSteamApiSdk\Queue\Middleware\RespectsSteamRateLimit;
 
 public function middleware(): array
