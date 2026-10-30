@@ -14,6 +14,12 @@ request in a [pool](/laravel-steam-api-sdk/guide#concurrent-requests). The count
 the API key, hashed so the key never lands in the store, and two keys draw down two budgets.
 With no key configured nothing is counted, since Steam bills the budget to the key.
 
+Requests sent without the key, to the endpoints
+[Steam serves anonymously](/laravel-steam-api-sdk/configuration#the-api-key), are limited apart
+from it, the way a connector without a key would limit them: they never spend the key's budget,
+and go through while it is spent or locked — see
+[Requests sent without the key](/php-steam-api-sdk/rate-limiting#requests-sent-without-the-key).
+
 ## The cache store
 
 The counter lives in a Laravel cache store, not per-process memory, so with a shared driver
@@ -27,22 +33,11 @@ STEAM_API_RATE_LIMIT_STORE=redis
 Give it a store of its own: `cache:clear` flushes the default one, resetting the count while
 Steam's own carries on. A store that evicts keys under memory pressure, such as Redis with an
 eviction policy or Memcached, can drop the counter too. A name `cache.stores` does not define
-raises `InvalidSteamRateLimitOptionException` on your first Steam call, rendered as a 500.
+raises `InvalidSteamConfigException` on your first Steam call, rendered as a 500.
 
 <Aside type="caution" title="The array and file drivers do not share">
 Those two keep the budget per process. That is fine locally, but pick a shared driver in
 production so the quota is enforced app-wide.
-</Aside>
-
-<Aside title="The upgrade to 0.4.0 orphans the old counter">
-It was keyed by the connector class, so a persistent store reads no count under the
-new key and reports the full 100 000 once. What Steam itself has already counted is
-untouched.
-</Aside>
-
-<Aside title="The upgrade to 0.9.0 restarts the counter once">
-The daily limit is now named `100000_every_utc_midnight`, so a persistent store reads no count
-under the new name and reports the full 100 000 once.
 </Aside>
 
 ## Your own limits
@@ -72,10 +67,12 @@ changing an entry's `allow` or `every` restarts its count.
 | a list of entries | those limits, with a key or without |
 
 The list replaces the default whole, so a per-second limit alone leaves the day unmetered.
+Requests sent without the key count apart, so a window per second lets that many through with the
+key and as many again without it.
 Entries are plain arrays rather than the plugin's `Limit` objects because `config:cache` cannot
 write those out.
 
-A value the connector cannot take raises `InvalidSteamRateLimitOptionException` naming its key,
+A value the connector cannot take raises `InvalidSteamConfigException` naming its key,
 such as `steam-api.rate_limit.limits.1.every`, on your first Steam call, rendered as a 500. Two
 entries with the same `allow` and `every` would share one counter, so they are rejected too.
 
@@ -87,17 +84,18 @@ short windows.
 
 ## After a 429
 
-When Steam itself answers `429`, the connector raises `SteamRateLimitException` and refuses
-every request locally until Steam's `Retry-After` passes. Without the header it holds them back
-for the cool-down, 60 seconds unless you set it:
+When Steam itself answers `429`, the connector raises `SteamRateLimitException`, carrying the
+response and code `429`, and refuses every later request locally until Steam's `Retry-After`
+passes. Without the header it holds them back for the cool-down, 60 seconds unless you set it:
 
 ```dotenv title=".env"
 STEAM_API_RATE_LIMIT_COOLDOWN=300
 ```
 
 The cool-down applies with a key or without and whatever `limits` holds, `[]` included, and it
-lives in the store next to the budget, per key. A value that is not a whole number of seconds,
-at least 1, raises `InvalidSteamRateLimitOptionException`.
+lives in the store next to the budget, per key: a `429` on a request sent without the key locks
+only those. A `Retry-After` of `0`, or a date already past, holds requests back for a second. A
+value that is not a whole number of seconds, at least 1, raises `InvalidSteamConfigException`.
 
 <Aside type="caution" title="A pool cannot recall what it sent">
 Requests a pool already has in flight when a `429` arrives still reach Steam. Only the ones it
@@ -130,6 +128,10 @@ rather than a small `$tries`. The middleware releases through `InteractsWithQueu
 a job without it run unguarded. With nothing metered locally only a `429` from Steam holds a job
 back.
 
+Before a job runs, the middleware reads the limits of requests sent with the key, or of every
+request with no key configured. A job whose keyless requests alone are locked therefore runs, and
+is released at the first one the limiter refuses.
+
 <Aside type="caution" title="A sleep limit inside a job blocks the worker">
 The middleware releases a job before it runs when a `sleep` limit is spent, but one that runs out
 mid-job makes the worker wait out the window. On a `'day'` entry that is past any queue timeout,
@@ -147,7 +149,8 @@ way the middleware does — see
 
 - **Rate Limit Store** — the cache store the counter lives in, marked `(default)` while
   `steam-api.rate_limit.store` is unset.
-- **Requests Remaining** — what is left of each local limit, read from that store, such as
+- **Requests Remaining** — what is left of each local limit for requests sent with the key, or
+  for every request with no key configured, read from that store, such as
   `99,412 of 100,000 per day, 9 of 10 per 1s (sleeps)`. `not metered` for `limits` set to `[]`,
   `not metered (no API key)` for the default with no key configured, and `UNKNOWN` while
   another row reads `INVALID`, since the connector cannot be built.
