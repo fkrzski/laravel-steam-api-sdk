@@ -142,11 +142,6 @@ when the connector is built — so an application boots, caches its config and p
 config file before a key exists.
 </Aside>
 
-<Aside type="caution" title="SteamApiKeyMissingException is gone since 0.7.0">
-The base SDK refuses a keyless request before the bridge's own check could run, so catch
-`ApiKeyNotConfiguredException` instead.
-</Aside>
-
 ## Default language
 
 Steam localises achievement names, descriptions and stat labels, and the connector carries
@@ -162,17 +157,17 @@ STEAM_API_LANGUAGE=polish
 | unset — the default | the language the application locale maps to, or nothing where it maps to none |
 | `''` | nothing; Steam picks |
 | `'polish'` | `polish` |
-| anything else | nothing goes out — `InvalidSteamLanguageException` instead |
+| any other code | nothing goes out — `InvalidSteamConfigException` instead |
 
 A rejected code raises the first time the connector is resolved, so it surfaces on your
 first Steam call rather than at boot. It is a misconfiguration, so it renders as a 500
 whatever [`steam-api.exceptions.render`](#exception-rendering) says.
 
 The `language:` argument on
-[`achievements()`](/laravel-steam-api-sdk/api-reference#achievements),
-[`schema()`](/laravel-steam-api-sdk/api-reference#schema) and
-[`userStats()`](/laravel-steam-api-sdk/api-reference#userstats) overrides the default for
-that one call.
+[`achievements()`](/laravel-steam-api-sdk/api-reference#achievements) and
+[`schema()`](/laravel-steam-api-sdk/api-reference#schema) overrides the default for that one call.
+[`userStats()`](/laravel-steam-api-sdk/api-reference#userstats) sends no language at all, since
+Steam answers it the same either way.
 
 ### Following the locale
 
@@ -209,27 +204,30 @@ STEAM_API_RETRY_EXPONENTIAL_BACKOFF=true
 
 | Variable | Unset | Meaning |
 | --- | --- | --- |
-| `STEAM_API_CONNECT_TIMEOUT` | `10`, Saloon's | seconds to connect, `0` waits forever |
-| `STEAM_API_REQUEST_TIMEOUT` | `30`, Saloon's | seconds for the whole request, `0` waits forever |
-| `STEAM_API_RETRY_TRIES` | `1` | attempts in all, so `1` never retries |
-| `STEAM_API_RETRY_INTERVAL` | `0` | milliseconds between attempts |
-| `STEAM_API_RETRY_EXPONENTIAL_BACKOFF` | `false` | doubles the interval after each retry |
+| `STEAM_API_CONNECT_TIMEOUT` | `10`, Saloon's | seconds to connect, from `0.001`, `0` waits forever |
+| `STEAM_API_REQUEST_TIMEOUT` | `30`, Saloon's | seconds for the whole request, from `0.001`, `0` waits forever |
+| `STEAM_API_RETRY_TRIES` | `1` | attempts in all, a whole number from `1`, so `1` never retries |
+| `STEAM_API_RETRY_INTERVAL` | `0` | whole milliseconds between attempts |
+| `STEAM_API_RETRY_EXPONENTIAL_BACKOFF` | `false` | `true` doubles the interval after each retry |
 
 Only what can change by the next attempt is retried: Steam unreachable, a timeout, a `5xx`.
 A `4xx` and a spent rate limit are thrown at once, and so is the `500`
 [`sdrConfig()`](/laravel-steam-api-sdk/api-reference#sdrconfig) answers an unknown app with.
 Once the tries are spent, a request Steam never answered raises `SteamConnectionException`
 and a `5xx` the root `SteamApiException`. Requests sent through
-[`pool()`](/laravel-steam-api-sdk/guide#concurrent-requests) go out once.
+[`pool()`](/laravel-steam-api-sdk/guide#concurrent-requests) go out once, and so does each request
+of 100 that [`summaries()`](/laravel-steam-api-sdk/api-reference#summaries) and `bans()` split a
+longer list into.
 
 <Aside type="caution" title="Every attempt is a request">
 Each retry counts against the [rate limits](/laravel-steam-api-sdk/rate-limiting) like a request
 of its own, since they count a `5xx` like any other answer.
 </Aside>
 
-A value that is not a number, or is out of range, raises `InvalidSteamHttpOptionException`
-naming the key. Like a rejected language code, it surfaces on your first Steam call and
-renders as a 500.
+A value that is not a number, or is out of range, raises `InvalidSteamConfigException` naming
+the key. That includes a timeout of `PHP_INT_MAX / 1000` seconds or more, since Guzzle counts
+whole milliseconds in an `int`. Like a rejected language code, it surfaces on your first Steam call
+and renders as a 500.
 
 ## Sender
 
@@ -279,7 +277,7 @@ which is how the [timeouts](#timeouts-and-retries) reach it —
 lists the rest.
 
 The class name is normalised to the one it is declared with, so a leading `\` or another casing
-still reaches the binding. A value naming no sender class raises `InvalidSteamHttpOptionException`
+still reaches the binding. A value naming no sender class raises `InvalidSteamConfigException`
 on your first Steam call, rendered as a 500, and a binding that hands back something other than a
 `Sender` raises `UnexpectedValueException`.
 
@@ -361,10 +359,10 @@ table. Turn the group off to render it yourself:
 ],
 ```
 
-The flag does not reach misconfiguration. A rejected API key, a missing one, a batch over
-100 IDs, and a language code, HTTP option, rate limit option or logging option the config cannot
-use are a 500 whatever it is set to: Steam answers a bad key with a 400 or a 403, and passing that on
-would blame the caller for something only you can fix.
+The flag does not reach misconfiguration. A rejected API key, a missing one, a request built by
+hand with over 100 IDs, and a config value the bridge cannot use are a 500 whatever it is set to:
+Steam answers a bad key with a 400 or a 403, and passing that on would blame the caller for
+something only you can fix.
 
 <Aside title="Your own renderer wins either way">
 Callbacks registered in `bootstrap/app.php` run ahead of the package's, so a
@@ -408,10 +406,10 @@ php artisan about --only=steam_api
 - **Logging** — `disabled` until a channel is set, then its name, with `(+ responses)` once
   every response is logged too.
 - **Route Binding** — `disabled`, or `enabled` with the parameter name it claims.
-- **Timeouts** — the connect and request timeouts, Saloon's own marked `(default)`, and
-  `unlimited` for `0`.
-- **Retries** — `none (default)` for a single attempt, otherwise the attempts and the pause
-  between them.
+- **Timeouts** — the connect and request timeouts, `unlimited` for `0`, and `(default)` while
+  neither is set, so both are Saloon's.
+- **Retries** — `none (default)` for the single attempt the config ships with, `none` once an
+  interval or backoff is set beside it, otherwise the attempts and the pause between them.
 - **Sender** — the class `STEAM_API_SENDER` names, otherwise `Guzzle (default)`, or
   `Guzzle + Nightwatch (default)` while [Nightwatch](#nightwatch) is reporting.
 

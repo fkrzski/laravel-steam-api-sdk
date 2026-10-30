@@ -99,6 +99,7 @@ Full documentation lives at **[docs.fkrzski.dev/laravel-steam-api-sdk](https://d
 - [Events](https://docs.fkrzski.dev/laravel-steam-api-sdk/events) — listen to Steam requests, responses and failures through Laravel events.
 - [Logging](https://docs.fkrzski.dev/laravel-steam-api-sdk/logging) — log failed Steam calls, and every response if you ask, to a channel of yours.
 - [Testing](https://docs.fkrzski.dev/laravel-steam-api-sdk/testing) — fake the Steam Web API with `Steam::fake()`.
+- [Versioning](https://docs.fkrzski.dev/laravel-steam-api-sdk#versioning) — what SemVer covers from 1.0.0, and what is `@internal`.
 
 ## License
 

@@ -85,8 +85,8 @@ with a `403`, which the base SDK raises as `InvalidApiKeyException`.
 
 <Aside type="caution" title="A hidden profile has no creation date">
 Steam withholds `timecreated` along with the rest of the details, so
-`PlayerSummary::$timeCreated` is null for a private profile and a friends-only one alike. Since
-0.9.0 `communityVisibility` tells the two apart: Steam reports the second as
+`PlayerSummary::$timeCreated` is null for a private profile and a friends-only one alike.
+`communityVisibility` tells the two apart: Steam reports the second as
 `CommunityVisibility::FriendsOnly`.
 </Aside>
 
@@ -110,9 +110,10 @@ Steam::pool(
 )->send()->wait();
 ```
 
-Pools work with raw Saloon requests, so you decode each `Response` yourself with
-`->dto()` inside the handler. A failed request goes to `exceptionHandler` instead, one Steam
-reports in a `200` payload included, such as a hidden games list.
+Pools work with raw Saloon requests, so the handler reads each DTO with `->dto()`, built before
+the request settles. A failed request goes to `exceptionHandler` instead: one Steam reports in a
+`200`, such as a hidden games list, an answer the SDK cannot read, and one whose DTO it cannot
+build alike.
 
 <Aside title="Pooled requests still cost quota">
 Every request in a pool draws on the same limits as any other call — see
@@ -151,26 +152,24 @@ SDK exception, so a non-2xx response never reaches you as a DTO. All of them
 extend `SteamApiException`, so one catch handles the lot:
 
 ```text frame="none"
-SteamApiException                         (root, extends RuntimeException)
-├── ApiKeyNotConfiguredException          No key configured for a request that needs one.
-├── AppNewsUnavailableException           App whose news Steam does not publish, or an unknown app.
-├── AppNotFoundException                  App ID Steam does not know.
-├── AppVersionUnavailableException        No server version to check, or an unknown app.
-├── InvalidApiKeyException                Steam rejected the key, or received none.
-├── InvalidServerAddressException         Address is neither IPv4 nor IPv4:queryport.
-├── InvalidSteamIdException               Malformed SteamID64.
-├── ProfileNotPublicException             Profile, games list, or stats are private.
-├── StatsUnavailableException             No stats for that game, or the profile hides them.
-├── SteamConnectionException              Steam never answered: timeout, DNS, TLS, refused.
-├── SteamRateLimitException               A local limit ran out, or Steam answered 429; exposes the Limit.
-├── SteamUserNotFoundException            Vanity URL unresolved or profile missing.
-├── TooManySteamIdsException              More than 100 IDs in a batch request.
-├── FakeNotInstalledException             Facade assertion without Steam::fake(). (Laravel bridge)
-├── FakeOutsideTestsException             Steam::fake() outside tests. (Laravel bridge)
-├── InvalidSteamHttpOptionException       Timeout, retry or sender value the connector rejects. (Laravel bridge)
-├── InvalidSteamLanguageException         Language code Steam does not accept. (Laravel bridge)
-├── InvalidSteamLoggingOptionException    Log channel or flag the config cannot use. (Laravel bridge)
-└── InvalidSteamRateLimitOptionException  Store, limit or cool-down the config cannot use. (Laravel bridge)
+SteamApiException                   (root, extends RuntimeException)
+├── ApiKeyNotConfiguredException    No key configured for a request that needs one.
+├── AppNewsUnavailableException     App whose news Steam does not publish, or an unknown app.
+├── AppNotFoundException            App ID Steam does not know.
+├── AppVersionUnavailableException  No server version to check, or an unknown app.
+├── InvalidApiKeyException          Steam rejected the key, or received none.
+├── InvalidServerAddressException   Address is neither IPv4 nor IPv4:queryport.
+├── InvalidSteamIdException         Malformed SteamID64.
+├── ProfileNotPublicException       Profile, games list, groups or stats private, or missing where Steam can't tell.
+├── StatsUnavailableException       No stats for that game, or the profile hides them.
+├── SteamConnectionException        Steam never answered: timeout, DNS, TLS, refused, cut-off body.
+├── SteamRateLimitException         A local limit ran out, or Steam answered 429; exposes the Limit.
+├── SteamUserNotFoundException      No Steam user has the vanity name.
+├── TooManySteamIdsException        More than 100 IDs in a request built by hand.
+├── UnreadableResponseException     An answer that is not JSON, or lacks its envelope.
+├── FakeNotInstalledException       Facade assertion without Steam::fake(). (Laravel bridge)
+├── FakeOutsideTestsException       Steam::fake() outside tests. (Laravel bridge)
+└── InvalidSteamConfigException     A steam-api value the bridge cannot use. (Laravel bridge)
 ```
 
 Catch the leaf you care about, or the root. The
@@ -186,14 +185,18 @@ A status no leaf claims — a `5xx` once the
 unexpected `4xx` — arrives as `SteamApiException` itself, carrying the response and Steam's
 status as the code.
 
-The six marked as the bridge's own (`Fkrzski\LaravelSteamApiSdk\Exceptions`) signal a
+The three marked as the bridge's own (`Fkrzski\LaravelSteamApiSdk\Exceptions`) signal a
 misconfiguration, or a test wired up wrong, rather than a failed call — see
 [Configuration](/laravel-steam-api-sdk/configuration). The rest live in
-`Fkrzski\SteamApiSdk\Exceptions`.
+`Fkrzski\SteamApiSdk\Exceptions`. The base SDK's `InvalidTimeoutException`,
+`InvalidRetryException` and `InvalidRateLimitException` never reach you: the bridge checks the
+config before the base SDK sees it and raises `InvalidSteamConfigException` naming the key.
 
-<Aside type="caution" title="FatalRequestException no longer reaches you">
-Since 0.7.0 a request Steam never answered raises `SteamConnectionException`, inside the
-hierarchy, rather than Saloon's `FatalRequestException`. Catch the SDK one instead.
+<Aside type="caution" title="Some failures fall outside the tree">
+An empty ID list, a `concurrency` under 1 and a `newsFeed()` page under 2 raise
+`InvalidArgumentException` before anything is sent. A DTO Steam's answer cannot fill fails the
+call with whatever building it raised, such as PHP's `ValueError` for a friend `relationship` the
+SDK does not list.
 </Aside>
 
 ### Rendering
@@ -211,14 +214,18 @@ to, rather than a blanket 500:
 | `ProfileNotPublicException` | 403 |
 | `InvalidServerAddressException` | 422 — the address is input, typically a route parameter |
 | `SteamRateLimitException` | 429, with `Retry-After` counting down what is left of the limit's window, or of the cool-down after Steam's own `429` |
-| `SteamConnectionException`, and `SteamApiException` for a `5xx` | 503, the body saying only `Service Unavailable` |
-| `InvalidApiKeyException`, `TooManySteamIdsException`, `ApiKeyNotConfiguredException`, `InvalidSteamLanguageException`, `InvalidSteamHttpOptionException`, `InvalidSteamRateLimitOptionException`, `InvalidSteamLoggingOptionException`, `FakeOutsideTestsException` | 500 |
+| `SteamConnectionException`, `UnreadableResponseException`, and `SteamApiException` for a `5xx` | 503, the body saying only `Service Unavailable` |
+| `InvalidApiKeyException`, `TooManySteamIdsException`, `ApiKeyNotConfiguredException`, `InvalidSteamConfigException`, `FakeOutsideTestsException` | 500, the body saying only `Server Error` |
 
-The 404, 403 and 422 bodies carry the exception's message, which opens with the Steam method.
+The 404, 403, 422 and 429 bodies carry the exception's message, which opens with the Steam
+method when Steam answered.
+With `app.debug` on, the 500 group is left to Laravel's exception page, still a 500, which names
+what to fix.
 
 `InvalidSteamIdException` and `FakeNotInstalledException` are left alone: an ID that
 fails to parse is already a 404 from the [route binding](/laravel-steam-api-sdk/route-binding),
-and a missing fake only happens in a test.
+and a missing fake only happens in a test. Any other `SteamApiException` — an unexpected `4xx`, a
+refusal Steam reports in a `200` — reaches Laravel's handler as it is, a plain 500.
 
 Every row above the 500 one is turned off together by
 [`steam-api.exceptions.render`](/laravel-steam-api-sdk/configuration#exception-rendering);

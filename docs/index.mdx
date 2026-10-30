@@ -41,8 +41,8 @@ JSON. It powers the [player stats](https://deadbystats.eu) on
 - **Validation rule** — [`SteamIdRule`](/laravel-steam-api-sdk/validation) validates
   a submitted ID or profile URL without touching the API.
 - **One-liner fakes** — `Steam::fake()->users()->summaries()` fakes an endpoint the
-  way your code calls it, with DTO factories for the payloads, and `Steam::assertSent()`
-  for the requests that went out.
+  way your code calls it, with the base SDK's DTO factories for the payloads, and
+  `Steam::assertSent()` for the requests that went out.
 
 ## Requirements
 
@@ -93,3 +93,38 @@ echo $summaries[0]->personaName;
 
 Every resource sends its request through the shared connector and hands back the
 readonly DTO — you never touch the Saloon response.
+
+## Versioning
+
+The bridge follows [SemVer](https://semver.org/) from 1.0.0. A minor or patch release keeps:
+
+- The `Steam` facade and `SteamManager`, the class and the contract, with the methods they have,
+  and the `Contracts\SteamIdBinder` and `Contracts\SteamLanguageResolver` seams.
+- The `steam-api` config keys, the `STEAM_API_*` variables and their defaults, the
+  `steam-api-config` and `steam-api-translations` publish tags, and the `steam_id` and
+  `steam_id_strict` message keys.
+- `SteamServiceProvider`, `AsSteamId`, `SteamIdRule`, `SteamIdRouteBinding`,
+  `LocaleLanguageResolver`, `RespectsSteamRateLimit` and `php artisan steam:install`.
+- The three [events](/laravel-steam-api-sdk/events), their constructors and properties, and when
+  each fires.
+- `FakeNotInstalledException`, `FakeOutsideTestsException` and `InvalidSteamConfigException`, and
+  when each is raised.
+- The status each exception [renders as](/laravel-steam-api-sdk/guide#rendering). A minor may
+  render one the table does not list.
+- The level of a log line and the keys of its context: `exception`, `code` and `query`.
+
+Any release may change:
+
+- Anything marked `@internal`: `SteamSettings`, `Budget`, `Allowance`, `UtcDayLimit`,
+  `SteamTrafficLogger`, `NightwatchReporting`, `SteamExceptionRenderer`, `AboutSection` and
+  `InstallCommand`, the `SteamManager` constructor, and the bridge exceptions' constructors and
+  named constructors. PHPStan with bleeding edge reports a call from your code.
+- `Contracts\SteamManager`, which gains a method in a minor when the base SDK adds a resource, so a
+  class implementing it itself adds that method on upgrade.
+- The rows of the `about` section, their wording and the `--json` keys.
+- The text of a log line, and the bridge exceptions' messages.
+- Limit names and the keys in the rate limit store, so a release may restart the counters once.
+
+The resources, the DTOs, the base exceptions, `SteamFake` and the factories are the base SDK's and
+follow [its versioning](/php-steam-api-sdk#versioning). A new major of the base SDK comes in a
+bridge major, and a higher minimum PHP or Laravel in a minor.

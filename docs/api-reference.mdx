@@ -10,21 +10,14 @@ interface, the rest on the facade itself. Endpoints take a
 identify a user and return readonly DTOs from the underlying SDK, documented in
 [Data objects](/php-steam-api-sdk/dto-reference).
 
-<Aside title="Four exceptions every request can raise">
-`ApiKeyNotConfiguredException` (no key configured), `InvalidApiKeyException` (Steam
-rejected it), `SteamRateLimitException` (a [limit](/laravel-steam-api-sdk/rate-limiting) spent, or
-Steam answered `429`) and `SteamConnectionException` (Steam never answered, once the
-[retries](/laravel-steam-api-sdk/configuration#timeouts-and-retries) are spent). The first one skips
-the `apps()`, `news()` and `webApi()` endpoints, `currentPlayers()`, `globalAchievements()` and
-`newsFeed()`, which Steam serves without a key. They are listed per method only where an endpoint
-raises them on its own, and every exception below extends `SteamApiException`.
-</Aside>
-
-<Aside type="caution" title="The language argument is an enum since 0.6.0">
-`achievements()`, `schema()` and `userStats()` take a `Language` case rather than the
-raw code they took before, so a call passing `'english'` swaps it for `Language::English`.
-Omit it and the request carries the [configured default](/laravel-steam-api-sdk/configuration#default-language).
-</Aside>
+Badges list what an endpoint raises on its own. On top of that, any call can raise
+`SteamRateLimitException`, `SteamConnectionException`, `UnreadableResponseException` or
+`SteamApiException` itself, `ProfileNotPublicException` for a `401` or `403` the endpoint gives no
+meaning of its own, and `InvalidSteamConfigException` for a config value the bridge cannot use. A
+request that needs the key can raise `ApiKeyNotConfiguredException`
+and `InvalidApiKeyException`; the `apps()`, `news()` and `webApi()` endpoints, `currentPlayers()`,
+`globalAchievements()` and `newsFeed()` need none. A DTO Steam's answer cannot fill fails the call
+with whatever building it raised — see [Exceptions](/laravel-steam-api-sdk/guide#exceptions).
 
 ## Resources
 
@@ -53,11 +46,6 @@ Steam::webApi(): WebApiResource
 
 A resource sends through the same scoped connector the facade uses, so
 [`fake()`](#fake) covers one you reached before installing the mock.
-
-<Aside type="caution" title="The facade helpers are gone since 0.9.0">
-Every endpoint was also a helper on the facade, under the same name. Call it on its resource
-with the same arguments, so `Steam::groups($id)` is now `Steam::users()->groups($id)`.
-</Aside>
 
 ## Endpoints
 
@@ -149,15 +137,17 @@ foreach ($badges->badges as $badge) {
 ### `bans()`
 
 ```text frame="none"
-Steam::users()->bans(list<SteamId> $steamIds): list<PlayerBan>
+Steam::users()->bans(list<SteamId> $steamIds, int $concurrency = 5): list<PlayerBan>
 ```
 
-<Badge text="throws TooManySteamIdsException" variant="danger" size="small" />
 <Badge text="throws InvalidArgumentException" variant="danger" size="small" />
 
-Fetches community, VAC, game and economy bans for **1 to 100** players. Ban records
-are public, so a hidden profile still returns a row. An empty list of IDs raises
-`InvalidArgumentException`, more than 100 raises `TooManySteamIdsException`.
+Fetches community, VAC, game and economy bans for any number of players. Ban records are public,
+so a hidden profile still returns a row. Up to 100 IDs go out as one request, and a longer list as
+requests of 100, `concurrency` at a time, each sent once — see
+[More than 100 Steam IDs](/php-steam-api-sdk/guide#more-than-100-steam-ids). An empty list or a
+`concurrency` under 1 raises `InvalidArgumentException` before anything is sent, and the rows come
+back in no particular order, so key them by Steam ID.
 
 ```php
 $bans = Steam::users()->bans([$steamId]);
@@ -458,15 +448,15 @@ $level = Steam::players()->steamLevel($steamId);
 ### `summaries()`
 
 ```text frame="none"
-Steam::users()->summaries(list<SteamId> $steamIds): list<PlayerSummary>
+Steam::users()->summaries(list<SteamId> $steamIds, int $concurrency = 5): list<PlayerSummary>
 ```
 
-<Badge text="throws TooManySteamIdsException" variant="danger" size="small" />
 <Badge text="throws InvalidArgumentException" variant="danger" size="small" />
 
-Fetches public profile summaries for **1 to 100** players. Same bounds as
-`bans()`: an empty list and more than 100 IDs each raise before a request is
-sent.
+Fetches public profile summaries for any number of players, split and sent like
+[`bans()`](#bans), with the same `InvalidArgumentException` and in no particular order either. A
+hidden or friends-only profile comes back
+[stripped](/php-steam-api-sdk/dto-reference#playersummary) rather than refused.
 
 ```php
 $summaries = Steam::users()->summaries([$steamId]);
@@ -521,13 +511,14 @@ if (! $check->isUpToDate) {
 ### `userStats()`
 
 ```text frame="none"
-Steam::stats()->userStats(SteamId $steamId, int $appId, ?Language $language = null): UserStats
+Steam::stats()->userStats(SteamId $steamId, int $appId): UserStats
 ```
 
 <Badge text="throws ProfileNotPublicException" variant="danger" size="small" />
 
-Returns a player's stats and achievement flags for one game. `language` localises
-achievement metadata, e.g. `Language::English`.
+Returns a player's stats and achievement flags for one game, by API name; their display names
+come from [`schema()`](#schema). It takes no `language`, since Steam answers the same payload with
+one and without.
 
 ```php
 $stats = Steam::stats()->userStats($steamId, appId: 381210);
@@ -556,14 +547,17 @@ resolved it. See [The connector binding](/laravel-steam-api-sdk/configuration#th
 ### `fake()`
 
 ```text frame="none"
-Steam::fake(array<class-string, mixed> $responses = []): SteamFake
+Steam::fake(
+    array<array-key, MockResponse|Fixture|callable(PendingRequest): mixed> $responses = [],
+): SteamFake
 ```
 
 <Badge text="throws FakeOutsideTestsException" variant="danger" size="small" />
 
-Attaches `Testing\SteamFake`, a Saloon `MockClient`, to the connector and returns it.
-Refused unless the application environment is `testing`. Its `apps()`, `news()`,
-`players()`, `stats()`, `users()` and `webApi()` fake each endpoint by name and hand the mock back — see
+Attaches the base SDK's `Fkrzski\SteamApiSdk\Testing\SteamFake`, a Saloon `MockClient`, to the
+connector and returns it, dropping the pause between retries. Refused unless the application
+environment is `testing`. Its `apps()`, `news()`, `players()`, `stats()`, `users()` and `webApi()`
+fake each endpoint by name and hand the mock back — see
 [Faking responses](/laravel-steam-api-sdk/testing#faking-responses). The assertions and
 readers sit on the facade too, under [Test assertions](#test-assertions) and
 [Recorded traffic](#recorded-traffic).
@@ -604,7 +598,8 @@ fires.
 SteamRequestFailed(Throwable $exception)
 ```
 
-The exception the caller gets: an SDK one after the retries, or whatever a listener threw.
+The exception the caller gets: an SDK one after the retries, whatever building the DTO raised, or
+whatever a listener threw.
 
 ### `SteamRequestSending`
 
@@ -688,9 +683,9 @@ request; omit it to count everything the fake recorded.
 Steam::assertSentInOrder(array<Closure|class-string<Request>|string> $callbacks): void
 ```
 
-Asserts that these requests were sent, in this order, and nothing else with them.
-Saloon falls back to searching the whole history when a position does not match,
-so the count is the part it enforces strictly.
+Asserts that these requests were sent, in this order, and nothing else with them. A closure or a
+URL pattern has to match its position, while a class name Saloon also finds anywhere else in the
+history, so for those only the count is strict.
 
 ## Recorded traffic
 

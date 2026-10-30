@@ -8,7 +8,7 @@ description: Validate Steam IDs in requests with SteamIdRule — a 64-bit ID or 
 [route binding](/laravel-steam-api-sdk/route-binding): a 64-bit ID or a
 `/profiles/<id>` URL passes, anything else fails. The URL keeps whatever follows the
 ID — a sub-path, a `?` query string, a `#` fragment — so a link copied straight out of
-the address bar passes as it stands.
+the address bar passes as it stands. Only the path is read, so the host is not checked.
 
 <Aside type="tip" title="Format-only, so it costs nothing">
 The rule never calls the Steam Web API — no latency, no request budget spent inside
