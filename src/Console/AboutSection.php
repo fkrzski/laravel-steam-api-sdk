@@ -6,9 +6,9 @@ namespace Fkrzski\LaravelSteamApiSdk\Console;
 
 use Closure;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\Allowance;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\Budget;
 use Fkrzski\LaravelSteamApiSdk\SteamSettings;
+use Fkrzski\SteamApiSdk\Http\Allowance;
+use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Foundation\Application;
@@ -63,7 +63,6 @@ final readonly class AboutSection
         private Application $app,
         private ConfigRepository $config,
         private SteamSettings $settings,
-        private Budget $budget,
     ) {}
 
     /**
@@ -296,9 +295,9 @@ final readonly class AboutSection
             '%s of %s %s',
             number_format($allowance->left),
             number_format($allowance->allow),
-            $allowance->seconds === null
+            $allowance->window === null
                 ? 'per day'
-                : sprintf('per %ds', $allowance->seconds),
+                : sprintf('per %ds', $allowance->window),
         );
 
         return $allowance->sleeps ? $remaining.' (sleeps)' : $remaining;
@@ -318,7 +317,7 @@ final readonly class AboutSection
     private function allowances(): ?array
     {
         try {
-            return $this->budget->remaining();
+            return $this->app->make(SteamConnector::class)->rateLimitBudget()->remaining();
         } catch (
             InvalidSteamConfigException|BindingResolutionException|LimitException|JsonException
         ) {
