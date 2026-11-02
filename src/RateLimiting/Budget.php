@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk\RateLimiting;
 
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
+use Fkrzski\SteamApiSdk\Http\UtcDayLimit;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Support\Facades\Date;
@@ -42,7 +43,7 @@ final readonly class Budget
             return new Allowance(
                 allow: $limit->getAllow(),
                 left: $limit->getAllow() - $limit->getHits(),
-                seconds: str_ends_with($limit->getName(), UtcDayLimit::WINDOW) ? null : $limit->getReleaseInSeconds(),
+                seconds: $limit instanceof UtcDayLimit ? null : $limit->getReleaseInSeconds(),
                 sleeps: $limit->getShouldSleep(),
             );
         }, $this->counting($connector));

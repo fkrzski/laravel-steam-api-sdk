@@ -7,8 +7,8 @@ namespace Fkrzski\LaravelSteamApiSdk;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
 use Fkrzski\SteamApiSdk\Enums\Language;
+use Fkrzski\SteamApiSdk\Http\UtcDayLimit;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
@@ -215,7 +215,7 @@ final readonly class SteamSettings
         foreach ($entries as $key => $entry) {
             $limit = $this->limit($key, $entry);
 
-            // The name is built from `allow` and `every`, and the plugin keeps one counter per name.
+            // The plugin keeps one counter per name, built from `allow` and `every`, or `utc_day` for every day window.
             $earlier = $keys[$limit->getName()] ?? null;
 
             if ($earlier !== null) {
