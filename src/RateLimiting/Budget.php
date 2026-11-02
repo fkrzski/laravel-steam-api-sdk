@@ -67,19 +67,6 @@ final readonly class Budget
         return $this->waitFor($exception->limit);
     }
 
-    /**
-     * Spend every limit counting requests, as a day of traffic would.
-     */
-    public function exhaust(): void
-    {
-        $connector = $this->connector();
-        $store = $connector->rateLimitStore();
-
-        foreach ($this->counting($connector) as $limit) {
-            $limit->hit($limit->getAllow())->save($store);
-        }
-    }
-
     private function connector(): SteamConnector
     {
         return $this->container->make(SteamConnector::class);
