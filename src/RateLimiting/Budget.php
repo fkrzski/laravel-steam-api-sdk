@@ -42,7 +42,7 @@ final readonly class Budget
 
             return new Allowance(
                 allow: $limit->getAllow(),
-                left: $limit->getAllow() - $limit->getHits(),
+                left: max(0, $limit->getAllow() - $limit->getHits()),
                 seconds: $limit instanceof UtcDayLimit ? null : $limit->getReleaseInSeconds(),
                 sleeps: $limit->getShouldSleep(),
             );

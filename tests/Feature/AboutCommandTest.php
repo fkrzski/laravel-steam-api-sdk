@@ -169,6 +169,15 @@ it('reports a window in seconds as written, a day long or not', function (): voi
     expect(steamAboutSection()['requests_remaining'])->toBe('500 of 500 per 86400s');
 });
 
+it('reports a day spent past what it now allows as none left', function (): void {
+    spendDailyBudget();
+
+    config()->set('steam-api.rate_limit.limits', [['allow' => 500, 'every' => 'day']]);
+    app()->forgetScopedInstances();
+
+    expect(steamAboutSection()['requests_remaining'])->toBe('0 of 500 per day');
+});
+
 it('reports configured limits without an api key', function (): void {
     config()->set([
         'steam-api.key' => null,
