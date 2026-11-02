@@ -11,7 +11,6 @@ use Fkrzski\LaravelSteamApiSdk\Logging\SteamTrafficLogger;
 use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\Allowance;
 use Fkrzski\LaravelSteamApiSdk\RateLimiting\Budget;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
 use Fkrzski\LaravelSteamApiSdk\Rendering\SteamExceptionRenderer;
 use Fkrzski\LaravelSteamApiSdk\SteamManager;
 use Fkrzski\LaravelSteamApiSdk\SteamSettings;
@@ -22,7 +21,6 @@ dataset('classes only the bridge builds', function (): iterable {
         InstallCommand::class,
         SteamTrafficLogger::class,
         NightwatchReporting::class,
-        UtcDayLimit::class,
         Budget::class,
         Allowance::class,
         SteamExceptionRenderer::class,

@@ -102,6 +102,11 @@ it('names the config key, the env var and what to set it to', function (Closure 
         'The configured Steam rate limits "steam-api.rate_limit.limits.0" and "steam-api.rate_limit.limits.2" share '
         .'"allow" and "every", so they would count as one. Remove one, or change either.',
     ],
+    'duplicate day' => [
+        fn (): InvalidSteamConfigException => InvalidSteamConfigException::duplicateDayLimits(1, 0),
+        'The configured Steam rate limits "steam-api.rate_limit.limits.0" and "steam-api.rate_limit.limits.1" are '
+        .'both "day" windows, which count as one whatever their "allow". Remove one, or give either "every" in seconds.',
+    ],
     'channel' => [
         fn (): InvalidSteamConfigException => InvalidSteamConfigException::option('logging.channel', 'papertrail-x'),
         'The configured Steam logging option "steam-api.logging.channel" cannot be "papertrail-x". Set '

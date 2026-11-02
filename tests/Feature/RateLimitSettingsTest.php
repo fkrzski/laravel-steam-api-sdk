@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\UtcDayLimit;
 use Fkrzski\LaravelSteamApiSdk\SteamSettings;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
+use Fkrzski\SteamApiSdk\Http\UtcDayLimit;
 use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Support\Facades\Cache;
 use Saloon\RateLimitPlugin\Limit;
-use Saloon\RateLimitPlugin\Stores\LaravelCacheStore;
 
-mutates(SteamSettings::class, UtcDayLimit::class);
+mutates(SteamSettings::class);
 
 function configuredLimit(int|string $key = 0): Limit
 {
@@ -138,7 +137,7 @@ it('throws when the cache config defines no such store', function (mixed $store)
 
 it('keeps the base sdk daily budget while limits are unset', function (): void {
     expect(steamSettings()->rateLimits())->toBeNull()
-        ->and(sendCountedRequest())->toEndWith(':100000_every_utc_midnight');
+        ->and(sendCountedRequest())->toEndWith(':utc_day');
 });
 
 it('lets requests past a spent daily budget once limits are empty', function (): void {
@@ -180,44 +179,17 @@ it('meters a connector without an api key once limits are configured', function 
     expect($limit->getName())->toBe('SteamConnector:anonymous:1_every_60');
 });
 
-it('shares the default daily counter with a day window', function (): void {
+it('shares the default daily counter with a day window whatever it allows', function (): void {
     spendDailyBudget();
 
-    rebuildWithLimits([['allow' => 100_000, 'every' => 'day']]);
+    rebuildWithLimits([['allow' => 100_001, 'every' => 'day']]);
+
+    Steam::users()->resolveVanityUrl('gabelogannewell');
 
     expect(fn (): string => Steam::users()->resolveVanityUrl('gabelogannewell')->value)
         ->toThrow(SteamRateLimitException::class);
 
-    Steam::assertNothingSent();
-});
-
-it('counts a day window to the next 00:00 UTC whenever it opens', function (): void {
-    config()->set('steam-api.rate_limit.limits', [['allow' => 10, 'every' => 'day']]);
-
-    $timezone = date_default_timezone_get();
-
-    // Midnight there is never midnight in UTC, so a window taking the default zone would show.
-    date_default_timezone_set('Pacific/Kiritimati');
-
-    try {
-        $expiry = configuredLimit()->resetLimit()->getExpiryTimestamp();
-    } finally {
-        date_default_timezone_set($timezone);
-    }
-
-    expect($expiry)->toBe(new DateTimeImmutable('tomorrow', new DateTimeZone('UTC'))->getTimestamp());
-});
-
-it('keeps the window the store holds for a day limit', function (): void {
-    $store = new LaravelCacheStore(Cache::store());
-    $limit = UtcDayLimit::requests(10);
-
-    $store->set($limit->getName(), json_encode(['timestamp' => time() + 3600, 'hits' => 4], JSON_THROW_ON_ERROR), 3600);
-
-    $limit->update($store);
-
-    expect($limit->getHits())->toBe(4)
-        ->and($limit->getRemainingSeconds())->toBeGreaterThanOrEqual(3599)->toBeLessThanOrEqual(3600);
+    Steam::assertSentCount(1);
 });
 
 it('builds a window in seconds and one reset at 00:00 UTC', function (): void {
@@ -290,6 +262,10 @@ it('rejects a limit it cannot build, naming the config key', function (mixed $li
     'a repeated window' => [
         [['allow' => 5, 'every' => 60], ['allow' => 1, 'every' => 1], ['allow' => '5', 'every' => '60', 'sleep' => true]],
         '"steam-api.rate_limit.limits.0" and "steam-api.rate_limit.limits.2" share',
+    ],
+    'two day windows' => [
+        [['allow' => 10, 'every' => 'day'], ['allow' => 20, 'every' => 'day']],
+        '"steam-api.rate_limit.limits.0" and "steam-api.rate_limit.limits.1" are both "day" windows',
     ],
 ]);
 

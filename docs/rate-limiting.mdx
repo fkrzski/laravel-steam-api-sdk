@@ -57,8 +57,8 @@ of one that several apps use, a window per second.
 ```
 
 Each entry allows `allow` requests every `every` seconds, or every `'day'`, a window that closes
-at 00:00 UTC. A `'day'` entry allowing 100 000 keeps counting where the default left off, while
-changing an entry's `allow` or `every` restarts its count.
+at 00:00 UTC. A `'day'` entry keeps counting where the default left off, whatever its `allow`,
+while changing the `allow` or `every` of an entry in seconds restarts its count.
 
 | `steam-api.rate_limit.limits` | What is counted locally |
 | --- | --- |
@@ -74,7 +74,8 @@ write those out.
 
 A value the connector cannot take raises `InvalidSteamConfigException` naming its key,
 such as `steam-api.rate_limit.limits.1.every`, on your first Steam call, rendered as a 500. Two
-entries with the same `allow` and `every` would share one counter, so they are rejected too.
+entries that would share one counter, with the same `allow` and `every` or both `'day'`, are
+rejected too.
 
 ### Waiting instead of failing
 
