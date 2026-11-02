@@ -14,7 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- The `@internal` `UtcDayLimit` is gone, since a `'day'` entry builds the base SDK's ([#172](https://github.com/fkrzski/laravel-steam-api-sdk/issues/172)).
+- The `@internal` `UtcDayLimit`, `Budget` and `Allowance` are gone. A `'day'` entry builds the base SDK's `UtcDayLimit`, and `about`, `RespectsSteamRateLimit` and the 429 renderer read the connector's `rateLimitBudget()` ([#172](https://github.com/fkrzski/laravel-steam-api-sdk/issues/172), [#173](https://github.com/fkrzski/laravel-steam-api-sdk/issues/173)).
+
+### Fixed
+
+- The "Requests Remaining" row of `about` reports a limit spent past its allowance as 0 left, not a negative count ([#173](https://github.com/fkrzski/laravel-steam-api-sdk/issues/173)).
 
 ## [1.0.0] - 2026-10-30
 
