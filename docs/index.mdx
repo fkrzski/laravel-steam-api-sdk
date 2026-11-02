@@ -115,10 +115,10 @@ The bridge follows [SemVer](https://semver.org/) from 1.0.0. A minor or patch re
 
 Any release may change:
 
-- Anything marked `@internal`: `SteamSettings`, `Budget`, `Allowance`, `UtcDayLimit`,
-  `SteamTrafficLogger`, `NightwatchReporting`, `SteamExceptionRenderer`, `AboutSection` and
-  `InstallCommand`, the `SteamManager` constructor, and the bridge exceptions' constructors and
-  named constructors. PHPStan with bleeding edge reports a call from your code.
+- Anything marked `@internal`: `SteamSettings`, `Budget`, `Allowance`, `SteamTrafficLogger`,
+  `NightwatchReporting`, `SteamExceptionRenderer`, `AboutSection` and `InstallCommand`, the
+  `SteamManager` constructor, and the bridge exceptions' constructors and named constructors.
+  PHPStan with bleeding edge reports a call from your code.
 - `Contracts\SteamManager`, which gains a method in a minor when the base SDK adds a resource, so a
   class implementing it itself adds that method on upgrade.
 - The rows of the `about` section, their wording and the `--json` keys.
