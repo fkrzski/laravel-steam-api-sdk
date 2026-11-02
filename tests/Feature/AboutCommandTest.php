@@ -5,7 +5,6 @@ declare(strict_types=1);
 use Fkrzski\LaravelSteamApiSdk\Console\AboutSection;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\Budget;
 use Fkrzski\SteamApiSdk\Enums\Language;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 use Fkrzski\SteamApiSdk\Http\Senders\SteamSender;
@@ -16,7 +15,7 @@ use Illuminate\Support\Facades\Artisan;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\Senders\GuzzleSender;
 
-mutates(AboutSection::class, Budget::class);
+mutates(AboutSection::class);
 
 // `about` shells out to `composer -V` on every call, ~80 ms a test.
 beforeEach(function (): void {
@@ -167,6 +166,15 @@ it('reports a window in seconds as written, a day long or not', function (): voi
     config()->set('steam-api.rate_limit.limits', [['allow' => 500, 'every' => 86_400]]);
 
     expect(steamAboutSection()['requests_remaining'])->toBe('500 of 500 per 86400s');
+});
+
+it('reports a day spent past what it now allows as none left', function (): void {
+    spendDailyBudget();
+
+    config()->set('steam-api.rate_limit.limits', [['allow' => 500, 'every' => 'day']]);
+    app()->forgetScopedInstances();
+
+    expect(steamAboutSection()['requests_remaining'])->toBe('0 of 500 per day');
 });
 
 it('reports configured limits without an api key', function (): void {

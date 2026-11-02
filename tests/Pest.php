@@ -3,15 +3,14 @@
 declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\Budget;
 use Fkrzski\LaravelSteamApiSdk\SteamSettings;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
 use Fkrzski\SteamApiSdk\Testing\Factories\ISteamNews\NewsItemFactory;
 use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerSummaryFactory;
+use Fkrzski\SteamApiSdk\Testing\SteamFake;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\Psr7\Response;
-use Illuminate\Foundation\Testing\Wormhole;
 use Saloon\Http\Senders\GuzzleSender;
 use Tests\NightwatchTestCase;
 use Tests\TestCase;
@@ -49,7 +48,7 @@ function newsFeedItems(int $count): array
 
 function spendDailyBudget(): void
 {
-    app(Budget::class)->exhaust();
+    SteamFake::spendBudget(Steam::connector());
 }
 
 /**
@@ -62,7 +61,8 @@ function closedRateLimitWindow(): SteamRateLimitException
     try {
         Steam::stats()->currentPlayers(440);
     } catch (SteamRateLimitException $steamRateLimitException) {
-        new Wormhole(90)->seconds();
+        // The window closes on the plugin's clock, which travel() does not reach.
+        $steamRateLimitException->limit->setExpiryTimestamp(time() - 30);
 
         return $steamRateLimitException;
     }

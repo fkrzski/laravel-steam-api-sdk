@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Fkrzski\LaravelSteamApiSdk\Queue\Middleware;
 
 use Closure;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\Budget;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
+use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Container\Container;
 
 /**
@@ -31,7 +31,7 @@ final readonly class RespectsSteamRateLimit
             return $next($job);
         }
 
-        $budget = Container::getInstance()->make(Budget::class);
+        $budget = Container::getInstance()->make(SteamConnector::class)->rateLimitBudget();
         $wait = $budget->wait();
 
         if ($wait !== null) {

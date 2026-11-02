@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BC break.** Every `'day'` entry in `steam-api.rate_limit.limits` counts on the default budget's counter whatever its `allow`, as base 1.1.0's `UtcDayLimit` does, so a config with two of them throws `InvalidSteamConfigException` until one goes. The counter is named `utc_day`, so one kept in the rate limit cache store restarts from zero once, as on the upgrade to 0.9.0 ([#172](https://github.com/fkrzski/laravel-steam-api-sdk/issues/172)).
+- `fkrzski/php-steam-api-sdk` `^1.1` is required ([#172](https://github.com/fkrzski/laravel-steam-api-sdk/issues/172)).
+
+### Removed
+
+- The `@internal` `UtcDayLimit`, `Budget` and `Allowance` are gone. A `'day'` entry builds the base SDK's `UtcDayLimit`, and `about`, `RespectsSteamRateLimit` and the 429 renderer read the connector's `rateLimitBudget()` ([#172](https://github.com/fkrzski/laravel-steam-api-sdk/issues/172), [#173](https://github.com/fkrzski/laravel-steam-api-sdk/issues/173)).
+
+### Fixed
+
+- The "Requests Remaining" row of `about` reports a limit spent past its allowance as 0 left, not a negative count ([#173](https://github.com/fkrzski/laravel-steam-api-sdk/issues/173)).
+
 ## [1.0.0] - 2026-10-30
 
 ### Added
@@ -16,16 +29,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BC break.** `fkrzski/php-steam-api-sdk` `^1.1` is required, and its `SteamConnector` is final, so a subclass moves its overrides to `SteamConfig` (`rateLimits`, `rateLimitStore`, `sender`, `tooManyRequestsCooldown`), which the bridge fills from `steam-api.*` ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146), [#172](https://github.com/fkrzski/laravel-steam-api-sdk/issues/172)).
+- **BC break.** `fkrzski/php-steam-api-sdk` `^1.0` is required, and its `SteamConnector` is final, so a subclass moves its overrides to `SteamConfig` (`rateLimits`, `rateLimitStore`, `sender`, `tooManyRequestsCooldown`), which the bridge fills from `steam-api.*` ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
 - **BC break.** `Steam::stats()->userStats()` takes no `language`, and neither `steam-api.language` nor the app locale reaches it, so a call passing `language:` drops the argument ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
 - **BC break.** `PersonaState`, `CommunityVisibility` and `CommentPermission` map a value they do not list to `Unknown` and `PersonaState` gains `Invisible`, so a `match` over them needs the new cases. `Friend`, `NewsItem` and `PlayerSummary` times come back in UTC, and `PlayerSummary::$primaryClanId` is `null` for a player with no primary group ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
 - **BC break.** `AsSteamId` refuses a stored Steam ID with a trailing newline, as `SteamId::fromSteamId64()` does from 1.0, so a value an earlier version stored with one throws `InvalidSteamIdException` on read until the column is trimmed ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
 - **BC break.** The DTO factories, `SteamFake` and the resource fakes are the base SDK's, under `Fkrzski\SteamApiSdk\Testing` with each factory under its interface, so `Fkrzski\LaravelSteamApiSdk\Testing\Factories\PlayerSummaryFactory` becomes `Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerSummaryFactory`. A `SteamManager` implementation returns the base `SteamFake` from `fake()` ([#143](https://github.com/fkrzski/laravel-steam-api-sdk/issues/143)).
 - **BC break.** `->webApi()->serverInfo()`, `->webApi()->supportedApiList()` and `->webApi()->supportedApiListInvalidKey()` on `SteamFake` are `serverTime()`, `supportedApis()` and `supportedApisInvalidKey()`, after the `WebApiResource` methods they fake ([#143](https://github.com/fkrzski/laravel-steam-api-sdk/issues/143)).
 - **BC break.** `InvalidSteamLanguageException`, `InvalidSteamHttpOptionException`, `InvalidSteamRateLimitOptionException` and `InvalidSteamLoggingOptionException` are one `InvalidSteamConfigException`, so code catching any of them catches that instead. The messages are unchanged apart from a rejected string, now quoted trimmed and no longer JSON-escaped in the logging and rate limit ones ([#163](https://github.com/fkrzski/laravel-steam-api-sdk/issues/163)).
-- **BC break.** Every `'day'` entry in `steam-api.rate_limit.limits` counts on the default budget's counter whatever its `allow`, as base 1.1.0's `UtcDayLimit` does, so a config with two of them throws `InvalidSteamConfigException` until one goes. The counter is named `utc_day`, so one kept in the rate limit cache store restarts from zero once, as on the upgrade to 0.9.0 ([#172](https://github.com/fkrzski/laravel-steam-api-sdk/issues/172)).
 - DTO constructors and `fromArray()`, hook payload constructors and the exceptions' named constructors are `@internal`, so tests build DTOs with the factories ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
-- `SteamSettings`, `Budget`, `Allowance`, `SteamTrafficLogger`, `NightwatchReporting`, `AboutSection`, `SteamExceptionRenderer` and `InstallCommand`, the `SteamManager` constructor and the bridge exceptions' constructors and named constructors are `@internal`, outside SemVer from 1.0.0, since only the provider and `about` build them ([#154](https://github.com/fkrzski/laravel-steam-api-sdk/issues/154), [#163](https://github.com/fkrzski/laravel-steam-api-sdk/issues/163), [#164](https://github.com/fkrzski/laravel-steam-api-sdk/issues/164)).
+- `SteamSettings`, `UtcDayLimit`, `Budget`, `Allowance`, `SteamTrafficLogger`, `NightwatchReporting`, `AboutSection`, `SteamExceptionRenderer` and `InstallCommand`, the `SteamManager` constructor and the bridge exceptions' constructors and named constructors are `@internal`, outside SemVer from 1.0.0, since only the provider and `about` build them ([#154](https://github.com/fkrzski/laravel-steam-api-sdk/issues/154), [#163](https://github.com/fkrzski/laravel-steam-api-sdk/issues/163), [#164](https://github.com/fkrzski/laravel-steam-api-sdk/issues/164)).
 - A `SteamRateLimitException` raised by Steam's 429 carries the response and code 429, which the `steam-api.logging` channel records in the warning's context ([#146](https://github.com/fkrzski/laravel-steam-api-sdk/issues/146)).
 - The faked `users()->summaries()` and `users()->bans()` answer each request with the players it asks for, and a request asking for none of them with the ones no request has had yet, so a lookup over 100 Steam IDs gets each player once ([#143](https://github.com/fkrzski/laravel-steam-api-sdk/issues/143)).
 - The IPlayerService `…NotPublic()` fakes answer with Steam's empty `response` object instead of an empty list, so a test pinning the recorded body moves ([#143](https://github.com/fkrzski/laravel-steam-api-sdk/issues/143)).

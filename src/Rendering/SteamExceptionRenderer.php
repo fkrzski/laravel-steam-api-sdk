@@ -6,7 +6,6 @@ namespace Fkrzski\LaravelSteamApiSdk\Rendering;
 
 use Fkrzski\LaravelSteamApiSdk\Exceptions\FakeOutsideTestsException;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
-use Fkrzski\LaravelSteamApiSdk\RateLimiting\Budget;
 use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
 use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
 use Fkrzski\SteamApiSdk\Exceptions\AppNewsUnavailableException;
@@ -22,7 +21,9 @@ use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamUserNotFoundException;
 use Fkrzski\SteamApiSdk\Exceptions\TooManySteamIdsException;
 use Fkrzski\SteamApiSdk\Exceptions\UnreadableResponseException;
+use Fkrzski\SteamApiSdk\SteamConnector;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
+use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -66,7 +67,8 @@ final readonly class SteamExceptionRenderer
     public function __construct(
         private ExceptionHandler $handler,
         private ConfigRepository $config,
-        private Budget $budget,
+        // The connector is scoped and this renderer outlives the scope.
+        private Container $container,
     ) {}
 
     /**
@@ -108,7 +110,7 @@ final readonly class SteamExceptionRenderer
     public function rateLimited(SteamRateLimitException $e, Request $request): Response
     {
         return $this->handler->render($request, new TooManyRequestsHttpException(
-            $this->budget->waitAfter($e),
+            $this->container->make(SteamConnector::class)->rateLimitBudget()->waitAfter($e),
             $e->getMessage(),
             $e,
         ));
