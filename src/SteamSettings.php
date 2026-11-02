@@ -219,7 +219,9 @@ final readonly class SteamSettings
             $earlier = $keys[$limit->getName()] ?? null;
 
             if ($earlier !== null) {
-                throw InvalidSteamConfigException::duplicateLimits($key, $earlier);
+                throw $limit instanceof UtcDayLimit
+                    ? InvalidSteamConfigException::duplicateDayLimits($key, $earlier)
+                    : InvalidSteamConfigException::duplicateLimits($key, $earlier);
             }
 
             $keys[$limit->getName()] = $key;

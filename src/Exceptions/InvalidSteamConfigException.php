@@ -101,6 +101,18 @@ final class InvalidSteamConfigException extends SteamApiException
         ));
     }
 
+    /** @internal */
+    public static function duplicateDayLimits(int|string $key, int|string $earlier): self
+    {
+        return new self(sprintf(
+            'The configured Steam rate limits "steam-api.rate_limit.limits.%s" and "steam-api.rate_limit.limits.%s" '
+            .'are both "day" windows, which count as one whatever their "allow". Remove one, or give either "every" '
+            .'in seconds.',
+            $earlier,
+            $key,
+        ));
+    }
+
     private static function invalid(string $option, mixed $value, string $fix): self
     {
         return new self(sprintf(

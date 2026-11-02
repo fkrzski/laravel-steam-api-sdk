@@ -263,6 +263,10 @@ it('rejects a limit it cannot build, naming the config key', function (mixed $li
         [['allow' => 5, 'every' => 60], ['allow' => 1, 'every' => 1], ['allow' => '5', 'every' => '60', 'sleep' => true]],
         '"steam-api.rate_limit.limits.0" and "steam-api.rate_limit.limits.2" share',
     ],
+    'two day windows' => [
+        [['allow' => 10, 'every' => 'day'], ['allow' => 20, 'every' => 'day']],
+        '"steam-api.rate_limit.limits.0" and "steam-api.rate_limit.limits.1" are both "day" windows',
+    ],
 ]);
 
 it('keeps a rolling day apart from the one reset at 00:00 UTC', function (): void {
