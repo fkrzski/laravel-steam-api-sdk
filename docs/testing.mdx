@@ -145,16 +145,17 @@ store such as `file` or `redis` carries both into the next test. Keep the rate l
 </php>
 ```
 
-No fake stands in for a spent local limit, which is refused before a response exists. A limit of
-one request does it in two calls:
+No fake stands in for a spent local limit, which is refused before a response exists.
+`SteamFake::spendBudget()` spends every limit counting requests instead, so the next request sent
+with the key throws, while requests sent without it still go through:
 
-```php
-config(['steam-api.rate_limit.limits' => [['allow' => 1, 'every' => 60]]]);
+```php "SteamFake::spendBudget(Steam::connector())"
+use Fkrzski\SteamApiSdk\Testing\SteamFake;
 
-Steam::fake()->stats()->currentPlayers(12_345);
+Steam::fake()->players()->steamLevel(42);
+SteamFake::spendBudget(Steam::connector());
 
-Steam::stats()->currentPlayers(appId: 440);
-Steam::stats()->currentPlayers(appId: 440); // SteamRateLimitException
+Steam::players()->steamLevel($steamId); // SteamRateLimitException
 ```
 
 ## Retries
