@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Fkrzski\LaravelSteamApiSdk;
 
+use Closure;
 use Fkrzski\LaravelSteamApiSdk\Contracts\SteamLanguageResolver;
 use Fkrzski\LaravelSteamApiSdk\Exceptions\InvalidSteamConfigException;
 use Fkrzski\LaravelSteamApiSdk\Monitoring\NightwatchReporting;
 use Fkrzski\SteamApiSdk\Enums\Language;
+use Fkrzski\SteamApiSdk\Exceptions\InvalidRateLimitException;
+use Fkrzski\SteamApiSdk\Exceptions\InvalidRetryException;
+use Fkrzski\SteamApiSdk\Exceptions\InvalidTimeoutException;
 use Fkrzski\SteamApiSdk\Http\UtcDayLimit;
 use Fkrzski\SteamApiSdk\SteamConfig;
 use Fkrzski\SteamApiSdk\ValueObjects\SteamId;
@@ -20,10 +24,10 @@ use Saloon\RateLimitPlugin\Limit;
 /**
  * The `steam-api` config block, read and checked in one place.
  *
- * `env()` hands back strings, so every value is cast and checked here rather
- * than left to {@see SteamConfig}, whose exceptions name its own properties
- * instead of the config key an application sets. The provider builds the
- * connector from these, the listeners log through them and `about` reports
+ * `env()` hands back strings, so every value is cast here. The bounds are left
+ * to {@see SteamConfig}, and a value it refuses is reported against the config
+ * key an application sets rather than its own parameter. The provider builds
+ * the connector from these, the listeners log through them and `about` reports
  * them, so none of them can disagree.
  *
  * @internal
@@ -35,6 +39,17 @@ final readonly class SteamSettings
     private const string DEFAULT_ROUTE_PARAMETER = 'steamId';
 
     private const array LIMIT_KEYS = ['allow' => true, 'every' => true, 'sleep' => true];
+
+    /**
+     * The config key each {@see SteamConfig} parameter is read from.
+     */
+    private const array KEYS = [
+        'connectTimeout' => 'http.connect_timeout',
+        'requestTimeout' => 'http.request_timeout',
+        'tries' => 'http.retry.tries',
+        'retryInterval' => 'http.retry.interval',
+        'tooManyRequestsCooldown' => 'rate_limit.cooldown',
+    ];
 
     public function __construct(
         private ConfigRepository $config,
@@ -122,7 +137,9 @@ final readonly class SteamSettings
      */
     public function connectTimeout(): ?float
     {
-        return $this->seconds('http.connect_timeout');
+        $seconds = $this->seconds(self::KEYS['connectTimeout']);
+
+        return $this->accepted(fn (): SteamConfig => new SteamConfig(connectTimeout: $seconds))->connectTimeout;
     }
 
     /**
@@ -130,17 +147,23 @@ final readonly class SteamSettings
      */
     public function requestTimeout(): ?float
     {
-        return $this->seconds('http.request_timeout');
+        $seconds = $this->seconds(self::KEYS['requestTimeout']);
+
+        return $this->accepted(fn (): SteamConfig => new SteamConfig(requestTimeout: $seconds))->requestTimeout;
     }
 
     public function tries(): int
     {
-        return $this->count('http.retry.tries', min: 1, default: 1);
+        $tries = $this->count(self::KEYS['tries'], default: 1);
+
+        return $this->accepted(fn (): SteamConfig => new SteamConfig(tries: $tries))->tries;
     }
 
     public function retryInterval(): int
     {
-        return $this->count('http.retry.interval', min: 0, default: 0);
+        $interval = $this->count(self::KEYS['retryInterval'], default: 0);
+
+        return $this->accepted(fn (): SteamConfig => new SteamConfig(retryInterval: $interval))->retryInterval;
     }
 
     public function exponentialBackoff(): bool
@@ -210,22 +233,21 @@ final readonly class SteamSettings
         }
 
         $limits = [];
-        $keys = [];
 
         foreach ($entries as $key => $entry) {
-            $limit = $this->limit($key, $entry);
+            $limits[$key] = $this->limit($key, $entry);
+        }
 
-            // The plugin keeps one counter per name, built from `allow` and `every`, or `utc_day` for every day window.
-            $earlier = $keys[$limit->getName()] ?? null;
+        try {
+            new SteamConfig(rateLimits: $limits);
+        } catch (InvalidRateLimitException $invalidRateLimitException) {
+            // Names come from `allow` and `every`, or `utc_day` for a day window, so none is the one kept for the 429 lock.
+            $key = $invalidRateLimitException->key ?? throw $invalidRateLimitException;
+            $earlier = $invalidRateLimitException->earlierKey ?? throw $invalidRateLimitException;
 
-            if ($earlier !== null) {
-                throw $limit instanceof UtcDayLimit
-                    ? InvalidSteamConfigException::duplicateDayLimits($key, $earlier)
-                    : InvalidSteamConfigException::duplicateLimits($key, $earlier);
-            }
-
-            $keys[$limit->getName()] = $key;
-            $limits[$key] = $limit;
+            throw $limits[$key] instanceof UtcDayLimit
+                ? InvalidSteamConfigException::duplicateDayLimits($key, $earlier)
+                : InvalidSteamConfigException::duplicateLimits($key, $earlier);
         }
 
         return $limits;
@@ -236,7 +258,11 @@ final readonly class SteamSettings
      */
     public function rateLimitCooldown(): int
     {
-        return $this->count('rate_limit.cooldown', min: 1, default: self::DEFAULT_COOLDOWN);
+        $cooldown = $this->count(self::KEYS['tooManyRequestsCooldown'], default: self::DEFAULT_COOLDOWN);
+
+        return $this->accepted(
+            fn (): SteamConfig => new SteamConfig(tooManyRequestsCooldown: $cooldown),
+        )->tooManyRequestsCooldown;
     }
 
     /**
@@ -299,6 +325,22 @@ final readonly class SteamSettings
         return $sleeps ? $limit->sleep() : $limit;
     }
 
+    /**
+     * The config {@see SteamConfig} builds, with a value it refuses reported against the key it was read from.
+     *
+     * @param  Closure(): SteamConfig  $config
+     */
+    private function accepted(Closure $config): SteamConfig
+    {
+        try {
+            return $config();
+        } catch (InvalidTimeoutException|InvalidRetryException|InvalidRateLimitException $e) {
+            $key = self::KEYS[$e->parameter];
+
+            throw InvalidSteamConfigException::option($key, $this->value($key));
+        }
+    }
+
     private function seconds(string $key): ?float
     {
         $value = $this->value($key);
@@ -307,20 +349,10 @@ final readonly class SteamSettings
             return null;
         }
 
-        // filter_var() alone would read `true` as 1.
-        $seconds = is_numeric($value)
-            ? filter_var($value, FILTER_VALIDATE_FLOAT, ['options' => ['min_range' => 0]])
-            : false;
-
-        // Guzzle counts whole milliseconds in an int, so the base SDK refuses what rounds to none or overflows it.
-        if ($seconds === false || ($seconds > 0 && $seconds < 0.001) || $seconds * 1000 >= PHP_INT_MAX) {
-            throw InvalidSteamConfigException::option($key, $value);
-        }
-
-        return $seconds;
+        return is_numeric($value) ? (float) $value : throw InvalidSteamConfigException::option($key, $value);
     }
 
-    private function count(string $key, int $min, int $default): int
+    private function count(string $key, int $default): int
     {
         $value = $this->value($key);
 
@@ -328,7 +360,7 @@ final readonly class SteamSettings
             return $default;
         }
 
-        return $this->wholeNumber($value, $min) ?? throw InvalidSteamConfigException::option($key, $value);
+        return $this->wholeNumber($value) ?? throw InvalidSteamConfigException::option($key, $value);
     }
 
     private function flag(string $key): bool
@@ -354,7 +386,7 @@ final readonly class SteamSettings
             : throw InvalidSteamConfigException::option($key, $name);
     }
 
-    private function wholeNumber(mixed $value, int $min): ?int
+    private function wholeNumber(mixed $value, int $min = PHP_INT_MIN): ?int
     {
         $number = is_numeric($value)
             ? filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => $min]])
