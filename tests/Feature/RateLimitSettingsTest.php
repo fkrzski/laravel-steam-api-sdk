@@ -295,11 +295,21 @@ it('rejects a cool-down that is not a whole number of seconds', function (mixed 
     expect(fn (): SteamConnector => app(SteamConnector::class))
         ->toThrow(InvalidSteamConfigException::class, '"steam-api.rate_limit.cooldown"');
 })->with([
-    'zero' => '0',
-    'negative' => '-5',
     'a word' => 'abc',
     'a boolean' => true,
     'a fraction' => 1.5,
+]);
+
+it('names the config key for a cool-down the base sdk refuses', function (string $cooldown): void {
+    config()->set('steam-api.rate_limit.cooldown', $cooldown);
+
+    expect(fn (): SteamConnector => app(SteamConnector::class))->toThrow(
+        InvalidSteamConfigException::class,
+        InvalidSteamConfigException::option('rate_limit.cooldown', $cooldown)->getMessage(),
+    );
+})->with([
+    'zero' => '0',
+    'negative' => '-5',
 ]);
 
 it('refuses requests for the configured cool-down after a 429 without Retry-After', function (): void {

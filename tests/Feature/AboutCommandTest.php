@@ -198,11 +198,14 @@ it('reports an empty list of limits as not metered, key or not', function (?stri
     'without one' => null,
 ]);
 
-it('reports limits it cannot build as invalid', function (): void {
-    config()->set('steam-api.rate_limit.limits', [['allow' => 0, 'every' => 60]]);
+it('reports limits it cannot build as invalid', function (array $limits): void {
+    config()->set('steam-api.rate_limit.limits', $limits);
 
     expect(steamAboutSection()['requests_remaining'])->toBe('INVALID');
-});
+})->with([
+    'no requests allowed' => [[['allow' => 0, 'every' => 60]]],
+    'two day windows' => [[['allow' => 10, 'every' => 'day'], ['allow' => 20, 'every' => 'day']]],
+]);
 
 it('reports the budget as not metered when the api key is missing', function (): void {
     config()->set(['steam-api.key' => null]);
@@ -313,11 +316,14 @@ it('drops the default once the request timeout alone is set', function (): void 
     expect(steamAboutSection()['timeouts'])->toBe('connect 10s, request 60s');
 });
 
-it('reports a rejected timeout as invalid', function (): void {
-    config()->set('steam-api.http.request_timeout', 'abc');
+it('reports a rejected timeout as invalid', function (string $timeout): void {
+    config()->set('steam-api.http.request_timeout', $timeout);
 
     expect(steamAboutSection()['timeouts'])->toBe('INVALID');
-});
+})->with([
+    'not a number' => 'abc',
+    'under a millisecond' => '0.0001',
+]);
 
 it('reports no retries as the default', function (): void {
     expect(steamAboutSection()['retries'])->toBe('none (default)');
@@ -363,11 +369,15 @@ it('drops the default for a pause set beside a single attempt', function (string
     'exponential backoff' => ['exponential_backoff', true],
 ]);
 
-it('reports a rejected retry option as invalid', function (): void {
-    config()->set('steam-api.http.retry.exponential_backoff', 'maybe');
+it('reports a rejected retry option as invalid', function (string $option, string $value): void {
+    config()->set('steam-api.http.retry.'.$option, $value);
 
     expect(steamAboutSection()['retries'])->toBe('INVALID');
-});
+})->with([
+    'backoff not a boolean' => ['exponential_backoff', 'maybe'],
+    'no tries' => ['tries', '0'],
+    'a negative interval' => ['interval', '-1'],
+]);
 
 it('reports guzzle as the default sender', function (): void {
     expect(steamAboutSection()['sender'])->toBe('Guzzle (default)');
