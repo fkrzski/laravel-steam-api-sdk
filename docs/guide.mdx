@@ -189,8 +189,8 @@ The three marked as the bridge's own (`Fkrzski\LaravelSteamApiSdk\Exceptions`) s
 misconfiguration, or a test wired up wrong, rather than a failed call — see
 [Configuration](/laravel-steam-api-sdk/configuration). The rest live in
 `Fkrzski\SteamApiSdk\Exceptions`. The base SDK's `InvalidTimeoutException`,
-`InvalidRetryException` and `InvalidRateLimitException` never reach you: the bridge checks the
-config before the base SDK sees it and raises `InvalidSteamConfigException` naming the key.
+`InvalidRetryException` and `InvalidRateLimitException` never reach you: the bridge raises
+`InvalidSteamConfigException` instead, naming the key the refused value came from.
 
 <Aside type="caution" title="Some failures fall outside the tree">
 An empty ID list, a `concurrency` under 1 and a `newsFeed()` page under 2 raise
