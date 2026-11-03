@@ -236,22 +236,24 @@ it('throws when a timeout is not a number of seconds', function (string $option,
     'request' => 'request_timeout',
 ])->with([
     'not a number' => 'abc',
-    'negative' => '-1',
-    'a negative float' => -0.5,
     'a decimal comma' => '1,5',
     'a boolean' => true,
     'an array' => [[]],
 ]);
 
-it('throws its own exception for a timeout the base sdk refuses', function (string $option, string $value): void {
+it('names the config key for a timeout the base sdk refuses', function (string $option, string|float $value): void {
     config()->set('steam-api.http.'.$option, $value);
 
-    expect(fn (): SteamConnector => app(SteamConnector::class))
-        ->toThrow(InvalidSteamConfigException::class);
+    expect(fn (): SteamConnector => app(SteamConnector::class))->toThrow(
+        InvalidSteamConfigException::class,
+        InvalidSteamConfigException::option('http.'.$option, $value)->getMessage(),
+    );
 })->with([
     'connect' => 'connect_timeout',
     'request' => 'request_timeout',
 ])->with([
+    'negative' => '-1',
+    'a negative float' => -0.5,
     'under a millisecond' => '0.0001',
     'just under a millisecond' => '0.0009999',
     'PHP_INT_MAX / 1000' => '9223372036854775.807',
@@ -259,15 +261,12 @@ it('throws its own exception for a timeout the base sdk refuses', function (stri
     'infinite' => '1e400',
 ]);
 
-it('throws when the tries are not a whole number of at least one', function (mixed $value): void {
+it('throws when the tries are not a whole number', function (mixed $value): void {
     config()->set('steam-api.http.retry.tries', $value);
 
     expect(fn (): SteamConnector => app(SteamConnector::class))
         ->toThrow(InvalidSteamConfigException::class);
 })->with([
-    'zero' => '0',
-    'the integer zero' => 0,
-    'negative' => '-1',
     'a fraction' => '2.5',
     'not a number' => 'abc',
     'a boolean' => true,
@@ -279,10 +278,23 @@ it('throws when the interval is not a whole number of milliseconds', function (m
     expect(fn (): SteamConnector => app(SteamConnector::class))
         ->toThrow(InvalidSteamConfigException::class);
 })->with([
-    'negative' => '-1',
     'a fraction' => '0.5',
     'not a number' => 'abc',
     'a boolean' => true,
+]);
+
+it('names the config key for a retry option the base sdk refuses', function (string $option, int|string $value): void {
+    config()->set('steam-api.http.retry.'.$option, $value);
+
+    expect(fn (): SteamConnector => app(SteamConnector::class))->toThrow(
+        InvalidSteamConfigException::class,
+        InvalidSteamConfigException::option('http.retry.'.$option, $value)->getMessage(),
+    );
+})->with([
+    'no tries' => ['tries', '0'],
+    'the integer zero tries' => ['tries', 0],
+    'negative tries' => ['tries', '-1'],
+    'a negative interval' => ['interval', '-1'],
 ]);
 
 it('throws when exponential backoff is not a boolean', function (mixed $value): void {
