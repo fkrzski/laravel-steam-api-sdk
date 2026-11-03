@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BC break.** Every `'day'` entry in `steam-api.rate_limit.limits` counts on the default budget's counter whatever its `allow`, as base 1.1.0's `UtcDayLimit` does, so a config with two of them throws `InvalidSteamConfigException` until one goes. The counter is named `utc_day`, so one kept in the rate limit cache store restarts from zero once, as on the upgrade to 0.9.0 ([#172](https://github.com/fkrzski/laravel-steam-api-sdk/issues/172)).
 - `fkrzski/php-steam-api-sdk` `^1.1` is required ([#172](https://github.com/fkrzski/laravel-steam-api-sdk/issues/172)).
+- Timeout, retry and cool-down bounds and repeated limit names are checked by the base SDK's `SteamConfig` alone, with no copy in the bridge to drift from it. A value it refuses still throws `InvalidSteamConfigException` naming the same config key and env var ([#166](https://github.com/fkrzski/laravel-steam-api-sdk/issues/166)).
 
 ### Removed
 
