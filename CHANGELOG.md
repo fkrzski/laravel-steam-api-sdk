@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-03
+
 ### Changed
 
 - **BC break.** Every `'day'` entry in `steam-api.rate_limit.limits` counts on the default budget's counter whatever its `allow`, as base 1.1.0's `UtcDayLimit` does, so a config with two of them throws `InvalidSteamConfigException` until one goes. The counter is named `utc_day`, so one kept in the rate limit cache store restarts from zero once, as on the upgrade to 0.9.0 ([#172](https://github.com/fkrzski/laravel-steam-api-sdk/issues/172)).
@@ -258,7 +260,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Steam` facade for static access to the manager.
 - `Steam::fake()` — attaches a Saloon `MockClient` to the singleton connector and returns it for assertions, removing per-test connector wiring.
 
-[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.9.0...1.0.0
 [0.9.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.8.0...0.9.0
 [0.8.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.7.0...0.8.0
