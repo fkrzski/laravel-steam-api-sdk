@@ -29,7 +29,7 @@ jobs:
 
     - name: Setup extension cache
       id: extcache
-      uses: shivammathur/cache-extensions@d894929efeece5f8d386bd667369b321947064ad # 1.15.6
+      uses: shivammathur/cache-extensions@c33688ce81fd884ddd70d51cadeb62b6fb974750 # 1.15.8
       with:
         php-version: 8.5
         extensions: dom, mbstring, zip, fileinfo, pcov
