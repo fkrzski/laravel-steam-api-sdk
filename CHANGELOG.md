@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-11
+
+### Changed
+
+- The docs workflow runs `@fkrzski/docs-schema` 0.5.0, which validates `CHANGELOG.md` too, and asks the docs site to rebuild once a release is published, so new docs no longer wait for its next build.
+- The docs sidebar takes its page order from `docs/_meta.json`.
+
 ## [1.1.0] - 2026-11-03
 
 ### Changed
@@ -260,7 +267,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Steam` facade for static access to the manager.
 - `Steam::fake()` — attaches a Saloon `MockClient` to the singleton connector and returns it for assertions, removing per-test connector wiring.
 
-[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/1.1.0...HEAD
+[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/1.1.1...HEAD
+[1.1.1]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/1.1.0...1.1.1
 [1.1.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.9.0...1.0.0
 [0.9.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.8.0...0.9.0
