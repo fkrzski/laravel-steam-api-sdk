@@ -1,0 +1,13 @@
+{
+  "pages": [
+    "guide",
+    "configuration",
+    "rate-limiting",
+    "eloquent-cast",
+    "route-binding",
+    "validation",
+    "events",
+    "logging",
+    "testing"
+  ]
+}
