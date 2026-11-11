@@ -5,10 +5,12 @@ on:
     branches: [master]
     paths:
       - 'docs/**'
+      - 'CHANGELOG.md'
       - '.github/workflows/docs.yml'
   pull_request:
     paths:
       - 'docs/**'
+      - 'CHANGELOG.md'
       - '.github/workflows/docs.yml'
 
 permissions:
@@ -30,9 +32,9 @@ jobs:
       with:
         node-version: 24
 
-    # Validates docs/ against the shared @fkrzski/docs-schema contract:
-    # frontmatter (title + SEO-bounded description, project fields), markdownlint,
-    # and internal-link resolution. Exits non-zero on any violation.
+    # Validates docs/ frontmatter, markdownlint rules, internal links, allowed
+    # MDX components and _meta.json, and CHANGELOG.md against Keep a Changelog,
+    # all against the shared contract. Exits non-zero on any violation.
     # Bumped by hand: Dependabot doesn't see npx calls.
     - name: Validate docs
-      run: npx --yes @fkrzski/docs-schema@0.2.0 docs
+      run: npx --yes @fkrzski/docs-schema@0.5.0 docs
