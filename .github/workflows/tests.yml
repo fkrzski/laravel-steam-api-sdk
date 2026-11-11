@@ -36,7 +36,7 @@ jobs:
 
     - name: Setup extension cache
       id: extcache
-      uses: shivammathur/cache-extensions@04303762ce7e9a04b12c6dc5d8cd41e3e7b4950d # 1.15.10
+      uses: shivammathur/cache-extensions@695b1b465eba861efe67cbbc31252c27f5ed253d # 1.15.11
       with:
         php-version: ${{ matrix.php }}
         extensions: dom, mbstring, zip, fileinfo, pcov
@@ -89,7 +89,7 @@ jobs:
 
     - name: Setup extension cache
       id: extcache
-      uses: shivammathur/cache-extensions@04303762ce7e9a04b12c6dc5d8cd41e3e7b4950d # 1.15.10
+      uses: shivammathur/cache-extensions@695b1b465eba861efe67cbbc31252c27f5ed253d # 1.15.11
       with:
         php-version: 8.5
         extensions: dom, mbstring, zip, fileinfo, pcov
