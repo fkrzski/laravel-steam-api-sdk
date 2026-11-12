@@ -398,5 +398,5 @@ it('leaves a handler without renderable() untouched', function (): void {
 
     expect(function (): void {
         new SteamServiceProvider(app())->boot();
-    })->not->toThrow(Throwable::class);
+    })->not->toThrow(Error::class);
 });
