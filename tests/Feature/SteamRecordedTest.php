@@ -8,7 +8,7 @@ use Fkrzski\LaravelSteamApiSdk\SteamManager;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\ResolveVanityUrlRequest;
 
-mutates(SteamManager::class);
+mutates(SteamManager::class, FakeNotInstalledException::class);
 
 it('records nothing until a request is sent', function (): void {
     fakeSteamEndpoints();
@@ -44,7 +44,11 @@ it('exposes the last request and the response it came back with', function (): v
 it('refuses to read the traffic without a fake', function (): void {
     expect(function (): void {
         Steam::recorded();
-    })->toThrow(FakeNotInstalledException::class, 'Call Steam::fake()')
+    })->toThrow(
+        FakeNotInstalledException::class,
+        'No Steam fake is attached to the connector, so there is no recorded traffic to read. '
+        .'Call Steam::fake() before the code under test sends its requests.',
+    )
         ->and(function (): void {
             Steam::lastRequest();
         })->toThrow(FakeNotInstalledException::class)
