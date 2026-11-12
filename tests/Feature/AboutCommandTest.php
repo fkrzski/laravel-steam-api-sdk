@@ -272,18 +272,24 @@ it('reports the language the rebound resolver reads', function (): void {
     expect(steamAboutSection()['language'])->toBe('german (locale: en)');
 });
 
-it('reports a blanked out language as unset', function (): void {
+it('reports a blanked out language as unset', function (string|false $language): void {
     app()->setLocale('pl');
-    config()->set('steam-api.language', '');
+    config()->set('steam-api.language', $language);
 
     expect(steamAboutSection()['language'])->toBe('NOT SET (config)');
-});
+})->with([
+    'empty string' => '',
+    'false' => false,
+]);
 
-it('reports a language steam does not know as invalid', function (): void {
-    config()->set('steam-api.language', 'klingon');
+it('reports a language steam does not know as invalid', function (mixed $language): void {
+    config()->set('steam-api.language', $language);
 
     expect(steamAboutSection()['language'])->toBe('INVALID');
-});
+})->with([
+    'unknown code' => 'klingon',
+    'not a string' => true,
+]);
 
 it('reports an unknown budget when the config is rejected', function (): void {
     config()->set('steam-api.language', 'klingon');

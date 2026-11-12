@@ -76,9 +76,9 @@ final readonly class SteamSettings
      * The default language, sent on every request that localises its payload.
      *
      * A configured code wins, an unset value falls to the locale, and one blanked
-     * out on purpose sends no language at all. The locale is read when this is
-     * called, and the scoped connector calls it once, so a later `setLocale()`
-     * does not reach it — switching mid-request means passing the language to the call.
+     * out or set to false on purpose sends no language at all. The locale is read
+     * when this is called, and the scoped connector calls it once, so a later
+     * `setLocale()` does not reach it — switching mid-request means passing the language to the call.
      *
      * @throws InvalidSteamConfigException when the value is not one of Steam's codes
      */
@@ -92,11 +92,14 @@ final readonly class SteamSettings
 
         $code = $this->value('language');
 
-        if (! is_string($code)) {
+        // env() reads `STEAM_API_LANGUAGE=false` as a bool, meant as turning the language off.
+        if ($code === null || $code === false) {
             return null;
         }
 
-        return Language::tryFrom($code) ?? throw InvalidSteamConfigException::language($code);
+        $language = is_string($code) ? Language::tryFrom($code) : null;
+
+        return $language ?? throw InvalidSteamConfigException::language($code);
     }
 
     /**

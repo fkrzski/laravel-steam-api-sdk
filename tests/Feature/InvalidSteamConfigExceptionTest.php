@@ -15,6 +15,12 @@ it('names the config key, the env var and what to set it to', function (Closure 
         .'file, or the "steam-api.language" config value, to a code from Fkrzski\SteamApiSdk\Enums\Language — Valve '
         .'spells them its own way, so "koreana" and "brazilian" rather than the ISO codes.',
     ],
+    'language that is not a string' => [
+        fn (): InvalidSteamConfigException => InvalidSteamConfigException::language(true),
+        'The configured Steam language true is not one Steam accepts. Set STEAM_API_LANGUAGE in your .env '
+        .'file, or the "steam-api.language" config value, to a code from Fkrzski\SteamApiSdk\Enums\Language — Valve '
+        .'spells them its own way, so "koreana" and "brazilian" rather than the ISO codes.',
+    ],
     'connect timeout' => [
         fn (): InvalidSteamConfigException => InvalidSteamConfigException::option('http.connect_timeout', 'abc'),
         'The configured Steam HTTP option "steam-api.http.connect_timeout" cannot be "abc". Set '

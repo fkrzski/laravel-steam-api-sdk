@@ -50,13 +50,13 @@ final class InvalidSteamConfigException extends SteamApiException
     ];
 
     /** @internal */
-    public static function language(string $code): self
+    public static function language(mixed $code): self
     {
         return new self(sprintf(
-            'The configured Steam language "%s" is not one Steam accepts. Set STEAM_API_LANGUAGE in your .env '
+            'The configured Steam language %s is not one Steam accepts. Set STEAM_API_LANGUAGE in your .env '
             .'file, or the "steam-api.language" config value, to a code from %s — Valve spells them its own way, '
             .'so "koreana" and "brazilian" rather than the ISO codes.',
-            $code,
+            self::quoted($code),
             Language::class,
         ));
     }
@@ -123,9 +123,14 @@ final class InvalidSteamConfigException extends SteamApiException
                 default => 'rate limit',
             },
             $option,
-            // json_encode() would double every backslash in a class name.
-            is_string($value) ? '"'.$value.'"' : json_encode($value),
+            self::quoted($value),
             $fix,
         ));
+    }
+
+    private static function quoted(mixed $value): string|false
+    {
+        // json_encode() would double every backslash in a class name.
+        return is_string($value) ? '"'.$value.'"' : json_encode($value);
     }
 }
