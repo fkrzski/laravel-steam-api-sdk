@@ -402,6 +402,14 @@ it('reports an unknown budget when the container cannot build the sender', funct
         ->and(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
 });
 
+it('reports an unknown budget when a binding hands back something other than a sender', function (): void {
+    app()->bind(GuzzleSender::class, fn (): stdClass => new stdClass);
+    config()->set('steam-api.http.sender', GuzzleSender::class);
+
+    expect(steamAboutSection()['sender'])->toBe(GuzzleSender::class)
+        ->and(steamAboutSection()['requests_remaining'])->toBe('UNKNOWN');
+});
+
 it('reports the cool-down after a 429', function (mixed $cooldown, string $reported): void {
     config()->set('steam-api.rate_limit.cooldown', $cooldown);
 

@@ -16,6 +16,7 @@ use JsonException;
 use Saloon\Config as SaloonConfig;
 use Saloon\RateLimitPlugin\Exceptions\LimitException;
 use Saloon\RateLimitPlugin\Stores\LaravelCacheStore;
+use UnexpectedValueException;
 
 /**
  * The "Steam API" section of `php artisan about`.
@@ -308,9 +309,9 @@ final readonly class AboutSection
      *
      * `about` is a diagnostics command, so the states it is expected to run into
      * — an app the connector cannot be built for yet, a sender the container cannot
-     * build, and counter data the plugin cannot read back — degrade to "unknown"
-     * instead of taking the whole command down. The rows above name the
-     * misconfiguration this one cannot report.
+     * build or builds as something else, and counter data the plugin cannot read
+     * back — degrade to "unknown" instead of taking the whole command down. The
+     * rows above name the misconfiguration this one cannot report.
      *
      * @return array<Allowance>|null
      */
@@ -319,7 +320,7 @@ final readonly class AboutSection
         try {
             return $this->app->make(SteamConnector::class)->rateLimitBudget()->remaining();
         } catch (
-            InvalidSteamConfigException|BindingResolutionException|LimitException|JsonException
+            InvalidSteamConfigException|BindingResolutionException|UnexpectedValueException|LimitException|JsonException
         ) {
             return null;
         }

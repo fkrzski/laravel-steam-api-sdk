@@ -154,8 +154,9 @@ way the middleware does — see
 - **Requests Remaining** — what is left of each local limit for requests sent with the key, or
   for every request with no key configured, read from that store, such as
   `99,412 of 100,000 per day, 9 of 10 per 1s (sleeps)`. `not metered` for `limits` set to `[]`,
-  `not metered (no API key)` for the default with no key configured, and `UNKNOWN` while
-  another row reads `INVALID`, since the connector cannot be built.
+  `not metered (no API key)` for the default with no key configured, and `UNKNOWN` while the
+  connector cannot be built: another row reads `INVALID`, or the container cannot build a
+  `Sender` from the class the **Sender** row names.
 - **429 Cool-down** — the seconds a `429` without `Retry-After` holds requests back, `60s (default)`
   until you set it.
 
