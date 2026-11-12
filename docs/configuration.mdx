@@ -155,11 +155,11 @@ STEAM_API_LANGUAGE=polish
 | `steam-api.language` | What the request carries |
 | --- | --- |
 | unset — the default | the language the application locale maps to, or nothing where it maps to none |
-| `''` | nothing; Steam picks |
+| `''` or `false` | nothing; Steam picks |
 | `'polish'` | `polish` |
-| any other code | nothing goes out — `InvalidSteamConfigException` instead |
+| any other code or value | nothing goes out — `InvalidSteamConfigException` instead |
 
-A rejected code raises the first time the connector is resolved, so it surfaces on your
+A rejected value raises the first time the connector is resolved, so it surfaces on your
 first Steam call rather than at boot. It is a misconfiguration, so it renders as a 500
 whatever [`steam-api.exceptions.render`](#exception-rendering) says.
 
@@ -402,7 +402,7 @@ php artisan about --only=steam_api
   into a bug report. `NOT SET` when no key is configured.
 - **Language** — the code every localised request carries, and which of the two answers it
   is: `polish (config)` or `polish (locale: pl)`. `NOT SET` names its source the same way,
-  and `INVALID` stands alone, since only config can carry a rejected code.
+  and `INVALID` stands alone, since only config can carry a rejected value.
 - **Logging** — `disabled` until a channel is set, then its name, with `(+ responses)` once
   every response is logged too.
 - **Route Binding** — `disabled`, or `enabled` with the parameter name it claims.
