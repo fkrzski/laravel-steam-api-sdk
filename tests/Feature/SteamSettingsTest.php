@@ -87,8 +87,16 @@ it('sends no language once the configured one is blanked out', function (mixed $
 })->with([
     'empty string' => [''],
     'whitespace only' => ['   '],
+    'false, as env() reads STEAM_API_LANGUAGE=false' => [false],
+]);
+
+it('throws when the configured language is not a string', function (mixed $language): void {
+    config()->set('steam-api.language', $language);
+
+    expect(fn (): ?Language => steamSettings()->language())
+        ->toThrow(InvalidSteamConfigException::class, 'steam-api.language');
+})->with([
     'integer' => [123],
-    'false' => [false],
     'true' => [true],
     'array' => [[]],
 ]);
