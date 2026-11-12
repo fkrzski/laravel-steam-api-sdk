@@ -213,12 +213,12 @@ to, rather than a blanket 500:
 | `StatsUnavailableException` | 404 — the cause is ambiguous, so the status says nothing about which |
 | `ProfileNotPublicException` | 403 |
 | `InvalidServerAddressException` | 422 — the address is input, typically a route parameter |
-| `SteamRateLimitException` | 429, with `Retry-After` counting down what is left of the limit's window, or of the cool-down after Steam's own `429` |
+| `SteamRateLimitException` | 429, the body saying only `Too Many Requests`, with `Retry-After` counting down what is left of the limit's window, or of the cool-down after Steam's own `429` |
 | `SteamConnectionException`, `UnreadableResponseException`, and `SteamApiException` for a `5xx` | 503, the body saying only `Service Unavailable` |
 | `InvalidApiKeyException`, `TooManySteamIdsException`, `ApiKeyNotConfiguredException`, `InvalidSteamConfigException`, `FakeOutsideTestsException` | 500, the body saying only `Server Error` |
 
-The 404, 403, 422 and 429 bodies carry the exception's message, which opens with the Steam
-method when Steam answered.
+The 404, 403 and 422 bodies carry the exception's message, which opens with the Steam method
+when Steam answered.
 With `app.debug` on, the 500 group is left to Laravel's exception page, still a 500, which names
 what to fix.
 
