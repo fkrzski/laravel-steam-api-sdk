@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The "Requests Remaining" row of `about` reads `UNKNOWN` when the class `steam-api.http.sender` names is bound to something other than a `Sender`, where the command threw `UnexpectedValueException` ([#183](https://github.com/fkrzski/laravel-steam-api-sdk/issues/183)).
 - A `steam-api.language` of `true`, a number or an array throws `InvalidSteamConfigException` and reads `INVALID` in `about`, where it sent no language. `false`, which is what `env()` makes of `STEAM_API_LANGUAGE=false`, still sends none, like `''` ([#185](https://github.com/fkrzski/laravel-steam-api-sdk/issues/185)).
+- The 429 rendered for `SteamRateLimitException` says only `Too Many Requests`, where its body named the limit, a SHA-256 of the API key included. `Retry-After` is unchanged ([#187](https://github.com/fkrzski/laravel-steam-api-sdk/issues/187)).
 
 ## [1.1.1] - 2026-11-11
 

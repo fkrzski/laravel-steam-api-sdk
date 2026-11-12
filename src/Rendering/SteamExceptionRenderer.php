@@ -64,6 +64,12 @@ final readonly class SteamExceptionRenderer
      */
     private const string SERVICE_UNAVAILABLE = 'Service Unavailable';
 
+    /**
+     * What a 429 says instead of the exception message, whose limit name
+     * carries a digest of the API key.
+     */
+    private const string TOO_MANY_REQUESTS = 'Too Many Requests';
+
     public function __construct(
         private ExceptionHandler $handler,
         private ConfigRepository $config,
@@ -111,7 +117,7 @@ final readonly class SteamExceptionRenderer
     {
         return $this->handler->render($request, new TooManyRequestsHttpException(
             $this->container->make(SteamConnector::class)->rateLimitBudget()->waitAfter($e),
-            $e->getMessage(),
+            self::TOO_MANY_REQUESTS,
             $e,
         ));
     }
