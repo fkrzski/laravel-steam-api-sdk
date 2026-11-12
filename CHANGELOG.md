@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-11-12
+
 ### Fixed
 
 - The "Requests Remaining" row of `about` reads `UNKNOWN` when the class `steam-api.http.sender` names is bound to something other than a `Sender`, where the command threw `UnexpectedValueException` ([#183](https://github.com/fkrzski/laravel-steam-api-sdk/issues/183)).
@@ -273,7 +275,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Steam` facade for static access to the manager.
 - `Steam::fake()` — attaches a Saloon `MockClient` to the singleton connector and returns it for assertions, removing per-test connector wiring.
 
-[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/1.1.1...HEAD
+[Unreleased]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/1.1.2...HEAD
+[1.1.2]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/1.1.1...1.1.2
 [1.1.1]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/1.1.0...1.1.1
 [1.1.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/fkrzski/laravel-steam-api-sdk/compare/0.9.0...1.0.0
