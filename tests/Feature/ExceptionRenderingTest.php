@@ -129,6 +129,18 @@ it('renders a spent quota as a 429 carrying Retry-After', function (): void {
         ->toBeLessThanOrEqual(3600);
 });
 
+it('renders a spent quota as a 429 that keeps the limit out', function (): void {
+    config()->set('app.debug', false);
+
+    Steam::fake()->tooManyRequests(3600);
+
+    Route::get('steam/quota', fn (): int => Steam::stats()->currentPlayers(440));
+
+    $this->getJson('steam/quota')
+        ->assertTooManyRequests()
+        ->assertExactJson(['message' => 'Too Many Requests']);
+});
+
 it('still sends a Retry-After for a window that already closed', function (): void {
     $response = renderer()->rateLimited(closedRateLimitWindow(), request());
 
