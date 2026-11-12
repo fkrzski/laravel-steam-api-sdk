@@ -6,12 +6,15 @@ use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestFailed;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamRequestSending;
 use Fkrzski\LaravelSteamApiSdk\Events\SteamResponseReceived;
 use Fkrzski\LaravelSteamApiSdk\Facades\Steam;
+use Fkrzski\LaravelSteamApiSdk\SteamServiceProvider;
 use Fkrzski\SteamApiSdk\Exceptions\ApiKeyNotConfiguredException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamApiException;
 use Fkrzski\SteamApiSdk\Exceptions\SteamRateLimitException;
 use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Illuminate\Support\Facades\Event;
 use Saloon\Http\Faking\MockResponse;
+
+mutates(SteamServiceProvider::class);
 
 const STEAM_TRAFFIC_EVENTS = [SteamRequestSending::class, SteamResponseReceived::class, SteamRequestFailed::class];
 
