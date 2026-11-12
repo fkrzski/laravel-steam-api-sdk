@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The "Requests Remaining" row of `about` reads `UNKNOWN` when the class `steam-api.http.sender` names is bound to something other than a `Sender`, where the command threw `UnexpectedValueException` ([#183](https://github.com/fkrzski/laravel-steam-api-sdk/issues/183)).
+
 ## [1.1.1] - 2026-11-11
 
 ### Changed
