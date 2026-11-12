@@ -21,7 +21,7 @@ use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\Response;
 
-mutates(SteamManager::class);
+mutates(SteamManager::class, FakeOutsideTestsException::class);
 
 it('resolves the connector and manager once per container', function (): void {
     expect(app(SteamConnector::class))->toBe(app(SteamConnector::class))
@@ -148,7 +148,11 @@ it('refuses to fake outside the testing environment', function (): void {
     app()->instance('env', 'production');
 
     expect(fn (): MockClient => Steam::fake())
-        ->toThrow(FakeOutsideTestsException::class, 'only available while running tests');
+        ->toThrow(
+            FakeOutsideTestsException::class,
+            'Steam::fake() is only available while running tests. The application environment is '
+            .'not "testing", so the fake was refused rather than left attached to the connector.',
+        );
 });
 
 it("walks an app's news a page at a time", function (): void {

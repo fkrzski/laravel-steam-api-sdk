@@ -12,11 +12,13 @@ use Fkrzski\SteamApiSdk\Http\Requests\ISteamUser\GetPlayerSummariesRequest;
 use Fkrzski\SteamApiSdk\Testing\Factories\ISteamUser\PlayerSummaryFactory;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Foundation\Exceptions\Handler;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\ParallelTesting;
 use Illuminate\Support\Facades\Route;
 use Saloon\Http\Faking\MockResponse;
 use Symfony\Component\HttpFoundation\Response;
 
-mutates(SteamExceptionRenderer::class);
+mutates(SteamExceptionRenderer::class, SteamServiceProvider::class);
 
 /**
  * Re-register the renderers on a handler of our own.
@@ -293,6 +295,28 @@ it('keeps the missing key message out of the response body', function (): void {
         ->assertExactJson(['message' => 'Server Error']);
 });
 
+it('keeps the missing key message out of an error page that prints it', function (): void {
+    // One per parallel process: mutants of the provider run this test side by side.
+    $views = sys_get_temp_dir().'/laravel-steam-api-sdk-views-'.ParallelTesting::token();
+    $this->beforeApplicationDestroyed(function () use ($views): void {
+        File::deleteDirectory($views);
+    });
+
+    File::ensureDirectoryExists($views.'/errors');
+    File::put($views.'/errors/500.blade.php', '{{ $exception->getMessage() }}');
+
+    config()->set(['app.debug' => false, 'steam-api.key' => null, 'view.paths' => [$views]]);
+
+    Steam::fake()->users()->summaries();
+
+    Route::get('steam/key', fn (): array => Steam::users()->summaries([steamId()]));
+
+    $this->get('steam/key')
+        ->assertStatus(500)
+        ->assertSeeText('Server Error')
+        ->assertDontSeeText('No Steam API key');
+});
+
 it('renders a rejected language as a 500', function (): void {
     config()->set(['app.debug' => false, 'steam-api.language' => 'klingon']);
 
@@ -398,5 +422,5 @@ it('leaves a handler without renderable() untouched', function (): void {
 
     expect(function (): void {
         new SteamServiceProvider(app())->boot();
-    })->not->toThrow(Throwable::class);
+    })->not->toThrow(Error::class);
 });

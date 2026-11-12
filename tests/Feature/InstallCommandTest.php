@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Fkrzski\LaravelSteamApiSdk\Console\InstallCommand;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\ParallelTesting;
 
 mutates(InstallCommand::class);
 
@@ -13,11 +14,12 @@ const REPLACE_QUESTION = 'STEAM_API_KEY is already set in .env. Replace it?';
 
 /**
  * A throwaway application directory: the command must not write into the
- * testbench skeleton, which parallel test processes boot out of.
+ * testbench skeleton, which parallel test processes boot out of. One per
+ * process, since mutants of the command run this file side by side.
  */
 function installDirectory(): string
 {
-    return sys_get_temp_dir().'/laravel-steam-api-sdk-install';
+    return sys_get_temp_dir().'/laravel-steam-api-sdk-install-'.ParallelTesting::token();
 }
 
 function envFile(): string
