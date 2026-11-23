@@ -15,7 +15,7 @@ jobs:
       fail-fast: true
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        php: [8.5]
+        php: [8.5, 8.6]
         dependency-version: [prefer-lowest, prefer-stable]
         include:
           - os: ubuntu-latest
@@ -26,6 +26,13 @@ jobs:
           # causing flaky rename() "Access is denied" errors. Run serially there.
           - os: windows-latest
             parallel: ''
+          # pcov doesn't build on PHP 8.6 yet (krakjoe/pcov#134), so the coverage gate stays on 8.5.
+          - php: 8.5
+            coverage: pcov
+            gate: '--coverage --exactly=100'
+          - php: 8.6
+            coverage: none
+            gate: ''
 
     name: Tests P${{ matrix.php }} - ${{ matrix.os }} - ${{ matrix.dependency-version }}
 
@@ -39,7 +46,7 @@ jobs:
       uses: shivammathur/cache-extensions@695b1b465eba861efe67cbbc31252c27f5ed253d # 1.15.11
       with:
         php-version: ${{ matrix.php }}
-        extensions: dom, mbstring, zip, fileinfo, pcov
+        extensions: dom, mbstring, zip, fileinfo${{ matrix.coverage == 'pcov' && ', pcov' || '' }}
         key: php-extensions-v1
 
     - name: Cache extensions
@@ -54,7 +61,7 @@ jobs:
       with:
         php-version: ${{ matrix.php }}
         extensions: dom, mbstring, zip, fileinfo
-        coverage: pcov
+        coverage: ${{ matrix.coverage }}
 
     - name: Get Composer cache directory
       id: composer-cache
@@ -72,7 +79,7 @@ jobs:
       run: composer update --${{ matrix.dependency-version }} --no-interaction --prefer-dist
 
     - name: Unit Tests
-      run: vendor/bin/pest --ci ${{ matrix.parallel }} --coverage --exactly=100
+      run: vendor/bin/pest --ci ${{ matrix.parallel }} ${{ matrix.gate }}
 
   mutation:
     runs-on: ubuntu-latest
